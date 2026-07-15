@@ -134,12 +134,10 @@ let currentDecision = null;
 let activeRecordId = null;
 let suppressPresetChange = false;
 
-let pendingImageBlob = null;
-let pendingImageUrl = null;
-let editingImageBlob = null;
-let editingImageUrl = null;
-let storedImageUrl = null;
-let removeStoredImageRequested = false;
+let pendingImageBlobs = [];
+let pendingImageUrls = [];
+let editingImageBlobs = [];
+let editingImageUrls = [];
 
 function isTransition(stateName) {
   return STATES[stateName]?.type === "transition";
@@ -1480,9 +1478,32 @@ function openImageDatabase() {
   });
 }
 
-async function putImage(recordId, blob) {
+function normalizeStoredImages(value) {
+  if (!value) return [];
+
+  if (value instanceof Blob) {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.filter(
+      (item) => item instanceof Blob
+    );
+  }
+
+  return [];
+}
+
+async function putImages(recordId, blobs) {
   const database =
     await openImageDatabase();
+
+  const safeBlobs =
+    Array.isArray(blobs)
+      ? blobs.filter(
+          (item) => item instanceof Blob
+        )
+      : [];
 
   return new Promise((resolve, reject) => {
     const transaction =
@@ -1493,7 +1514,7 @@ async function putImage(recordId, blob) {
 
     transaction
       .objectStore(IMAGE_STORE)
-      .put(blob, recordId);
+      .put(safeBlobs, recordId);
 
     transaction.oncomplete = () => {
       database.close();
@@ -1507,7 +1528,7 @@ async function putImage(recordId, blob) {
   });
 }
 
-async function getImage(recordId) {
+async function getImages(recordId) {
   const database =
     await openImageDatabase();
 
@@ -1524,7 +1545,11 @@ async function getImage(recordId) {
 
     request.onsuccess = () => {
       database.close();
-      resolve(request.result || null);
+      resolve(
+        normalizeStoredImages(
+          request.result
+        )
+      );
     };
 
     request.onerror = () => {
@@ -1534,7 +1559,7 @@ async function getImage(recordId) {
   });
 }
 
-async function deleteImage(recordId) {
+async function deleteImages(recordId) {
   const database =
     await openImageDatabase();
 
@@ -1618,112 +1643,197 @@ function compressImage(file) {
   });
 }
 
+function revokeObjectUrls(urls) {
+  urls.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // Ignore already-revoked URLs.
+    }
+  });
+}
+
+function renderPendingImageGallery() {
+  revokeObjectUrls(
+    pendingImageUrls
+  );
+
+  pendingImageUrls =
+    pendingImageBlobs.map(
+      (blob) =>
+        URL.createObjectURL(blob)
+    );
+
+  $("pendingImageCount").textContent =
+    `已貼上 ${pendingImageBlobs.length} 張圖片`;
+
+  $("imagePreviewContainer")
+    .classList.toggle(
+      "hidden",
+      pendingImageBlobs.length === 0
+    );
+
+  $("imagePreviewGallery").innerHTML =
+    pendingImageUrls
+      .map(
+        (url, index) => `
+          <div class="multi-image-item">
+            <img
+              src="${url}"
+              alt="Chart screenshot ${index + 1}"
+            >
+            <div class="multi-image-item-actions">
+              <span>圖片 ${index + 1}</span>
+              <button
+                type="button"
+                class="danger-button mini-button"
+                data-remove-pending-image="${index}"
+              >移除</button>
+            </div>
+          </div>
+        `
+      )
+      .join("");
+}
+
 function clearPendingImage() {
-  pendingImageBlob = null;
+  revokeObjectUrls(
+    pendingImageUrls
+  );
+  pendingImageUrls = [];
+  pendingImageBlobs = [];
 
-  if (pendingImageUrl) {
-    URL.revokeObjectURL(pendingImageUrl);
-    pendingImageUrl = null;
-  }
-
-  $("imagePreview").removeAttribute("src");
+  $("imagePreviewGallery").innerHTML =
+    "";
+  $("pendingImageCount").textContent =
+    "已貼上 0 張圖片";
   $("imagePreviewContainer")
     .classList.add("hidden");
 }
 
-function clipboardImageFromPasteEvent(event) {
+function removePendingImageAt(index) {
+  if (
+    index < 0 ||
+    index >= pendingImageBlobs.length
+  ) {
+    return;
+  }
+
+  pendingImageBlobs.splice(
+    index,
+    1
+  );
+
+  renderPendingImageGallery();
+}
+
+function clipboardImagesFromPasteEvent(event) {
   const items =
     event.clipboardData?.items || [];
+  const images = [];
 
   for (const item of items) {
     if (
       item.kind === "file" &&
       item.type.startsWith("image/")
     ) {
-      return item.getAsFile();
+      const file =
+        item.getAsFile();
+
+      if (file) {
+        images.push(file);
+      }
     }
   }
 
-  return null;
+  return images;
 }
 
-async function readImageFromSystemClipboard() {
+async function readImagesFromSystemClipboard() {
   if (
     !navigator.clipboard ||
-    typeof navigator.clipboard.read !== "function"
+    typeof navigator.clipboard.read !==
+      "function"
   ) {
-    return null;
+    return [];
   }
 
   const clipboardItems =
     await navigator.clipboard.read();
+  const images = [];
 
   for (const item of clipboardItems) {
-    const imageType =
-      item.types.find(
-        (type) =>
-          type.startsWith("image/")
-      );
-
-    if (imageType) {
-      return await item.getType(
-        imageType
-      );
+    for (const type of item.types) {
+      if (
+        type.startsWith("image/")
+      ) {
+        images.push(
+          await item.getType(type)
+        );
+      }
     }
   }
 
-  return null;
+  return images;
 }
 
-async function setPendingImageBlob(blob) {
-  if (!blob) {
+async function addPendingImageBlobs(blobs) {
+  const validBlobs =
+    (Array.isArray(blobs)
+      ? blobs
+      : [blobs]
+    ).filter(
+      (blob) =>
+        blob instanceof Blob
+    );
+
+  if (validBlobs.length === 0) {
     showToast(
       "剪貼簿入面搵唔到圖片"
     );
     return;
   }
 
-  pendingImageBlob =
-    await compressImage(blob);
-
-  if (pendingImageUrl) {
-    URL.revokeObjectURL(
-      pendingImageUrl
-    );
-  }
-
-  pendingImageUrl =
-    URL.createObjectURL(
-      pendingImageBlob
+  const compressed =
+    await Promise.all(
+      validBlobs.map(
+        (blob) =>
+          compressImage(blob)
+      )
     );
 
-  $("imagePreview").src =
-    pendingImageUrl;
-  $("imagePreviewContainer")
-    .classList.remove("hidden");
+  pendingImageBlobs.push(
+    ...compressed
+  );
+
+  renderPendingImageGallery();
 
   showToast(
-    "圖片已貼上，儲存紀錄時會一併保存"
+    `已新增 ${compressed.length} 張圖片；目前共 ${pendingImageBlobs.length} 張`
   );
 }
 
 async function handlePendingImagePaste(event) {
   event.preventDefault();
 
-  const blob =
-    clipboardImageFromPasteEvent(
+  const blobs =
+    clipboardImagesFromPasteEvent(
       event
     );
 
-  await setPendingImageBlob(blob);
+  await addPendingImageBlobs(
+    blobs
+  );
 }
 
 async function pastePendingImageFromClipboard() {
   try {
-    const blob =
-      await readImageFromSystemClipboard();
+    const blobs =
+      await readImagesFromSystemClipboard();
 
-    await setPendingImageBlob(blob);
+    await addPendingImageBlobs(
+      blobs
+    );
   } catch (error) {
     console.error(
       "Clipboard image read failed:",
@@ -1773,7 +1883,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.6",
+      "PracticeJournal-V1.8",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.2",
 
@@ -1890,7 +2000,9 @@ async function saveDecision(event) {
     reachedTP2:
       $("reachedTP2").value,
     hasImage:
-      Boolean(pendingImageBlob),
+      pendingImageBlobs.length > 0,
+    imageCount:
+      pendingImageBlobs.length,
 
     checklistSummary:
       checklistSummary(),
@@ -1902,11 +2014,11 @@ async function saveDecision(event) {
   records.unshift(record);
   saveRecords(records);
 
-  if (pendingImageBlob) {
+  if (pendingImageBlobs.length > 0) {
     try {
-      await putImage(
+      await putImages(
         recordId,
-        pendingImageBlob
+        pendingImageBlobs
       );
     } catch (error) {
       console.error(
@@ -1915,6 +2027,7 @@ async function saveDecision(event) {
       );
 
       record.hasImage = false;
+      record.imageCount = 0;
       saveRecords(records);
       renderHistory();
       showToast(
@@ -2079,9 +2192,16 @@ function renderHistory() {
           ? `${record.profitR}R`
           : "未填R";
 
+      const imageCount =
+        Number.isFinite(record.imageCount)
+          ? record.imageCount
+          : record.hasImage
+            ? 1
+            : 0;
+
       const imageTag =
-        record.hasImage
-          ? '<span class="history-tag">📷 圖片</span>'
+        imageCount > 0
+          ? `<span class="history-tag">📷 ${imageCount}張圖片</span>`
           : "";
 
       const twoBTag =
@@ -2193,27 +2313,69 @@ function renderHistory() {
 }
 
 function clearRecordImageDisplay() {
-  if (storedImageUrl) {
-    URL.revokeObjectURL(
-      storedImageUrl
-    );
-    storedImageUrl = null;
-  }
+  revokeObjectUrls(
+    editingImageUrls
+  );
 
-  if (editingImageUrl) {
-    URL.revokeObjectURL(
-      editingImageUrl
-    );
-    editingImageUrl = null;
-  }
+  editingImageUrls = [];
+  editingImageBlobs = [];
 
-  editingImageBlob = null;
-  removeStoredImageRequested =
-    false;
-  $("recordImage")
-    .removeAttribute("src");
+  $("recordImageGallery").innerHTML =
+    "";
+  $("recordImageCount").textContent =
+    "0 張圖片";
   $("recordImageContainer")
     .classList.add("hidden");
+}
+
+function renderRecordImageGallery() {
+  revokeObjectUrls(
+    editingImageUrls
+  );
+
+  editingImageUrls =
+    editingImageBlobs.map(
+      (blob) =>
+        URL.createObjectURL(blob)
+    );
+
+  $("recordImageCount").textContent =
+    `${editingImageBlobs.length} 張圖片`;
+
+  $("recordImageContainer")
+    .classList.toggle(
+      "hidden",
+      editingImageBlobs.length === 0
+    );
+
+  $("recordImageGallery").innerHTML =
+    editingImageUrls
+      .map(
+        (url, index) => `
+          <div class="multi-image-item">
+            <img
+              src="${url}"
+              alt="Stored chart screenshot ${index + 1}"
+            >
+            <div class="multi-image-item-actions">
+              <span>圖片 ${index + 1}</span>
+              <div class="multi-image-inline-actions">
+                <button
+                  type="button"
+                  class="secondary-button mini-button"
+                  data-download-record-image="${index}"
+                >下載</button>
+                <button
+                  type="button"
+                  class="danger-button mini-button"
+                  data-remove-record-image="${index}"
+                >移除</button>
+              </div>
+            </div>
+          </div>
+        `
+      )
+      .join("");
 }
 
 async function displayRecordImage(
@@ -2222,17 +2384,10 @@ async function displayRecordImage(
   clearRecordImageDisplay();
 
   try {
-    const blob =
-      await getImage(recordId);
+    editingImageBlobs =
+      await getImages(recordId);
 
-    if (!blob) return;
-
-    storedImageUrl =
-      URL.createObjectURL(blob);
-    $("recordImage").src =
-      storedImageUrl;
-    $("recordImageContainer")
-      .classList.remove("hidden");
+    renderRecordImageGallery();
   } catch (error) {
     console.error(
       "Image read failed:",
@@ -2351,6 +2506,15 @@ async function openRecord(recordId) {
     <strong>Asia 2B：</strong>
     ${escapeHtml(twoBText)}
     <br>
+    <strong>圖片數量：</strong>
+    ${escapeHtml(
+      Number.isFinite(record.imageCount)
+        ? record.imageCount
+        : record.hasImage
+          ? 1
+          : 0
+    )}
+    <br>
     <strong>大局障礙：</strong>
     ${escapeHtml(
       obstacleDisplayLabel(
@@ -2401,57 +2565,63 @@ async function openRecord(recordId) {
     .showModal();
 }
 
-async function setEditingImageBlob(blob) {
-  if (!blob) {
+async function addEditingImageBlobs(blobs) {
+  const validBlobs =
+    (Array.isArray(blobs)
+      ? blobs
+      : [blobs]
+    ).filter(
+      (blob) =>
+        blob instanceof Blob
+    );
+
+  if (validBlobs.length === 0) {
     showToast(
       "剪貼簿入面搵唔到圖片"
     );
     return;
   }
 
-  editingImageBlob =
-    await compressImage(blob);
-  removeStoredImageRequested =
-    false;
-
-  if (editingImageUrl) {
-    URL.revokeObjectURL(
-      editingImageUrl
-    );
-  }
-
-  editingImageUrl =
-    URL.createObjectURL(
-      editingImageBlob
+  const compressed =
+    await Promise.all(
+      validBlobs.map(
+        (blob) =>
+          compressImage(blob)
+      )
     );
 
-  $("recordImage").src =
-    editingImageUrl;
-  $("recordImageContainer")
-    .classList.remove("hidden");
+  editingImageBlobs.push(
+    ...compressed
+  );
+
+  renderRecordImageGallery();
 
   showToast(
-    "新圖片已貼上，儲存修改後會取代舊圖"
+    `已新增 ${compressed.length} 張圖片；儲存修改後會保存，目前共 ${editingImageBlobs.length} 張`
   );
 }
 
 async function handleEditingImagePaste(event) {
   event.preventDefault();
 
-  const blob =
-    clipboardImageFromPasteEvent(
+  const blobs =
+    clipboardImagesFromPasteEvent(
       event
     );
 
-  await setEditingImageBlob(blob);
+  await addEditingImageBlobs(
+    blobs
+  );
 }
 
 async function pasteEditingImageFromClipboard() {
   try {
-    const blob =
-      await readImageFromSystemClipboard();
+    const blobs =
+      await readImagesFromSystemClipboard();
 
-    await setEditingImageBlob(blob);
+    await addEditingImageBlobs(
+      blobs
+    );
   } catch (error) {
     console.error(
       "Clipboard image read failed:",
@@ -2466,32 +2636,80 @@ async function pasteEditingImageFromClipboard() {
   }
 }
 
-function requestRemoveStoredImage() {
-  editingImageBlob = null;
-  removeStoredImageRequested =
-    true;
-
-  if (editingImageUrl) {
-    URL.revokeObjectURL(
-      editingImageUrl
-    );
-    editingImageUrl = null;
+function removeEditingImageAt(index) {
+  if (
+    index < 0 ||
+    index >= editingImageBlobs.length
+  ) {
+    return;
   }
 
-  if (storedImageUrl) {
-    URL.revokeObjectURL(
-      storedImageUrl
-    );
-    storedImageUrl = null;
-  }
+  editingImageBlobs.splice(
+    index,
+    1
+  );
 
-  $("recordImage")
-    .removeAttribute("src");
-  $("recordImageContainer")
-    .classList.add("hidden");
+  renderRecordImageGallery();
 
   showToast(
-    "儲存修改後會移除圖片"
+    "圖片已由編輯清單移除；儲存修改後正式生效"
+  );
+}
+
+function requestRemoveStoredImage() {
+  editingImageBlobs = [];
+  renderRecordImageGallery();
+
+  showToast(
+    "已移除全部圖片；儲存修改後正式生效"
+  );
+}
+
+function triggerImageDownload(
+  blob,
+  filename
+) {
+  const url =
+    URL.createObjectURL(blob);
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+
+  document.body
+    .appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(
+    () =>
+      URL.revokeObjectURL(url),
+    1000
+  );
+}
+
+function downloadEditingImageAt(index) {
+  const blob =
+    editingImageBlobs[index];
+
+  if (!blob) {
+    showToast(
+      "搵唔到呢張圖片"
+    );
+    return;
+  }
+
+  const record =
+    loadRecords().find(
+      (item) =>
+        item.id ===
+        activeRecordId
+    );
+
+  triggerImageDownload(
+    blob,
+    `${record?.symbol || "Trade"}-${activeRecordId}-image-${index + 1}.jpg`
   );
 }
 
@@ -2528,27 +2746,29 @@ async function saveRecordEdit() {
     $("editNote").value.trim();
 
   try {
-    if (editingImageBlob) {
-      await putImage(
-        activeRecordId,
-        editingImageBlob
-      );
-      records[index].hasImage =
-        true;
-    } else if (
-      removeStoredImageRequested
+    if (
+      editingImageBlobs.length > 0
     ) {
-      await deleteImage(
+      await putImages(
+        activeRecordId,
+        editingImageBlobs
+      );
+    } else {
+      await deleteImages(
         activeRecordId
       );
-      records[index].hasImage =
-        false;
     }
+
+    records[index].hasImage =
+      editingImageBlobs.length > 0;
+    records[index].imageCount =
+      editingImageBlobs.length;
   } catch (error) {
     console.error(
       "Image update failed:",
       error
     );
+
     showToast(
       "圖片修改失敗，文字資料未變"
     );
@@ -2566,7 +2786,7 @@ async function deleteActiveRecord() {
   if (!activeRecordId) return;
 
   const confirmed = confirm(
-    "確定刪除呢筆紀錄？文字同圖片都會刪除。"
+    "確定刪除呢筆紀錄？文字同全部圖片都會刪除。"
   );
 
   if (!confirmed) return;
@@ -2581,7 +2801,7 @@ async function deleteActiveRecord() {
   saveRecords(remaining);
 
   try {
-    await deleteImage(
+    await deleteImages(
       activeRecordId
     );
   } catch (error) {
@@ -2600,49 +2820,39 @@ async function deleteActiveRecord() {
 async function downloadActiveRecordImage() {
   if (!activeRecordId) return;
 
-  try {
-    const blob =
-      editingImageBlob ||
-      await getImage(
-        activeRecordId
-      );
-
-    if (!blob) {
-      showToast(
-        "呢筆紀錄冇圖片"
-      );
-      return;
-    }
-
-    const url =
-      URL.createObjectURL(blob);
-    const link =
-      document.createElement("a");
-    const record =
-      loadRecords().find(
-        (item) =>
-          item.id ===
-          activeRecordId
-      );
-
-    link.href = url;
-    link.download =
-      `${record?.symbol || "Trade"}-${activeRecordId}.jpg`;
-
-    document.body
-      .appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error(
-      "Image download failed:",
-      error
-    );
+  if (
+    editingImageBlobs.length === 0
+  ) {
     showToast(
-      "下載圖片失敗"
+      "呢筆紀錄冇圖片"
     );
+    return;
   }
+
+  const record =
+    loadRecords().find(
+      (item) =>
+        item.id ===
+        activeRecordId
+    );
+
+  editingImageBlobs.forEach(
+    (blob, index) => {
+      setTimeout(
+        () => {
+          triggerImageDownload(
+            blob,
+            `${record?.symbol || "Trade"}-${activeRecordId}-image-${index + 1}.jpg`
+          );
+        },
+        index * 180
+      );
+    }
+  );
+
+  showToast(
+    `開始下載 ${editingImageBlobs.length} 張圖片`
+  );
 }
 
 function csvEscape(value) {
@@ -2655,16 +2865,7 @@ function csvEscape(value) {
   return `"${string.replaceAll('"', '""')}"`;
 }
 
-function exportCsv() {
-  const records = loadRecords();
-
-  if (records.length === 0) {
-    showToast(
-      "未有紀錄可以匯出"
-    );
-    return;
-  }
-
+function buildCsv(records) {
   const headers = [
     "交易日期",
     "建立時間",
@@ -2713,6 +2914,7 @@ function exportCsv() {
     "去到RF",
     "去到TP2",
     "有圖片",
+    "圖片數量",
     "方向偏見標籤",
     "情緒加注標籤",
     "Checklist",
@@ -2803,6 +3005,11 @@ function exportCsv() {
       record.hasImage
         ? "Yes"
         : "No",
+      Number.isFinite(record.imageCount)
+        ? record.imageCount
+        : record.hasImage
+          ? 1
+          : 0,
       record.loosenedTriggerBecauseBias
         ? "Yes"
         : "No",
@@ -2813,15 +3020,50 @@ function exportCsv() {
       record.note || ""
     ]);
 
+
+  return [headers, ...rows]
+    .map(
+      (row) =>
+        row
+          .map(csvEscape)
+          .join(",")
+    )
+    .join("\n");
+}
+
+function downloadBlob(blob, filename) {
+  const url =
+    URL.createObjectURL(blob);
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+
+  document.body
+    .appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(
+    () =>
+      URL.revokeObjectURL(url),
+    1000
+  );
+}
+
+function exportCsv() {
+  const records = loadRecords();
+
+  if (records.length === 0) {
+    showToast(
+      "未有紀錄可以匯出"
+    );
+    return;
+  }
+
   const csv =
-    [headers, ...rows]
-      .map(
-        (row) =>
-          row
-            .map(csvEscape)
-            .join(",")
-      )
-      .join("\n");
+    buildCsv(records);
 
   const blob =
     new Blob(
@@ -2832,26 +3074,584 @@ function exportCsv() {
       }
     );
 
-  const url =
-    URL.createObjectURL(blob);
-  const link =
-    document.createElement("a");
-
-  link.href = url;
-  link.download =
+  downloadBlob(
+    blob,
     `MasterTrade-V3_2-Journal-${new Date()
       .toISOString()
-      .slice(0, 10)}.csv`;
-
-  document.body
-    .appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+      .slice(0, 10)}.csv`
+  );
 
   showToast(
-    "CSV已匯出；圖片需要另外下載"
+    "CSV已匯出"
   );
+}
+
+const ZIP_CRC_TABLE = (() => {
+  const table =
+    new Uint32Array(256);
+
+  for (
+    let number = 0;
+    number < 256;
+    number += 1
+  ) {
+    let value = number;
+
+    for (
+      let bit = 0;
+      bit < 8;
+      bit += 1
+    ) {
+      value =
+        value & 1
+          ? 0xEDB88320 ^
+            (value >>> 1)
+          : value >>> 1;
+    }
+
+    table[number] =
+      value >>> 0;
+  }
+
+  return table;
+})();
+
+function crc32(bytes) {
+  let crc = 0xFFFFFFFF;
+
+  for (const byte of bytes) {
+    crc =
+      ZIP_CRC_TABLE[
+        (crc ^ byte) & 0xFF
+      ] ^
+      (crc >>> 8);
+  }
+
+  return (
+    crc ^ 0xFFFFFFFF
+  ) >>> 0;
+}
+
+function concatUint8Arrays(parts) {
+  const totalLength =
+    parts.reduce(
+      (sum, part) =>
+        sum + part.length,
+      0
+    );
+
+  const result =
+    new Uint8Array(
+      totalLength
+    );
+
+  let offset = 0;
+
+  for (const part of parts) {
+    result.set(
+      part,
+      offset
+    );
+    offset += part.length;
+  }
+
+  return result;
+}
+
+function dosDateTime(date = new Date()) {
+  const year =
+    Math.max(
+      1980,
+      date.getFullYear()
+    );
+
+  const dosDate =
+    ((year - 1980) << 9) |
+    ((date.getMonth() + 1) << 5) |
+    date.getDate();
+
+  const dosTime =
+    (date.getHours() << 11) |
+    (date.getMinutes() << 5) |
+    Math.floor(
+      date.getSeconds() / 2
+    );
+
+  return {
+    dosDate,
+    dosTime
+  };
+}
+
+async function toUint8Array(value) {
+  if (
+    value instanceof Uint8Array
+  ) {
+    return value;
+  }
+
+  if (
+    value instanceof ArrayBuffer
+  ) {
+    return new Uint8Array(
+      value
+    );
+  }
+
+  if (value instanceof Blob) {
+    return new Uint8Array(
+      await value.arrayBuffer()
+    );
+  }
+
+  return new TextEncoder()
+    .encode(
+      String(value ?? "")
+    );
+}
+
+async function buildStoredZip(entries) {
+  const localParts = [];
+  const centralParts = [];
+  let localOffset = 0;
+  let centralSize = 0;
+
+  for (const entry of entries) {
+    const nameBytes =
+      new TextEncoder()
+        .encode(entry.name);
+
+    const data =
+      await toUint8Array(
+        entry.data
+      );
+
+    const crc =
+      crc32(data);
+
+    const {
+      dosDate,
+      dosTime
+    } = dosDateTime(
+      entry.date ||
+      new Date()
+    );
+
+    const localHeader =
+      new Uint8Array(
+        30 + nameBytes.length
+      );
+
+    const localView =
+      new DataView(
+        localHeader.buffer
+      );
+
+    localView.setUint32(
+      0,
+      0x04034B50,
+      true
+    );
+    localView.setUint16(
+      4,
+      20,
+      true
+    );
+    localView.setUint16(
+      6,
+      0x0800,
+      true
+    );
+    localView.setUint16(
+      8,
+      0,
+      true
+    );
+    localView.setUint16(
+      10,
+      dosTime,
+      true
+    );
+    localView.setUint16(
+      12,
+      dosDate,
+      true
+    );
+    localView.setUint32(
+      14,
+      crc,
+      true
+    );
+    localView.setUint32(
+      18,
+      data.length,
+      true
+    );
+    localView.setUint32(
+      22,
+      data.length,
+      true
+    );
+    localView.setUint16(
+      26,
+      nameBytes.length,
+      true
+    );
+    localView.setUint16(
+      28,
+      0,
+      true
+    );
+    localHeader.set(
+      nameBytes,
+      30
+    );
+
+    localParts.push(
+      localHeader,
+      data
+    );
+
+    const centralHeader =
+      new Uint8Array(
+        46 + nameBytes.length
+      );
+
+    const centralView =
+      new DataView(
+        centralHeader.buffer
+      );
+
+    centralView.setUint32(
+      0,
+      0x02014B50,
+      true
+    );
+    centralView.setUint16(
+      4,
+      20,
+      true
+    );
+    centralView.setUint16(
+      6,
+      20,
+      true
+    );
+    centralView.setUint16(
+      8,
+      0x0800,
+      true
+    );
+    centralView.setUint16(
+      10,
+      0,
+      true
+    );
+    centralView.setUint16(
+      12,
+      dosTime,
+      true
+    );
+    centralView.setUint16(
+      14,
+      dosDate,
+      true
+    );
+    centralView.setUint32(
+      16,
+      crc,
+      true
+    );
+    centralView.setUint32(
+      20,
+      data.length,
+      true
+    );
+    centralView.setUint32(
+      24,
+      data.length,
+      true
+    );
+    centralView.setUint16(
+      28,
+      nameBytes.length,
+      true
+    );
+    centralView.setUint16(
+      30,
+      0,
+      true
+    );
+    centralView.setUint16(
+      32,
+      0,
+      true
+    );
+    centralView.setUint16(
+      34,
+      0,
+      true
+    );
+    centralView.setUint16(
+      36,
+      0,
+      true
+    );
+    centralView.setUint32(
+      38,
+      0,
+      true
+    );
+    centralView.setUint32(
+      42,
+      localOffset,
+      true
+    );
+    centralHeader.set(
+      nameBytes,
+      46
+    );
+
+    centralParts.push(
+      centralHeader
+    );
+
+    localOffset +=
+      localHeader.length +
+      data.length;
+
+    centralSize +=
+      centralHeader.length;
+  }
+
+  const endRecord =
+    new Uint8Array(22);
+  const endView =
+    new DataView(
+      endRecord.buffer
+    );
+
+  endView.setUint32(
+    0,
+    0x06054B50,
+    true
+  );
+  endView.setUint16(
+    4,
+    0,
+    true
+  );
+  endView.setUint16(
+    6,
+    0,
+    true
+  );
+  endView.setUint16(
+    8,
+    entries.length,
+    true
+  );
+  endView.setUint16(
+    10,
+    entries.length,
+    true
+  );
+  endView.setUint32(
+    12,
+    centralSize,
+    true
+  );
+  endView.setUint32(
+    16,
+    localOffset,
+    true
+  );
+  endView.setUint16(
+    20,
+    0,
+    true
+  );
+
+  return new Blob(
+    [
+      concatUint8Arrays(
+        localParts
+      ),
+      concatUint8Arrays(
+        centralParts
+      ),
+      endRecord
+    ],
+    {
+      type:
+        "application/zip"
+    }
+  );
+}
+
+function safeZipSegment(value) {
+  const cleaned =
+    String(value ?? "")
+      .trim()
+      .replace(
+        /[\\/:*?"<>|\x00-\x1F]/g,
+        "_"
+      )
+      .replace(
+        /\s+/g,
+        "_"
+      );
+
+  return (
+    cleaned ||
+    "unknown"
+  ).slice(
+    0,
+    80
+  );
+}
+
+function imageExtension(blob) {
+  if (
+    blob.type ===
+    "image/png"
+  ) {
+    return "png";
+  }
+
+  if (
+    blob.type ===
+    "image/webp"
+  ) {
+    return "webp";
+  }
+
+  return "jpg";
+}
+
+async function exportBackupZip() {
+  const records = loadRecords();
+
+  if (records.length === 0) {
+    showToast(
+      "未有紀錄可以匯出"
+    );
+    return;
+  }
+
+  $("exportBackupZip").disabled =
+    true;
+  $("exportBackupZip").textContent =
+    "整理緊…";
+
+  try {
+    showToast(
+      "正在整理CSV同照片…"
+    );
+
+    const csv =
+      buildCsv(records);
+
+    const entries = [
+      {
+        name:
+          "trades.csv",
+        data:
+          `\uFEFF${csv}`
+      }
+    ];
+
+    let totalImages = 0;
+
+    for (
+      const record of records
+    ) {
+      const images =
+        await getImages(
+          record.id
+        );
+
+      if (
+        images.length === 0
+      ) {
+        continue;
+      }
+
+      const folder =
+        [
+          safeZipSegment(
+            recordTradeDate(record)
+          ),
+          safeZipSegment(
+            record.symbol
+          ),
+          safeZipSegment(
+            record.id
+          )
+        ].join("_");
+
+      images.forEach(
+        (blob, index) => {
+          totalImages += 1;
+
+          entries.push({
+            name:
+              `images/${folder}/image-${index + 1}.${imageExtension(blob)}`,
+            data:
+              blob
+          });
+        }
+      );
+    }
+
+    const backupInfo = [
+      "Master Trade Practice & Live Journal Backup",
+      "",
+      `Exported: ${new Date().toISOString()}`,
+      `Records: ${records.length}`,
+      `Images: ${totalImages}`,
+      "",
+      "trades.csv contains the journal records.",
+      "images/ contains chart screenshots grouped by trade date, symbol and record ID."
+    ].join("\n");
+
+    entries.push({
+      name:
+        "backup-info.txt",
+      data:
+        backupInfo
+    });
+
+    const zipBlob =
+      await buildStoredZip(
+        entries
+      );
+
+    downloadBlob(
+      zipBlob,
+      `MasterTrade-V3_2-Backup-${new Date()
+        .toISOString()
+        .slice(0, 10)}.zip`
+    );
+
+    showToast(
+      `已匯出ZIP：${records.length}筆紀錄＋${totalImages}張圖片`
+    );
+  } catch (error) {
+    console.error(
+      "Backup ZIP export failed:",
+      error
+    );
+
+    showToast(
+      "ZIP匯出失敗，請再試一次"
+    );
+  } finally {
+    $("exportBackupZip").disabled =
+      false;
+    $("exportBackupZip").textContent =
+      "匯出CSV＋照片 ZIP";
+  }
 }
 
 function setupTabs() {
@@ -3022,6 +3822,26 @@ function setupEvents() {
       clearPendingImage
     );
 
+  $("imagePreviewGallery")
+    .addEventListener(
+      "click",
+      (event) => {
+        const button =
+          event.target.closest(
+            "[data-remove-pending-image]"
+          );
+
+        if (!button) return;
+
+        removePendingImageAt(
+          Number(
+            button.dataset
+              .removePendingImage
+          )
+        );
+      }
+    );
+
   $("historyModeFilter")
     .addEventListener(
       "change",
@@ -3038,6 +3858,12 @@ function setupEvents() {
     .addEventListener(
       "click",
       exportCsv
+    );
+
+  $("exportBackupZip")
+    .addEventListener(
+      "click",
+      exportBackupZip
     );
 
   $("saveRecordEdit")
@@ -3074,6 +3900,41 @@ function setupEvents() {
     .addEventListener(
       "click",
       downloadActiveRecordImage
+    );
+
+  $("recordImageGallery")
+    .addEventListener(
+      "click",
+      (event) => {
+        const removeButton =
+          event.target.closest(
+            "[data-remove-record-image]"
+          );
+
+        if (removeButton) {
+          removeEditingImageAt(
+            Number(
+              removeButton.dataset
+                .removeRecordImage
+            )
+          );
+          return;
+        }
+
+        const downloadButton =
+          event.target.closest(
+            "[data-download-record-image]"
+          );
+
+        if (downloadButton) {
+          downloadEditingImageAt(
+            Number(
+              downloadButton.dataset
+                .downloadRecordImage
+            )
+          );
+        }
+      }
     );
 
   $("recordDialog")

@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade Practice & Live Journal V1.6",
+  "name": "Master Trade Practice & Live Journal V1.8",
   "short_name": "Trade Journal",
-  "description": "Practice and live trading journal using Master Trade Decision Matrix V3.2 with combined main-secondary deployment guidance and clipboard image paste.",
+  "description": "Practice and live trading journal using Master Trade Decision Matrix V3.2 with multi-image chart screenshots and ZIP backup export containing CSV and photos.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -10,13 +10,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "./icons/icon-192.png",
+      "src": "./icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icons/icon-512.png",
+      "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Trade Journal">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
   <link rel="stylesheet" href="./styles.css">
   <title>Master Trade Practice & Live Journal</title>
 </head>
@@ -19,7 +19,7 @@
       <h1>Practice & Live Journal</h1>
       <p class="header-subtitle">Decision Matrix V3.2</p>
     </div>
-    <span class="version-badge">V1.6</span>
+    <span class="version-badge">V1.8</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -450,12 +450,15 @@
           </div>
 
           <div id="imagePreviewContainer" class="image-preview hidden">
-            <img id="imagePreview" alt="Chart screenshot preview">
-            <button id="removePendingImage" type="button" class="secondary-button">移除圖片</button>
+            <div class="image-gallery-header">
+              <strong id="pendingImageCount">已貼上 0 張圖片</strong>
+              <button id="removePendingImage" type="button" class="secondary-button">移除全部圖片</button>
+            </div>
+            <div id="imagePreviewGallery" class="multi-image-gallery"></div>
           </div>
 
           <p class="state-note">
-            圖片貼上後會自動縮細再儲存在呢部裝置。CSV只會標示有冇圖片，唔會將圖片放入CSV。
+            可以連續貼上多張圖片；每次貼上會新增圖片而唔會覆蓋之前嗰張。圖片會自動縮細後儲存在呢部裝置。CSV只會記錄圖片數量，唔會將圖片放入CSV。
           </p>
 
           <label>
@@ -472,7 +475,10 @@
       <article class="card">
         <div class="section-heading">
           <h2>紀錄庫與統計</h2>
-          <button id="exportCsv" class="secondary-button">匯出CSV</button>
+          <div class="export-actions">
+            <button id="exportCsv" class="secondary-button">匯出CSV</button>
+            <button id="exportBackupZip" class="secondary-button">匯出CSV＋照片 ZIP</button>
+          </div>
         </div>
 
         <div class="summary-grid stats-grid">
@@ -610,11 +616,14 @@
       <div id="recordDetails" class="record-details"></div>
 
       <div id="recordImageContainer" class="record-image hidden">
-        <img id="recordImage" alt="Stored chart screenshot">
-        <div class="image-actions">
-          <button id="downloadRecordImage" type="button" class="secondary-button">下載圖片</button>
-          <button id="removeStoredImage" type="button" class="danger-button">移除圖片</button>
+        <div class="image-gallery-header">
+          <strong id="recordImageCount">0 張圖片</strong>
+          <div class="image-actions">
+            <button id="downloadRecordImage" type="button" class="secondary-button">下載全部圖片</button>
+            <button id="removeStoredImage" type="button" class="danger-button">移除全部圖片</button>
+          </div>
         </div>
+        <div id="recordImageGallery" class="multi-image-gallery"></div>
       </div>
 
       <label>

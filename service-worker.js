@@ -1,12 +1,12 @@
-const CACHE_NAME = "master-trade-practice-journal-v1-6-matrix-v3-2";
+const CACHE_NAME = "master-trade-practice-journal-v1-8-matrix-v3-2";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
