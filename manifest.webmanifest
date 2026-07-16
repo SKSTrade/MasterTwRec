@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade Practice & Live Journal V1.8",
+  "name": "Master Trade Practice & Live Journal V1.9",
   "short_name": "Trade Journal",
-  "description": "Practice and live trading journal using Master Trade Decision Matrix V3.2 with multi-image chart screenshots and ZIP backup export containing CSV and photos.",
+  "description": "Practice and live trading journal using Master Trade Decision Matrix V3.2 with N/A outcome tracking, 15M FX preset, updated P2 definition and 4-of-5 Asia 2B grading.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

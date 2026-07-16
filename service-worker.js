@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-practice-journal-v1-8-matrix-v3-2";
+const CACHE_NAME = "master-trade-practice-journal-v1-9-matrix-v3-2";
 const ASSETS = [
   "./",
   "./index.html",

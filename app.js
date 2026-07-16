@@ -97,7 +97,7 @@ const POSITION_INFO = {
   },
   P2: {
     title: "A級工作位置",
-    note: "次判主結、主判次結、次判重要區間邊界、普通工作結構突破接受後首次回測、impulse origin／swap zone，以及結構位置＋Asia／OPR／PDH／PDL。"
+    note: "次判主結、主判次結、次判重要區間邊界、會改變主判／次判市場狀態嘅突破回測、普通工作結構突破接受後首次回測、impulse origin／swap zone，以及結構位置＋Asia／OPR／PDH／PDL。"
   },
   P3: {
     title: "次級位置",
@@ -181,7 +181,7 @@ function applyTimeframePreset(value) {
     $("backgroundTimeframe").value = "D";
     $("mainTimeframe").value = "4H";
     $("secondaryTimeframe").value = "1H";
-    $("entryTimeframe").value = "5M";
+    $("entryTimeframe").value = "15M";
   } else if (value === "hsi1m") {
     $("backgroundTimeframe").value = "4H";
     $("mainTimeframe").value = "1H";
@@ -572,7 +572,7 @@ function evaluateAsia2B(baseTrigger) {
   const highQuality =
     active &&
     directionMatches &&
-    criteriaCount === 5;
+    criteriaCount >= 4;
 
   const basePosition = $("positionLevel").value;
   const structureOverlap = checked("asia2BStructureOverlap");
@@ -614,7 +614,7 @@ function evaluateAsia2B(baseTrigger) {
   if (!directionMatches) {
     warnings.push(`${label}同實際交易方向唔一致，所以唔提供升格。`);
   } else if (!highQuality) {
-    warnings.push(`${label}只符合${criteriaCount}/5項高質條件，未達自動升格標準。`);
+    warnings.push(`${label}只符合${criteriaCount}/5項高質條件；最少要4/5先達高質升格標準。`);
   }
 
   if (highQuality && baseTrigger.quality === "Q2") {
@@ -1142,7 +1142,7 @@ function renderAsia2B(result) {
 
   $("asia2BQuality").textContent =
     result.highQuality
-      ? "高質｜5/5"
+      ? `高質｜${result.criteriaCount}/5`
       : `未達高質｜${result.criteriaCount}/5`;
 
   $("asia2BPositionEffect").textContent =
@@ -1883,7 +1883,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.8",
+      "PracticeJournal-V1.9",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.2",
 
@@ -2125,30 +2125,46 @@ function renderHistory() {
       "未有資料";
   }
 
-  if (allRecords.length > 0) {
+  const rfApplicable =
+    allRecords.filter(
+      (record) =>
+        record.reachedRF !== "N/A"
+    );
+
+  const tp2Applicable =
+    allRecords.filter(
+      (record) =>
+        record.reachedTP2 !== "N/A"
+    );
+
+  if (rfApplicable.length > 0) {
     const rfRate =
-      allRecords.filter(
+      rfApplicable.filter(
         (record) =>
           record.reachedRF === "Yes"
       ).length /
-      allRecords.length *
-      100;
-
-    const tp2Rate =
-      allRecords.filter(
-        (record) =>
-          record.reachedTP2 === "Yes"
-      ).length /
-      allRecords.length *
+      rfApplicable.length *
       100;
 
     $("statRFRate").textContent =
       `${rfRate.toFixed(1)}%`;
-    $("statTP2Rate").textContent =
-      `${tp2Rate.toFixed(1)}%`;
   } else {
     $("statRFRate").textContent =
       "未有資料";
+  }
+
+  if (tp2Applicable.length > 0) {
+    const tp2Rate =
+      tp2Applicable.filter(
+        (record) =>
+          record.reachedTP2 === "Yes"
+      ).length /
+      tp2Applicable.length *
+      100;
+
+    $("statTP2Rate").textContent =
+      `${tp2Rate.toFixed(1)}%`;
+  } else {
     $("statTP2Rate").textContent =
       "未有資料";
   }

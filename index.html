@@ -19,7 +19,7 @@
       <h1>Practice & Live Journal</h1>
       <p class="header-subtitle">Decision Matrix V3.2</p>
     </div>
-    <span class="version-badge">V1.8</span>
+    <span class="version-badge">V1.9</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -251,8 +251,8 @@
           <label>
             4. 到第一個真實目標嘅交易空間
             <select id="tradeSpace">
-              <option value="full">有完整合理R:R</option>
-              <option value="short" selected>略短但仍達最低可接受R:R</option>
+              <option value="full" selected>有完整合理R:R</option>
+              <option value="short">略短但仍達最低可接受R:R</option>
               <option value="insufficient">空間不足</option>
             </select>
           </label>
@@ -423,6 +423,7 @@
               <select id="reachedRF">
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>
+                <option value="N/A">N/A｜掛盤但冇成交／不適用</option>
               </select>
             </label>
 
@@ -431,6 +432,7 @@
               <select id="reachedTP2">
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>
+                <option value="N/A">N/A｜掛盤但冇成交／不適用</option>
               </select>
             </label>
           </div>
@@ -664,12 +666,12 @@
       <div class="yes-no-grid">
         <label>
           去到推RF位
-          <select id="editReachedRF"><option value="No">No</option><option value="Yes">Yes</option></select>
+          <select id="editReachedRF"><option value="No">No</option><option value="Yes">Yes</option><option value="N/A">N/A｜掛盤但冇成交／不適用</option></select>
         </label>
 
         <label>
           去到TP2
-          <select id="editReachedTP2"><option value="No">No</option><option value="Yes">Yes</option></select>
+          <select id="editReachedTP2"><option value="No">No</option><option value="Yes">Yes</option><option value="N/A">N/A｜掛盤但冇成交／不適用</option></select>
         </label>
       </div>
 
