@@ -1,8 +1,8 @@
-# Master Trade Practice & Live Journal V1.3
+# Master Trade Practice & Live Journal V1.11
 
 內置判斷引擎：
 
-`Master Trade Decision Matrix V3.2`
+`Master Trade Decision Matrix V3.3`
 
 呢個版本保留原有：
 
@@ -15,13 +15,13 @@
 - CSV匯出
 - 亞洲盤頂／底2B
 
-並將交易判斷邏輯全面更新成V3.2。
+現行交易判斷引擎已更新成V3.3。
 
 ---
 
 ## 核心流程
 
-大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置級別 → Trigger質素 → 大局障礙修正 → 最終注碼
+大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置級別 → Trigger Model → Trigger質素 → 大局障礙修正 → 最終注碼
 
 最終注碼永遠只可以向下限制，唔可以由大局或2B額外加到高過市場狀態權限。
 
@@ -36,7 +36,7 @@
 - 大局背景：D
 - 主判斷：4H
 - 次判斷：1H
-- 入場觸發：預設5M，可自行改15M／5M／1M等
+- 入場觸發：預設15M，可自行改15M／5M／1M等
 
 ### HSI 1分鐘
 
@@ -93,7 +93,7 @@ App會自動分類：
 - 大局背景主結
 - 主判主結
 - 主判大型區間邊界
-- 會改變主判市場狀態嘅突破回測
+- 會改變主判／次判市場狀態嘅主結突破回測
 - 次判主結同大局／主判重大位置直接重疊
 - W618／D618同實際HTF結構重疊
 
@@ -220,10 +220,12 @@ TP放障礙前，少留或不留runner。
 ## 五項硬性否決
 
 1. P4中間位或追價
-2. 冇有效Sweep或冇真正Reclaim
-3. Retest快深強或Reclaim被否定
+2. 所選Trigger Model核心邏輯失效
+3. Retest快深強，否定原Reclaim或Breakout推動
 4. 第一真實目標前冇最低可接受R:R
 5. 違反交易時間或總風險上限
+
+Model A要求Sweep／Reclaim；Model B要求Breakout／Acceptance。Breakout Model唔需要Sweep。
 
 「方向偏見想放寬Trigger」及「情緒想加注」保留做紀律／統計標籤，唔再單獨列為自動硬性否決。
 
@@ -237,7 +239,7 @@ TP放障礙前，少留或不留runner。
 
 清除Safari網站資料會刪除文字同圖片。
 
-CSV只包含文字資料及「有冇圖片」標籤，唔會直接包含圖片檔。
+可以單獨匯出CSV，亦可以匯出「CSV＋全部照片 ZIP」作完整備份。
 
 
 ### 主判轉換＋次判局部趨勢特例
@@ -421,12 +423,6 @@ ZIP功能係App內置產生，唔依賴外部CDN或第三方網站。
 
 統計RF Rate及TP2 Rate時，N/A紀錄會排除喺分母之外，避免Miss／掛盤未成交紀錄拉低命中率。
 
-### P2定義
-
-P2新增：
-
-- 會改變主判／次判市場狀態嘅突破回測
-
 ### 外匯／黃金快速配置
 
 預設：
@@ -456,3 +452,142 @@ P2新增：
 - 不可救Q1／P4
 - 不可P2→P1
 - 不可突破市場注碼上限
+
+
+---
+
+## V1.10 P1／P2定義修正
+
+V1.9曾誤將「會改變主判／次判市場狀態嘅突破回測」加入P2，現已修正。
+
+### P1
+
+包括：
+
+- 會改變主判／次判市場狀態嘅突破回測
+
+### P2
+
+還原原本定義，包括：
+
+- 次判主結
+- 主判次結
+- 次判重要區間邊界
+- 普通工作結構突破接受後首次回測
+- impulse origin／swap zone
+- 結構位置＋Asia／OPR／PDH／PDL
+
+
+---
+
+## V1.11｜Master Trade Decision Matrix V3.3
+
+核心流程：
+
+大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置級別 → Trigger Model → Trigger質素 → 大局障礙修正 → 最終注碼
+
+### Model A｜Liquidity Reversal
+
+Sweep → Reclaim → Weak Retest
+
+Q3核心：
+
+- 有效Sweep
+- 有效Reclaim
+- Retest明顯較弱
+- 完整合理R:R
+
+Q2：
+
+- 核心邏輯仍成立
+- Reclaim普通／Retest有瑕疵／空間較短等
+
+Q1：
+
+- 冇真正Sweep
+- 冇真正Reclaim
+- Reclaim被否定
+- Retest快深強
+- R:R不足
+
+### Model B｜Breakout／Retest Continuation
+
+Breakout → Acceptance → Weak Retest
+
+Q3核心：
+
+- Breakout位置有意義
+- Acceptance清楚
+- Breakout有明顯推動
+- Retest淺／慢／弱
+- Retest有兩項或以上結構承接
+- 完整合理R:R
+
+Q2：
+
+- 核心仍成立但Acceptance／動能／Retest／結構重疊／空間其中一項有瑕疵
+
+Q1：
+
+- False Breakout
+- 冇Acceptance
+- Breakout冇有效推動
+- Retest吞噬Breakout
+- 冇有效結構承接
+- R:R不足
+
+### 重要硬性修正
+
+舊版「冇Sweep＝0注」正式取消。
+
+而家只要所選Setup完整符合：
+
+- Model A：Sweep → Reclaim → Weak Retest
+
+或
+
+- Model B：Breakout → Acceptance → Weak Retest
+
+其中一套，就可以正常進入Q3／Q2評級。
+
+### P2邊緣
+
+位置質素同Trigger質素正式分開：
+
+- P2邊緣＋Q3：注碼降一級
+- P2邊緣＋Q2：偏向Skip；本App採用保守0注
+
+### P1背景
+
+可以獨立記錄：
+
+- P1背景：有／冇
+
+例如價格先喺P1重大位置反應，之後跌／升開一段，再喺新形成次判工作結構做P2，可以記做：
+
+- P2＋P1背景順風
+
+P1背景只係背景標籤，唔會將P2升P1，亦唔會提高注碼。
+
+### Asia 2B
+
+V3.3入面：
+
+- 有原有結構基礎時，高質2B可以P3→P2
+- 2B不再改變Trigger Model本身Q級
+- 不可P2→P1
+- 不可救P4
+- 不可突破市場注碼上限
+
+### 紀錄與CSV
+
+新增保存：
+
+- Trigger Model
+- Breakout位置是否有意義
+- Acceptance質素
+- Breakout動能
+- Breakout Retest質素
+- Retest結構承接
+
+舊V3.2紀錄仍可繼續顯示。

@@ -93,11 +93,11 @@ const STATES = {
 const POSITION_INFO = {
   P1: {
     title: "最高級位置",
-    note: "週／日線重大支持阻力、大局背景主結、主判主結、主判大型區間邊界、會改變主判市場狀態嘅突破回測、次判主結同大局／主判重大位置直接重疊，以及W618／D618同實際HTF結構重疊。Fib本身唔可以成為P1。"
+    note: "週／日線重大支持阻力、大局背景主結、主判主結、主判大型區間邊界、會改變主判／次判市場狀態嘅主結突破回測、次判主結同大局／主判重大位置直接重疊，以及W618／D618同實際HTF結構重疊。Fib本身唔可以成為P1。"
   },
   P2: {
     title: "A級工作位置",
-    note: "次判主結、主判次結、次判重要區間邊界、會改變主判／次判市場狀態嘅突破回測、普通工作結構突破接受後首次回測、impulse origin／swap zone，以及結構位置＋Asia／OPR／PDH／PDL。"
+    note: "次判主結、主判次結、次判重要區間邊界、普通工作結構突破接受後首次回測、impulse origin／swap zone，以及結構位置＋Asia／OPR／PDH／PDL。"
   },
   P3: {
     title: "次級位置",
@@ -238,7 +238,7 @@ function backgroundRelationInfo() {
     label: aligned
       ? `順大局${descriptor}`
       : `逆大局${descriptor}`,
-    note: "V3.2唔會因單純順／逆大局方向直接升級注碼；真正注碼限制由大局障礙位置及交易空間處理。"
+    note: "V3.3唔會因單純順／逆大局方向直接升級注碼；真正注碼限制由大局障礙位置及交易空間處理。"
   };
 }
 
@@ -459,107 +459,342 @@ function countChecked(ids) {
   return ids.filter((id) => checked(id)).length;
 }
 
+function triggerModelLabel(model) {
+  return model === "B"
+    ? "Model B｜Breakout／Retest Continuation"
+    : "Model A｜Liquidity Reversal";
+}
+
 function evaluateBaseTrigger() {
+  const model =
+    $("triggerModel").value;
   const failures = [];
+  const coreFailures = [];
   const imperfections = [];
   const positives = [];
-  const bonusCount = countChecked(BONUS_IDS);
+  const bonusCount =
+    countChecked(BONUS_IDS);
+  const tradeSpace =
+    $("tradeSpace").value;
 
-  const validSweep = checked("validSweep");
-  const validReclaim = checked("validReclaim");
-  const reclaimQuality = $("reclaimQuality").value;
-  const retestQuality = $("retestQuality").value;
-  const tradeSpace = $("tradeSpace").value;
   const p2Edge =
     $("positionLevel").value === "P2" &&
     checked("p2EdgePosition");
 
-  if (!validSweep) {
-    failures.push("冇有效Sweep。");
-  } else {
-    positives.push("有效Sweep成立。");
-  }
-
-  if (!validReclaim) {
-    failures.push("冇真正有效Reclaim。");
-  } else {
-    positives.push("有效Reclaim成立。");
-  }
-
-  if (reclaimQuality === "negated") {
-    failures.push("Reclaim即刻被完全吞噬／否定。");
-  } else if (reclaimQuality === "ordinary") {
-    imperfections.push("Reclaim質素普通，但仍有效。");
-  } else {
-    positives.push("Reclaim乾淨／明確。");
-  }
-
-  if (retestQuality === "invalid") {
-    failures.push("Retest快、深、強，已否定Reclaim。");
-  } else if (retestQuality === "imperfect") {
-    imperfections.push("Retest有瑕疵，但未達失效。");
-  } else {
-    positives.push("Retest明顯弱過Reclaim。");
-  }
-
-  if (tradeSpace === "insufficient") {
-    failures.push("第一個真實目標前空間不足。");
-  } else if (tradeSpace === "short") {
-    imperfections.push("交易空間略短，但仍達最低可接受R:R。");
-  } else {
-    positives.push("到第一個真實目標有完整合理R:R。");
-  }
-
-  if (p2Edge) {
-    imperfections.push("目前係P2邊緣／質素普通位置。");
-  }
-
-  if (checked("chasedBreakout")) {
-    failures.push("入場屬追價。");
-  }
-
-  if (bonusCount > 0) {
-    positives.push(`有${bonusCount}項Trigger加分證據。`);
-  }
-
-  let quality = "Q1";
-
-  if (failures.length === 0) {
-    const completeHighQuality =
-      reclaimQuality === "strong" &&
-      retestQuality === "weak" &&
-      tradeSpace === "full" &&
-      !p2Edge;
-
-    quality = completeHighQuality ? "Q3" : "Q2";
-  }
-
-  return {
-    quality,
+  const result = {
+    model,
+    modelLabel:
+      triggerModelLabel(model),
+    quality: "Q1",
     failures,
+    coreFailures,
     imperfections,
     positives,
     bonusCount,
-    validSweep,
-    validReclaim,
-    reclaimQuality,
-    retestQuality,
     tradeSpace,
-    p2Edge
+    p2Edge,
+    validSweep: false,
+    validReclaim: false,
+    reclaimQuality: null,
+    retestQuality: null,
+    breakoutMeaningful: false,
+    breakoutAcceptance: null,
+    breakoutMomentum: null,
+    breakoutRetestQuality: null,
+    breakoutRetestSupport: null
   };
+
+  if (model === "A") {
+    const validSweep =
+      checked("validSweep");
+    const validReclaim =
+      checked("validReclaim");
+    const reclaimQuality =
+      $("reclaimQuality").value;
+    const retestQuality =
+      $("retestQuality").value;
+
+    Object.assign(result, {
+      validSweep,
+      validReclaim,
+      reclaimQuality,
+      retestQuality
+    });
+
+    if (!validSweep) {
+      coreFailures.push(
+        "Model A冇有效Sweep。"
+      );
+    } else {
+      positives.push(
+        "Model A有效Sweep成立。"
+      );
+    }
+
+    if (!validReclaim) {
+      coreFailures.push(
+        "Model A冇真正有效Reclaim。"
+      );
+    } else {
+      positives.push(
+        "Model A有效Reclaim成立。"
+      );
+    }
+
+    if (
+      reclaimQuality === "negated"
+    ) {
+      coreFailures.push(
+        "Reclaim即刻被完全吞噬／否定。"
+      );
+    } else if (
+      reclaimQuality === "ordinary"
+    ) {
+      imperfections.push(
+        "Reclaim質素普通，但核心邏輯仍成立。"
+      );
+    } else {
+      positives.push(
+        "Reclaim乾淨／明確。"
+      );
+    }
+
+    if (
+      retestQuality === "invalid"
+    ) {
+      coreFailures.push(
+        "Retest快、深、強，已否定Reclaim。"
+      );
+    } else if (
+      retestQuality === "imperfect"
+    ) {
+      imperfections.push(
+        "Retest有瑕疵，但未否定Reclaim。"
+      );
+    } else {
+      positives.push(
+        "Retest明顯弱過Reclaim。"
+      );
+    }
+
+    failures.push(
+      ...coreFailures
+    );
+
+    if (
+      failures.length === 0
+    ) {
+      const completeHighQuality =
+        reclaimQuality === "strong" &&
+        retestQuality === "weak" &&
+        tradeSpace === "full" &&
+        !checked("chasedBreakout");
+
+      result.quality =
+        completeHighQuality
+          ? "Q3"
+          : "Q2";
+    }
+  } else {
+    const breakoutMeaningful =
+      checked("breakoutMeaningful");
+    const breakoutAcceptance =
+      $("breakoutAcceptance").value;
+    const breakoutMomentum =
+      $("breakoutMomentum").value;
+    const breakoutRetestQuality =
+      $("breakoutRetestQuality").value;
+    const breakoutRetestSupport =
+      $("breakoutRetestSupport").value;
+
+    Object.assign(result, {
+      breakoutMeaningful,
+      breakoutAcceptance,
+      breakoutMomentum,
+      breakoutRetestQuality,
+      breakoutRetestSupport
+    });
+
+    if (!breakoutMeaningful) {
+      coreFailures.push(
+        "Breakout位置唔夠重要；純micro high／low突破不足以構成Model B。"
+      );
+    } else {
+      positives.push(
+        "Breakout發生喺有意義結構／Level。"
+      );
+    }
+
+    if (
+      breakoutAcceptance ===
+      "invalid"
+    ) {
+      coreFailures.push(
+        "冇真正Acceptance／False Breakout／插穿後立即收返。"
+      );
+    } else if (
+      breakoutAcceptance ===
+      "ordinary"
+    ) {
+      imperfections.push(
+        "Acceptance成立，但follow-through／線外企穩質素一般。"
+      );
+    } else {
+      positives.push(
+        "Acceptance清楚，有效收穿並留喺突破方向。"
+      );
+    }
+
+    if (
+      breakoutMomentum === "invalid"
+    ) {
+      coreFailures.push(
+        "Breakout冇有效推動，或推動即刻被抵消。"
+      );
+    } else if (
+      breakoutMomentum ===
+      "ordinary"
+    ) {
+      imperfections.push(
+        "Breakout動能普通，但仍屬有效突破。"
+      );
+    } else {
+      positives.push(
+        "Breakout有明顯推動。"
+      );
+    }
+
+    if (
+      breakoutRetestQuality ===
+      "invalid"
+    ) {
+      coreFailures.push(
+        "Retest快、深、強，或已完全吞噬Breakout。"
+      );
+    } else if (
+      breakoutRetestQuality ===
+      "imperfect"
+    ) {
+      imperfections.push(
+        "Retest偏快／偏深，但Breakout核心仍未失效。"
+      );
+    } else {
+      positives.push(
+        "Retest明顯弱過Breakout。"
+      );
+    }
+
+    if (
+      breakoutRetestSupport ===
+      "none"
+    ) {
+      coreFailures.push(
+        "Retest冇有效結構承接。"
+      );
+    } else if (
+      breakoutRetestSupport ===
+      "ordinary"
+    ) {
+      imperfections.push(
+        "Retest只有一項有效結構承接，重疊質素普通。"
+      );
+    } else {
+      positives.push(
+        "Retest有兩項或以上結構承接／重疊。"
+      );
+    }
+
+    failures.push(
+      ...coreFailures
+    );
+
+    if (
+      failures.length === 0
+    ) {
+      const completeHighQuality =
+        breakoutAcceptance ===
+          "strong" &&
+        breakoutMomentum ===
+          "strong" &&
+        breakoutRetestQuality ===
+          "weak" &&
+        breakoutRetestSupport ===
+          "strong" &&
+        tradeSpace === "full" &&
+        !checked("chasedBreakout");
+
+      result.quality =
+        completeHighQuality
+          ? "Q3"
+          : "Q2";
+    }
+  }
+
+  if (
+    tradeSpace === "insufficient"
+  ) {
+    failures.push(
+      "第一個真實目標前空間不足。"
+    );
+    result.quality = "Q1";
+  } else if (
+    tradeSpace === "short"
+  ) {
+    imperfections.push(
+      "交易空間略短，但仍達最低可接受R:R。"
+    );
+
+    if (
+      result.quality === "Q3"
+    ) {
+      result.quality = "Q2";
+    }
+  } else {
+    positives.push(
+      "到第一個真實目標有完整合理R:R。"
+    );
+  }
+
+  if (
+    checked("chasedBreakout")
+  ) {
+    failures.push(
+      "入場屬追價。"
+    );
+    result.quality = "Q1";
+  }
+
+  if (
+    bonusCount > 0
+  ) {
+    positives.push(
+      `有${bonusCount}項Trigger加分證據。`
+    );
+  }
+
+  result.modelCoreValid =
+    coreFailures.length === 0;
+
+  return result;
 }
 
 function evaluateAsia2B(baseTrigger) {
-  const type = $("asia2BType").value;
-  const active = type !== "none";
+  const type =
+    $("asia2BType").value;
+  const active =
+    type !== "none";
+
   const expectedDirection =
     type === "asiaTop"
       ? "Short"
       : type === "asiaBottom"
         ? "Long"
         : null;
+
   const directionMatches =
-    active && direction() === expectedDirection;
+    active &&
+    direction() ===
+      expectedDirection;
 
   const criteriaCount = [
     checked("asia2BClearLiquidity"),
@@ -574,12 +809,19 @@ function evaluateAsia2B(baseTrigger) {
     directionMatches &&
     criteriaCount >= 4;
 
-  const basePosition = $("positionLevel").value;
-  const structureOverlap = checked("asia2BStructureOverlap");
-  let effectivePosition = basePosition;
-  let effectiveQuality = baseTrigger.quality;
-  let positionPromoted = false;
-  let triggerPromoted = false;
+  const basePosition =
+    $("positionLevel").value;
+  const structureOverlap =
+    checked(
+      "asia2BStructureOverlap"
+    );
+
+  let effectivePosition =
+    basePosition;
+  const effectiveQuality =
+    baseTrigger.quality;
+  let positionPromoted =
+    false;
 
   const reasons = [];
   const warnings = [];
@@ -602,41 +844,24 @@ function evaluateAsia2B(baseTrigger) {
       structureOverlap: false,
       basePosition,
       effectivePosition,
-      baseQuality: baseTrigger.quality,
+      baseQuality:
+        baseTrigger.quality,
       effectiveQuality,
       positionPromoted,
-      triggerPromoted,
+      triggerPromoted: false,
       reasons,
       warnings
     };
   }
 
   if (!directionMatches) {
-    warnings.push(`${label}同實際交易方向唔一致，所以唔提供升格。`);
+    warnings.push(
+      `${label}同實際交易方向唔一致，所以唔提供位置升格。`
+    );
   } else if (!highQuality) {
-    warnings.push(`${label}只符合${criteriaCount}/5項高質條件；最少要4/5先達高質升格標準。`);
-  }
-
-  if (highQuality && baseTrigger.quality === "Q2") {
-    const canUpgradeTrigger =
-      baseTrigger.validSweep &&
-      baseTrigger.validReclaim &&
-      baseTrigger.reclaimQuality !== "negated" &&
-      baseTrigger.retestQuality !== "invalid" &&
-      baseTrigger.tradeSpace === "full" &&
-      !checked("chasedBreakout");
-
-    if (canUpgradeTrigger) {
-      effectiveQuality = "Q3";
-      triggerPromoted = true;
-      reasons.push(`高質${label}補強執行質素，Trigger由Q2升至Q3。`);
-    } else {
-      warnings.push(`高質${label}唔可以製造交易空間、拯救失效Reclaim／Retest或追價，所以Trigger維持Q2。`);
-    }
-  } else if (highQuality && baseTrigger.quality === "Q1") {
-    warnings.push(`即使係高質${label}，都唔可以拯救Q1。`);
-  } else if (highQuality && baseTrigger.quality === "Q3") {
-    reasons.push(`高質${label}確認執行優勢；原本已經係Q3，所以Trigger維持Q3。`);
+    warnings.push(
+      `${label}只符合${criteriaCount}/5項高質條件；最少要4/5先達高質標準。`
+    );
   }
 
   if (
@@ -644,22 +869,41 @@ function evaluateAsia2B(baseTrigger) {
     basePosition === "P3" &&
     structureOverlap
   ) {
-    effectivePosition = "P2";
-    positionPromoted = true;
-    reasons.push(`高質${label}加原有結構基礎，位置由P3升至P2。`);
+    effectivePosition =
+      "P2";
+    positionPromoted =
+      true;
+
+    reasons.push(
+      `高質${label}加原有結構基礎，位置由P3升至P2。`
+    );
   } else if (
     highQuality &&
     basePosition === "P3" &&
     !structureOverlap
   ) {
-    warnings.push(`${label}冇原有結構基礎，P3不可升P2。`);
-  } else if (highQuality && basePosition === "P2") {
-    warnings.push(`${label}不可將P2升做P1；位置維持P2。`);
-  } else if (highQuality && basePosition === "P4") {
-    warnings.push(`${label}不可拯救P4中間位；位置維持P4。`);
+    warnings.push(
+      `${label}冇原有結構基礎，P3不可升P2；2B可以強化位置，但唔可以創造位置。`
+    );
+  } else if (
+    highQuality &&
+    basePosition === "P2"
+  ) {
+    warnings.push(
+      `${label}不可將P2升做P1；位置維持P2。`
+    );
+  } else if (
+    highQuality &&
+    basePosition === "P4"
+  ) {
+    warnings.push(
+      `${label}不可拯救P4中間位；位置維持P4。`
+    );
   }
 
-  reasons.push("2B係執行優勢，不是市場狀態優勢；市場注碼上限完全不變。");
+  reasons.push(
+    "V3.3入面Asia 2B只強化位置／執行優勢，不會改變Trigger Model評級，亦不會提高市場注碼上限。"
+  );
 
   return {
     type,
@@ -671,10 +915,11 @@ function evaluateAsia2B(baseTrigger) {
     structureOverlap,
     basePosition,
     effectivePosition,
-    baseQuality: baseTrigger.quality,
+    baseQuality:
+      baseTrigger.quality,
     effectiveQuality,
     positionPromoted,
-    triggerPromoted,
+    triggerPromoted: false,
     reasons,
     warnings
   };
@@ -856,6 +1101,49 @@ function downgradeOneLevel(size) {
   return 0;
 }
 
+function applyPositionQualityAdjustment(
+  size,
+  position,
+  quality
+) {
+  const isP2Edge =
+    position === "P2" &&
+    checked("p2EdgePosition");
+
+  if (!isP2Edge) {
+    return {
+      adjustedSize: size,
+      explanation:
+        "位置質素＝標準，唔作額外降級。"
+    };
+  }
+
+  if (quality === "Q3") {
+    const adjusted =
+      downgradeOneLevel(size);
+
+    return {
+      adjustedSize: adjusted,
+      explanation:
+        `P2邊緣＋Q3按保守規則降一級：${SIZE_LABELS[size]} → ${SIZE_LABELS[adjusted]}。`
+    };
+  }
+
+  if (quality === "Q2") {
+    return {
+      adjustedSize: 0,
+      explanation:
+        `P2邊緣＋Q2屬邊緣位置再加Trigger瑕疵，V3.3採用保守預設Skip：${SIZE_LABELS[size]} → 0注。`
+    };
+  }
+
+  return {
+    adjustedSize: 0,
+    explanation:
+      "P2邊緣＋Q1＝0注。"
+  };
+}
+
 function insideObstacleCap(position, quality) {
   if (position === "P1" && quality === "Q3") return 0.5;
   if (position === "P2" && quality === "Q3") return 0.25;
@@ -904,98 +1192,163 @@ function applyObstacle(matrixSize, position, quality) {
   };
 }
 
-function evaluateHardVeto(effectivePosition, baseTrigger) {
+function evaluateHardVeto(
+  effectivePosition,
+  baseTrigger
+) {
   const vetoes = [];
 
-  if (effectivePosition === "P4") {
-    vetoes.push("P4中間位／無交易位置。");
-  }
-
-  if (checked("chasedBreakout")) {
-    vetoes.push("突破後立即追價。");
-  }
-
-  if (!baseTrigger.validSweep || !baseTrigger.validReclaim) {
-    vetoes.push("冇有效Sweep或冇真正Reclaim。");
+  if (
+    effectivePosition === "P4"
+  ) {
+    vetoes.push(
+      "P4中間位／無交易位置。"
+    );
   }
 
   if (
-    baseTrigger.reclaimQuality === "negated" ||
-    baseTrigger.retestQuality === "invalid"
+    checked("chasedBreakout")
   ) {
-    vetoes.push("Reclaim被否定，或Retest快、深、強已否定Reclaim。");
-  }
-
-  if (baseTrigger.tradeSpace === "insufficient") {
-    vetoes.push("第一個真實目標前冇最低可接受R:R。");
+    vetoes.push(
+      "入場屬追價。"
+    );
   }
 
   if (
-    checked("violatesTradingTime") ||
-    checked("riskLimitExceeded")
+    !baseTrigger.modelCoreValid
   ) {
-    vetoes.push("違反交易時間或總風險上限。");
+    vetoes.push(
+      `${baseTrigger.modelLabel}核心邏輯失效；必須完整符合Model A或Model B其中一套Trigger Model。`
+    );
+  }
+
+  if (
+    baseTrigger.tradeSpace ===
+    "insufficient"
+  ) {
+    vetoes.push(
+      "第一個真實目標前冇最低可接受R:R。"
+    );
+  }
+
+  if (
+    checked(
+      "violatesTradingTime"
+    ) ||
+    checked(
+      "riskLimitExceeded"
+    )
+  ) {
+    vetoes.push(
+      "違反交易時間或總風險上限。"
+    );
   }
 
   return vetoes;
 }
 
-function evaluateDecision(baseTrigger, asia2B) {
-  const relation = marketRelation(
-    $("mainState").value,
-    $("secondaryState").value
-  );
-  const marketCap = marketCapForRelation(relation);
-  const preferred = preferredDirectionInfo();
-  const background = backgroundRelationInfo();
+function evaluateDecision(
+  baseTrigger,
+  asia2B
+) {
+  const relation =
+    marketRelation(
+      $("mainState").value,
+      $("secondaryState").value
+    );
 
-  const matrix = evaluateMatrix(
-    asia2B.effectivePosition,
-    asia2B.effectiveQuality
-  );
+  const marketCap =
+    marketCapForRelation(
+      relation
+    );
+
+  const preferred =
+    preferredDirectionInfo();
+
+  const background =
+    backgroundRelationInfo();
+
+  const matrix =
+    evaluateMatrix(
+      asia2B.effectivePosition,
+      asia2B.effectiveQuality
+    );
+
+  const marketLimitedSize =
+    Math.min(
+      marketCap,
+      matrix.size
+    );
+
+  const positionQuality =
+    applyPositionQualityAdjustment(
+      marketLimitedSize,
+      asia2B.effectivePosition,
+      asia2B.effectiveQuality
+    );
 
   const matrixLimitedSize =
-    Math.min(marketCap, matrix.size);
+    positionQuality.adjustedSize;
 
-  let obstacle = applyObstacle(
-    matrixLimitedSize,
-    asia2B.effectivePosition,
-    asia2B.effectiveQuality
-  );
+  let obstacle =
+    applyObstacle(
+      matrixLimitedSize,
+      asia2B.effectivePosition,
+      asia2B.effectiveQuality
+    );
 
-  const mainState = $("mainState").value;
-  const secondaryState = $("secondaryState").value;
+  const mainState =
+    $("mainState").value;
+
+  const secondaryState =
+    $("secondaryState").value;
+
   const mainTransitionLocalTrade =
     isTransition(mainState) &&
-    !isTransition(secondaryState) &&
-    stateBias(mainState) !== null &&
-    stateBias(mainState) !== stateBias(secondaryState) &&
-    tradeBias() === stateBias(secondaryState);
+    !isTransition(
+      secondaryState
+    ) &&
+    stateBias(mainState) !==
+      null &&
+    stateBias(mainState) !==
+      stateBias(
+        secondaryState
+      ) &&
+    tradeBias() ===
+      stateBias(
+        secondaryState
+      );
 
   if (
     mainTransitionLocalTrade &&
-    $("obstacleState").value === "inside"
+    $("obstacleState").value ===
+      "inside"
   ) {
     obstacle = {
       state: "inside",
       adjustedSize: 0,
-      explanation: "主判處於相反傾向嘅轉換，而目前係順次判做局部回調trade；價格已到主判潛在支持／阻力區，按V3.2停止開新局部方向倉，修正至0注。",
-      management: "已有局部方向倉準備食糊；停止新開同方向trade，觀察次判趨勢有冇被破壞，開始等待主判傾向方向setup。"
+      explanation:
+        "主判處於相反傾向嘅轉換，而目前係順次判做局部回調trade；價格已到主判潛在支持／阻力區，按V3.3停止開新局部方向倉，修正至0注。",
+      management:
+        "已有局部方向倉準備食糊；停止新開同方向trade，觀察次判趨勢有冇被破壞，開始等待主判傾向方向setup。"
     };
   }
 
-  const hardVetoes = evaluateHardVeto(
-    asia2B.effectivePosition,
-    baseTrigger
-  );
+  const hardVetoes =
+    evaluateHardVeto(
+      asia2B.effectivePosition,
+      baseTrigger
+    );
 
   const reasons = [
     ...asia2B.reasons,
     `注碼路徑① 主次關係：${relation}，市場最高注碼＝${SIZE_LABELS[marketCap]}。`,
     `注碼路徑② 交易方向權限：${matrix.route}。`,
-    `注碼路徑③ 位置＋Trigger：${matrix.cellExplanation}`,
-    `注碼路徑④ 市場上限同位置／Trigger取較低值＝${SIZE_LABELS[matrixLimitedSize]}。`,
-    `注碼路徑⑤ ${obstacle.explanation}`
+    `注碼路徑③ Trigger Model：${baseTrigger.modelLabel}，評級＝${asia2B.effectiveQuality}。`,
+    `注碼路徑④ 位置＋Trigger：${matrix.cellExplanation}`,
+    `注碼路徑⑤ 市場上限同矩陣取較低值＝${SIZE_LABELS[marketLimitedSize]}。`,
+    `注碼路徑⑥ ${positionQuality.explanation}`,
+    `注碼路徑⑦ ${obstacle.explanation}`
   ];
 
   const warnings = [
@@ -1005,33 +1358,67 @@ function evaluateDecision(baseTrigger, asia2B) {
   ];
 
   if (
-    $("backgroundDirectOverlap").value === "yes" &&
+    $("backgroundDirectOverlap")
+      .value === "yes" &&
     (
-      asia2B.basePosition === "P2" ||
-      asia2B.basePosition === "P3"
+      asia2B.basePosition ===
+        "P2" ||
+      asia2B.basePosition ===
+        "P3"
     )
   ) {
     warnings.push(
-      "你標記目前入場價仍直接處於大局重大區。若所用次判／工作結構同該大局區直接空間重疊，按V3.2應重新檢查是否應列P1。位置級別睇空間重疊，不是故事重疊。"
+      "你標記目前入場價仍直接處於大局重大區。若所用次判／工作結構同該大局區直接空間重疊，按V3.3應重新檢查是否應列P1。位置級別睇空間重疊，不是故事重疊。"
     );
   }
 
   if (
-    $("backgroundDirectOverlap").value === "no" &&
-    asia2B.basePosition === "P2"
+    $("backgroundDirectOverlap")
+      .value === "no" &&
+    asia2B.basePosition ===
+      "P2"
   ) {
     warnings.push(
       "目前入場價已離開大局重大區：後續新形成次判主結維持P2，即使整段行情源於較早嘅P1大局反應。"
     );
   }
 
-  if (checked("loosenedTriggerBecauseBias")) {
+  if (
+    $("positionLevel").value ===
+      "P2" &&
+    checked("p2EdgePosition") &&
+    baseTrigger.quality ===
+      "Q2"
+  ) {
     warnings.push(
-      "紀律標籤：曾因主觀方向偏見想放寬Trigger；本次不作硬性取消，但應納入覆盤統計。"
+      "P2邊緣＋Q2屬雙重瑕疵，V3.3偏向Skip；本App採用保守0注。"
     );
   }
 
-  if (checked("emotionalSizing")) {
+  if (
+    baseTrigger.model === "B" &&
+    baseTrigger.quality === "Q2"
+  ) {
+    warnings.push(
+      "Breakout Model Q2：核心邏輯仍成立但有瑕疵；較理想係等Micro HL／LH＋二次Break確認先入。"
+    );
+  }
+
+  if (
+    checked(
+      "loosenedTriggerBecauseBias"
+    )
+  ) {
+    warnings.push(
+      "紀律標籤：曾因主觀方向偏見想放寬Trigger；本次不作獨立硬性取消，但應納入覆盤統計。"
+    );
+  }
+
+  if (
+    checked(
+      "emotionalSizing"
+    )
+  ) {
     warnings.push(
       "紀律標籤：曾因情緒／信心想加注；本次不作獨立硬性取消，但最終注碼仍只可跟矩陣。"
     );
@@ -1042,29 +1429,45 @@ function evaluateDecision(baseTrigger, asia2B) {
       ? 0
       : obstacle.adjustedSize;
 
-  if (hardVetoes.length > 0) {
+  if (
+    hardVetoes.length > 0
+  ) {
     reasons.push(
-      `注碼路徑⑥ 硬性否決成立，最終由${SIZE_LABELS[obstacle.adjustedSize]}取消至0注。`
+      `注碼路徑⑧ 硬性否決成立，最終由${SIZE_LABELS[obstacle.adjustedSize]}取消至0注。`
     );
   } else {
     reasons.push(
-      `注碼路徑⑥ 冇硬性否決，最終注碼＝${SIZE_LABELS[finalSize]}。`
+      `注碼路徑⑧ 冇硬性否決，最終注碼＝${SIZE_LABELS[finalSize]}。`
     );
   }
 
   return {
     relation,
-    preferredDirection: preferred.label,
-    priorityNote: preferred.note,
-    backgroundRelation: background.label,
-    backgroundRelationNote: background.note,
+    preferredDirection:
+      preferred.label,
+    priorityNote:
+      preferred.note,
+    backgroundRelation:
+      background.label,
+    backgroundRelationNote:
+      background.note,
     marketCap,
-    matrixMode: matrix.mode,
-    matrixRoute: matrix.route,
-    matrixSize: matrixLimitedSize,
-    obstacleState: obstacle.state,
-    obstacleSize: obstacle.adjustedSize,
-    obstacleManagement: obstacle.management,
+    matrixMode:
+      matrix.mode,
+    matrixRoute:
+      matrix.route,
+    rawMatrixSize:
+      marketLimitedSize,
+    matrixSize:
+      matrixLimitedSize,
+    positionQualitySize:
+      matrixLimitedSize,
+    obstacleState:
+      obstacle.state,
+    obstacleSize:
+      obstacle.adjustedSize,
+    obstacleManagement:
+      obstacle.management,
     finalSize,
     reasons,
     warnings,
@@ -1097,6 +1500,9 @@ function renderListBlock(title, items, className) {
 function renderBaseTrigger(trigger) {
   $("bonusCount").textContent =
     `${trigger.bonusCount}／${BONUS_IDS.length}`;
+
+  $("triggerModelResult").textContent =
+    trigger.modelLabel;
 
   const grade = $("baseTriggerGrade");
   grade.textContent =
@@ -1151,9 +1557,7 @@ function renderAsia2B(result) {
       : `維持${result.basePosition}`;
 
   $("asia2BTriggerEffect").textContent =
-    result.triggerPromoted
-      ? `${result.baseQuality} → ${result.effectiveQuality}`
-      : `維持${result.baseQuality}`;
+    `維持${result.baseQuality}｜V3.3由Trigger Model獨立評級`;
 }
 
 function obstacleDisplayLabel(state) {
@@ -1215,8 +1619,12 @@ function renderDecision(decision) {
     currentAsia2B.basePosition;
   $("resultEffectivePosition").textContent =
     currentAsia2B.effectivePosition;
-  $("resultBaseTrigger").textContent =
-    currentAsia2B.baseQuality;
+  $("resultP1Background").textContent =
+    $("p1BackgroundTailwind").value === "yes"
+      ? "有｜P1背景順風"
+      : "冇";
+  $("resultTriggerModel").textContent =
+    currentBaseTrigger.modelLabel;
   $("resultEffectiveTrigger").textContent =
     currentAsia2B.effectiveQuality;
   $("resultAsia2B").textContent =
@@ -1230,7 +1638,9 @@ function renderDecision(decision) {
   $("resultMarketCap").textContent =
     SIZE_LABELS[decision.marketCap];
   $("resultMatrixSize").textContent =
-    SIZE_LABELS[decision.matrixSize];
+    SIZE_LABELS[decision.rawMatrixSize];
+  $("resultPositionQualitySize").textContent =
+    SIZE_LABELS[decision.positionQualitySize];
   $("resultObstacleSize").textContent =
     `${obstacleDisplayLabel(decision.obstacleState)} → ${SIZE_LABELS[decision.obstacleSize]}`;
   $("finalSize").textContent =
@@ -1328,6 +1738,19 @@ function updateInterface() {
     $("bothTransitionRange").value = "no";
   }
 
+  const selectedTriggerModel =
+    $("triggerModel").value;
+
+  $("triggerModelAPanel").classList.toggle(
+    "hidden",
+    selectedTriggerModel !== "A"
+  );
+
+  $("triggerModelBPanel").classList.toggle(
+    "hidden",
+    selectedTriggerModel !== "B"
+  );
+
   const info = POSITION_INFO[position];
   $("positionTitle").textContent =
     `${position}｜${info.title}`;
@@ -1387,6 +1810,39 @@ function optionalNumberFromInput(id) {
     : null;
 }
 
+function triggerChecklistLines() {
+  const lines = [
+    `Trigger Model：${currentBaseTrigger.modelLabel}`
+  ];
+
+  if (
+    currentBaseTrigger.model === "A"
+  ) {
+    lines.push(
+      `有效Sweep：${yesNo(currentBaseTrigger.validSweep)}`,
+      `有效Reclaim：${yesNo(currentBaseTrigger.validReclaim)}`,
+      `Reclaim質素：${$("reclaimQuality").selectedOptions[0].textContent}`,
+      `Retest質素：${$("retestQuality").selectedOptions[0].textContent}`
+    );
+  } else {
+    lines.push(
+      `Breakout位置有意義：${yesNo(currentBaseTrigger.breakoutMeaningful)}`,
+      `Acceptance：${$("breakoutAcceptance").selectedOptions[0].textContent}`,
+      `Breakout動能：${$("breakoutMomentum").selectedOptions[0].textContent}`,
+      `Breakout Retest質素：${$("breakoutRetestQuality").selectedOptions[0].textContent}`,
+      `Retest結構承接：${$("breakoutRetestSupport").selectedOptions[0].textContent}`
+    );
+  }
+
+  lines.push(
+    `交易空間：${$("tradeSpace").selectedOptions[0].textContent}`,
+    `Trigger加分證據：${currentBaseTrigger.bonusCount}/${BONUS_IDS.length}`,
+    `Trigger質素：${currentAsia2B.effectiveQuality}`
+  );
+
+  return lines;
+}
+
 function checklistSummary() {
   const timeframes = timeframeValues();
 
@@ -1402,20 +1858,14 @@ function checklistSummary() {
     `優先部署：${combinedDeploymentInfo().priority}`,
     `次要部署：${combinedDeploymentInfo().secondary}`,
     `大局位置實際重疊：${$("backgroundDirectOverlap").value === "yes" ? "有" : "冇"}`,
+    `P1背景順風：${$("p1BackgroundTailwind").value === "yes" ? "有" : "冇"}`,
     "",
     `原始位置：${currentAsia2B.basePosition}`,
     `2B後位置：${currentAsia2B.effectivePosition}`,
     `P2邊緣：${yesNo(checked("p2EdgePosition"))}`,
     `P3可小注測試：${yesNo(checked("p3Testable"))}`,
     "",
-    `有效Sweep：${yesNo(currentBaseTrigger.validSweep)}`,
-    `有效Reclaim：${yesNo(currentBaseTrigger.validReclaim)}`,
-    `Reclaim質素：${$("reclaimQuality").selectedOptions[0].textContent}`,
-    `Retest質素：${$("retestQuality").selectedOptions[0].textContent}`,
-    `交易空間：${$("tradeSpace").selectedOptions[0].textContent}`,
-    `Trigger加分證據：${currentBaseTrigger.bonusCount}/${BONUS_IDS.length}`,
-    `基礎Trigger：${currentAsia2B.baseQuality}`,
-    `2B後Trigger：${currentAsia2B.effectiveQuality}`,
+    ...triggerChecklistLines(),
     "",
     `亞洲盤2B：${currentAsia2B.active ? currentAsia2B.label : "無"}`,
     `2B高質：${yesNo(currentAsia2B.highQuality)}`,
@@ -1424,7 +1874,8 @@ function checklistSummary() {
     "",
     `大局障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
     `市場注碼上限：${SIZE_LABELS[currentDecision.marketCap]}`,
-    `位置及Trigger修正：${SIZE_LABELS[currentDecision.matrixSize]}`,
+    `Trigger矩陣許可：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
+    `位置質素修正：${SIZE_LABELS[currentDecision.positionQualitySize]}`,
     `大局修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
     `最終注碼：${SIZE_LABELS[currentDecision.finalSize]}`,
     "",
@@ -1883,9 +2334,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.9",
+      "PracticeJournal-V1.11",
     engineVersion:
-      "MasterTradeDecisionMatrix-V3.2",
+      "MasterTradeDecisionMatrix-V3.3",
 
     recordMode:
       recordMode(),
@@ -1924,6 +2375,8 @@ async function saveDecision(event) {
 
     backgroundDirectOverlap:
       $("backgroundDirectOverlap").value,
+    p1BackgroundTailwind:
+      $("p1BackgroundTailwind").value,
 
     basePosition:
       currentAsia2B.basePosition,
@@ -1934,6 +2387,11 @@ async function saveDecision(event) {
     p3Testable:
       checked("p3Testable"),
 
+    triggerModel:
+      currentBaseTrigger.model,
+    triggerModelLabel:
+      currentBaseTrigger.modelLabel,
+
     validSweep:
       currentBaseTrigger.validSweep,
     validReclaim:
@@ -1942,6 +2400,18 @@ async function saveDecision(event) {
       currentBaseTrigger.reclaimQuality,
     retestQuality:
       currentBaseTrigger.retestQuality,
+
+    breakoutMeaningful:
+      currentBaseTrigger.breakoutMeaningful,
+    breakoutAcceptance:
+      currentBaseTrigger.breakoutAcceptance,
+    breakoutMomentum:
+      currentBaseTrigger.breakoutMomentum,
+    breakoutRetestQuality:
+      currentBaseTrigger.breakoutRetestQuality,
+    breakoutRetestSupport:
+      currentBaseTrigger.breakoutRetestSupport,
+
     tradeSpace:
       currentBaseTrigger.tradeSpace,
     bonusCount:
@@ -1971,8 +2441,12 @@ async function saveDecision(event) {
       currentDecision.obstacleState,
     marketCap:
       currentDecision.marketCap,
+    rawMatrixSize:
+      currentDecision.rawMatrixSize,
     matrixSize:
       currentDecision.matrixSize,
+    positionQualitySize:
+      currentDecision.positionQualitySize,
     obstacleSize:
       currentDecision.obstacleSize,
     finalSize:
@@ -2045,7 +2519,7 @@ async function saveDecision(event) {
 
   renderHistory();
   showToast(
-    "已儲存V3.2練習／實戰紀錄"
+    "已儲存V3.3練習／實戰紀錄"
   );
 }
 
@@ -2232,7 +2706,21 @@ function renderHistory() {
 
       const engineTag =
         record.engineVersion
-          ? '<span class="history-tag">Matrix V3.2</span>'
+          ? `<span class="history-tag">${escapeHtml(
+              record.engineVersion.replace(
+                "MasterTradeDecisionMatrix-",
+                "Matrix "
+              )
+            )}</span>`
+          : "";
+
+      const triggerModelTag =
+        record.triggerModelLabel
+          ? `<span class="history-tag">${escapeHtml(
+              record.triggerModel === "B"
+                ? "Model B"
+                : "Model A"
+            )}</span>`
           : "";
 
       const mainState =
@@ -2267,6 +2755,7 @@ function renderHistory() {
             <span class="history-tag">${escapeHtml(
               record.trigger || "未記錄"
             )}</span>
+            ${triggerModelTag}
             ${twoBTag}
             ${engineTag}
             ${imageTag}
@@ -2507,16 +2996,22 @@ async function openRecord(recordId) {
       record.direction || ""
     )}
     <br>
+    <strong>P1背景：</strong>
+    ${record.p1BackgroundTailwind === "yes" ? "有" : "冇"}
+    <br>
     <strong>原始位置：</strong>
     ${escapeHtml(basePosition)}
     <br>
     <strong>2B後位置：</strong>
     ${escapeHtml(effectivePosition)}
     <br>
-    <strong>基礎Trigger：</strong>
-    ${escapeHtml(baseTrigger)}
+    <strong>Trigger Model：</strong>
+    ${escapeHtml(
+      record.triggerModelLabel ||
+      "舊版｜Liquidity Reversal"
+    )}
     <br>
-    <strong>2B後Trigger：</strong>
+    <strong>Trigger質素：</strong>
     ${escapeHtml(effectiveTrigger)}
     <br>
     <strong>Asia 2B：</strong>
@@ -2903,25 +3398,32 @@ function buildCsv(records) {
     "次要部署",
     "大局方向關係",
     "大局位置實際重疊",
+    "P1背景",
     "原始位置",
     "2B後位置",
     "P2邊緣",
     "P3可小注測試",
+    "Trigger Model",
     "有效Sweep",
     "有效Reclaim",
     "Reclaim質素",
-    "Retest質素",
+    "Model A Retest質素",
+    "Breakout位置有意義",
+    "Acceptance",
+    "Breakout動能",
+    "Breakout Retest質素",
+    "Breakout Retest結構承接",
     "交易空間",
     "Trigger加分數",
-    "基礎Trigger",
-    "2B後Trigger",
+    "Trigger質素",
     "Asia2B類型",
     "Asia2B高質",
     "Asia2B條件數",
     "Asia2B結構基礎",
     "大局障礙",
     "市場注碼上限",
-    "位置及Trigger修正",
+    "Trigger矩陣許可",
+    "位置質素修正",
     "大局修正",
     "最終注碼",
     "入市結果",
@@ -2961,6 +3463,9 @@ function buildCsv(records) {
       record.backgroundDirectOverlap === "yes"
         ? "有"
         : "冇",
+      record.p1BackgroundTailwind === "yes"
+        ? "有"
+        : "冇",
       record.basePosition ||
         record.position ||
         "",
@@ -2973,19 +3478,47 @@ function buildCsv(records) {
       record.p3Testable
         ? "Yes"
         : "No",
-      record.validSweep
-        ? "Yes"
-        : "No",
-      record.validReclaim
-        ? "Yes"
-        : "No",
-      record.reclaimQuality || "",
-      record.retestQuality || "",
+      record.triggerModelLabel ||
+        (
+          record.engineVersion === "MasterTradeDecisionMatrix-V3.3"
+            ? ""
+            : "舊版｜Liquidity Reversal"
+        ),
+      record.triggerModel === "B"
+        ? ""
+        : record.validSweep
+          ? "Yes"
+          : "No",
+      record.triggerModel === "B"
+        ? ""
+        : record.validReclaim
+          ? "Yes"
+          : "No",
+      record.triggerModel === "B"
+        ? ""
+        : record.reclaimQuality || "",
+      record.triggerModel === "B"
+        ? ""
+        : record.retestQuality || "",
+      record.triggerModel === "B"
+        ? record.breakoutMeaningful
+          ? "Yes"
+          : "No"
+        : "",
+      record.triggerModel === "B"
+        ? record.breakoutAcceptance || ""
+        : "",
+      record.triggerModel === "B"
+        ? record.breakoutMomentum || ""
+        : "",
+      record.triggerModel === "B"
+        ? record.breakoutRetestQuality || ""
+        : "",
+      record.triggerModel === "B"
+        ? record.breakoutRetestSupport || ""
+        : "",
       record.tradeSpace || "",
       record.bonusCount ?? "",
-      record.baseTrigger ||
-        record.trigger ||
-        "",
       record.trigger ||
         record.baseTrigger ||
         "",
@@ -3004,7 +3537,12 @@ function buildCsv(records) {
         "far"
       ),
       record.marketCap ?? "",
-      record.matrixSize ?? "",
+      record.rawMatrixSize ??
+        record.matrixSize ??
+        "",
+      record.positionQualitySize ??
+        record.matrixSize ??
+        "",
       record.obstacleSize ??
         record.finalSize ??
         "",
@@ -3092,7 +3630,7 @@ function exportCsv() {
 
   downloadBlob(
     blob,
-    `MasterTrade-V3_2-Journal-${new Date()
+    `MasterTrade-V3_3-Journal-${new Date()
       .toISOString()
       .slice(0, 10)}.csv`
   );
@@ -3645,7 +4183,7 @@ async function exportBackupZip() {
 
     downloadBlob(
       zipBlob,
-      `MasterTrade-V3_2-Backup-${new Date()
+      `MasterTrade-V3_3-Backup-${new Date()
         .toISOString()
         .slice(0, 10)}.zip`
     );

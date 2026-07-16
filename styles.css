@@ -903,3 +903,23 @@ dialog::backdrop {
 .export-actions .secondary-button {
   width: auto;
 }
+
+
+.trigger-model-card {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+}
+
+.trigger-model-panel {
+  position: relative;
+}
+
+.trigger-model-panel .large-rule {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: var(--panel);
+}
+
+.trigger-model-panel.hidden {
+  display: none;
+}

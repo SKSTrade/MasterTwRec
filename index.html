@@ -17,9 +17,9 @@
     <div>
       <p class="eyebrow">MASTER TRADE</p>
       <h1>Practice & Live Journal</h1>
-      <p class="header-subtitle">Decision Matrix V3.2</p>
+      <p class="header-subtitle">Decision Matrix V3.3</p>
     </div>
-    <span class="version-badge">V1.9</span>
+    <span class="version-badge">V1.11</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -194,11 +194,20 @@
           </label>
           <p id="backgroundOverlapNote" class="state-note"></p>
 
+          <label>
+            P1背景順風
+            <select id="p1BackgroundTailwind">
+              <option value="no" selected>冇</option>
+              <option value="yes">有｜行情源於較早P1反應，但目前位置本身唔係P1</option>
+            </select>
+          </label>
+          <p class="state-note">只作背景標籤：可以記錄「P2＋P1背景順風」，但唔會將P2升P1，亦唔會提高注碼。</p>
+
           <label id="p2EdgeRow" class="toggle-row">
             <input id="p2EdgePosition" type="checkbox">
             <span>
               <strong>P2屬邊緣／質素普通位置</strong>
-              <small>會令原本完整Trigger先按Q2處理；高質2B可在核心條件完整時再升返Q3。</small>
+              <small>位置質素同Trigger質素分開計：P2邊緣＋Q3會降一級；P2邊緣＋Q2偏向Skip，本App採用保守0注。</small>
             </span>
           </label>
 
@@ -211,14 +220,32 @@
           </label>
         </article>
 
-        <article class="card">
-          <h2>Trigger核心條件</h2>
+        <article class="card trigger-model-card">
+          <h2>Trigger Model</h2>
+
+          <label>
+            選擇今次Setup使用嘅Trigger Model
+            <select id="triggerModel">
+              <option value="A" selected>Model A｜Liquidity Reversal｜Sweep → Reclaim → Weak Retest</option>
+              <option value="B">Model B｜Breakout Continuation｜Breakout → Acceptance → Weak Retest</option>
+            </select>
+          </label>
+
+          <div class="principle-box">
+            <strong>V3.3：冇Sweep ≠ 唔可以做。</strong>
+            <span>只要符合Model A或Model B其中一套完整核心邏輯，就可以正常評Q3／Q2／Q1。</span>
+          </div>
+        </article>
+
+        <article id="triggerModelAPanel" class="card trigger-model-panel">
+          <h2>Model A｜Liquidity Reversal</h2>
+          <p class="large-rule">Sweep → Reclaim → Weak Retest</p>
 
           <label class="toggle-row">
             <input id="validSweep" type="checkbox">
             <span>
               <strong>1. 有效Sweep</strong>
-              <small>掃走Asia／OPR／PDH／PDL／Swing／結構或區間邊界等有意義流動性。</small>
+              <small>掃走Asia／OPR／PDH／PDL／Swing／結構或Range邊界等有意義流動性。</small>
             </span>
           </label>
 
@@ -226,7 +253,7 @@
             <input id="validReclaim" type="checkbox">
             <span>
               <strong>2. 有效Reclaim</strong>
-              <small>收復被sweep水平、破壞造成sweep嗰段微結構，而且冇即刻被完全否定。</small>
+              <small>收復被Sweep位置、破壞造成Sweep嗰段微結構，而且Reclaim後冇立即被吞噬。</small>
             </span>
           </label>
 
@@ -242,14 +269,71 @@
           <label>
             3. Retest相對Reclaim
             <select id="retestQuality">
-              <option value="weak">明顯較弱｜速度慢、力度弱、未否定Reclaim</option>
-              <option value="imperfect" selected>有瑕疵但仍可交易｜稍深／普通</option>
+              <option value="weak">明顯較弱｜慢、細燭、冇連續大反向實體</option>
+              <option value="imperfect" selected>有瑕疵但仍可交易｜稍快／稍深／普通</option>
               <option value="invalid">快、深、強｜已否定Reclaim</option>
+            </select>
+          </label>
+        </article>
+
+        <article id="triggerModelBPanel" class="card trigger-model-panel hidden">
+          <h2>Model B｜Breakout／Retest Continuation</h2>
+          <p class="large-rule">Breakout → Acceptance → Weak Retest</p>
+
+          <label class="toggle-row">
+            <input id="breakoutMeaningful" type="checkbox">
+            <span>
+              <strong>1. Breakout位置有意義</strong>
+              <small>P1／P2結構、主結、次結、Range邊界、重要Breakout Level，或Mon H/L／PDH／PDL＋結構；純micro high／low唔夠。</small>
+            </span>
+          </label>
+
+          <label>
+            2. Acceptance質素
+            <select id="breakoutAcceptance">
+              <option value="strong">強｜實體有效收穿＋線外企穩／有follow-through</option>
+              <option value="ordinary" selected>普通｜有效收穿但follow-through一般</option>
+              <option value="invalid">失效｜插穿即收返／冇Acceptance／False Breakout</option>
             </select>
           </label>
 
           <label>
-            4. 到第一個真實目標嘅交易空間
+            3. Breakout動能
+            <select id="breakoutMomentum">
+              <option value="strong">強｜突破有明顯推動</option>
+              <option value="ordinary" selected>普通｜有效突破但動能一般</option>
+              <option value="invalid">弱／失效｜冇有效推動或即刻被抵消</option>
+            </select>
+          </label>
+
+          <label>
+            4. Retest相對Breakout
+            <select id="breakoutRetestQuality">
+              <option value="weak">高質｜淺／慢／弱，約0.382–0.786</option>
+              <option value="imperfect" selected>有瑕疵｜偏快或0.786–0.88，但未吞噬Breakout</option>
+              <option value="invalid">失效｜快、深、強／完全吞噬Breakout</option>
+            </select>
+          </label>
+
+          <label>
+            5. Retest結構承接
+            <select id="breakoutRetestSupport">
+              <option value="strong">高質｜兩項或以上重疊</option>
+              <option value="ordinary" selected>普通｜一項有效結構承接</option>
+              <option value="none">冇有效結構承接</option>
+            </select>
+          </label>
+
+          <p class="state-note">
+            Retest唔需要精準返原Breakout線。Breakout Base、Impulse Origin、Pause Candle、新Micro Support／Resistance、0.5／0.618、舊阻力變支持／舊支持變阻力都可以提供承接。
+          </p>
+        </article>
+
+        <article class="card">
+          <h2>共同核心｜交易空間</h2>
+
+          <label>
+            到第一個真實目標嘅交易空間
             <select id="tradeSpace">
               <option value="full" selected>有完整合理R:R</option>
               <option value="short">略短但仍達最低可接受R:R</option>
@@ -264,21 +348,27 @@
 
           <label class="toggle-row"><input id="bonusRVOL" type="checkbox"><span>RVOL／成交量支持</span></label>
           <label class="toggle-row"><input id="bonusCloseExtreme" type="checkbox"><span>Long收近燭頂／Short收近燭底</span></label>
-          <label class="toggle-row"><input id="bonusCleanerReclaim" type="checkbox"><span>Reclaim比原方向推動更乾淨</span></label>
-          <label class="toggle-row"><input id="bonusRetestTime" type="checkbox"><span>Retest用時約為Reclaim 1.5倍或以上</span></label>
-          <label class="toggle-row"><input id="bonusDepth" type="checkbox"><span>Retest深度約0.5–0.786</span></label>
-          <label class="toggle-row"><input id="bonusImpulseOrigin" type="checkbox"><span>Impulse origin重疊</span></label>
+          <label class="toggle-row"><input id="bonusCleanerReclaim" type="checkbox"><span>原推動／Reclaim／Breakout比反方向更乾淨</span></label>
+          <label class="toggle-row"><input id="bonusRetestTime" type="checkbox"><span>Retest用時明顯較原推動長</span></label>
+          <label class="toggle-row"><input id="bonusDepth" type="checkbox"><span>Retest深度處於合理區域</span></label>
+          <label class="toggle-row"><input id="bonusImpulseOrigin" type="checkbox"><span>Impulse Origin／Breakout Base重疊</span></label>
           <label class="toggle-row"><input id="bonusFib" type="checkbox"><span>Fib重疊</span></label>
-          <label class="toggle-row"><input id="bonusLiquidityOverlap" type="checkbox"><span>Asia／OPR／PDH／PDL重疊</span></label>
-          <label class="toggle-row"><input id="bonusFollowThrough" type="checkbox"><span>Reclaim後有follow-through</span></label>
+          <label class="toggle-row"><input id="bonusLiquidityOverlap" type="checkbox"><span>Asia／OPR／PDH／PDL／Mon H/L重疊</span></label>
+          <label class="toggle-row"><input id="bonusFollowThrough" type="checkbox"><span>原推動後有Follow-through</span></label>
         </article>
 
         <article class="card">
           <h2>Trigger自動評級</h2>
+
+          <div class="result-lines compact">
+            <div><span>Trigger Model</span><strong id="triggerModelResult">Model A｜Liquidity Reversal</strong></div>
+          </div>
+
           <div class="grade-line">
             <span>基礎評級</span>
             <strong id="baseTriggerGrade" class="grade q1">Q1｜失效</strong>
           </div>
+
           <div id="triggerEvaluation"></div>
         </article>
 
@@ -311,7 +401,7 @@
           </div>
 
           <p class="muted">
-            高質2B只係執行優勢：可以Q2→Q3，或有結構基礎時P3→P2；唔可以P2→P1、救P4、推翻大局障礙或將0.5注升到1注。
+            V3.3：高質2B係執行／位置優勢。有原有結構基礎時可以P3→P2；唔會改變Trigger Model評級，亦唔可以P2→P1、救P4、推翻大局障礙或將0.5注升到1注。
           </p>
         </article>
 
@@ -335,7 +425,7 @@
           <h2>五項硬性否決</h2>
 
           <p class="muted">
-            Sweep／Reclaim／Retest／交易空間會由上面輸入自動判斷。以下只需額外勾選執行層限制。
+            App會按你選擇嘅Trigger Model自動判斷核心邏輯。Model A要求Sweep／Reclaim；Model B要求Breakout／Acceptance，Breakout交易唔需要Sweep。
           </p>
 
           <label class="toggle-row">
@@ -365,7 +455,7 @@
         </article>
 
         <article class="card result-card">
-          <h2>Decision Matrix V3.2結果</h2>
+          <h2>Decision Matrix V3.3結果</h2>
 
           <div class="result-lines">
             <div><span>大局背景</span><strong id="resultBackground"></strong></div>
@@ -376,11 +466,13 @@
             <div><span>交易優先方向</span><strong id="resultPreferredDirection"></strong></div>
             <div><span>原始位置</span><strong id="resultBasePosition"></strong></div>
             <div><span>2B後位置</span><strong id="resultEffectivePosition"></strong></div>
-            <div><span>基礎Trigger</span><strong id="resultBaseTrigger"></strong></div>
-            <div><span>2B後Trigger</span><strong id="resultEffectiveTrigger"></strong></div>
+            <div><span>P1背景</span><strong id="resultP1Background"></strong></div>
+            <div><span>Trigger Model</span><strong id="resultTriggerModel"></strong></div>
+            <div><span>Trigger質素</span><strong id="resultEffectiveTrigger"></strong></div>
             <div><span>2B Setup</span><strong id="resultAsia2B"></strong></div>
             <div><span>市場注碼上限</span><strong id="resultMarketCap"></strong></div>
-            <div><span>位置＋Trigger修正</span><strong id="resultMatrixSize"></strong></div>
+            <div><span>Trigger矩陣許可</span><strong id="resultMatrixSize"></strong></div>
+            <div><span>位置質素修正</span><strong id="resultPositionQualitySize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
           </div>
 
@@ -524,7 +616,7 @@
     <section id="rules" class="tab-panel">
       <article class="card">
         <h2>核心流程</h2>
-        <p class="large-rule">大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置級別 → Trigger質素 → 大局障礙修正 → 最終注碼</p>
+        <p class="large-rule">大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置級別 → Trigger Model → Trigger質素 → 大局障礙修正 → 最終注碼</p>
       </article>
 
       <article class="card">
@@ -549,29 +641,44 @@
       <article class="card">
         <h2>P1／P2最重要修正</h2>
         <ul>
-          <li>P1包括大局背景主結、主判主結、主判大型區間邊界，以及會改變主判市場狀態嘅突破回測。</li>
+          <li>P1包括大局背景主結、主判主結、主判大型區間邊界，以及會改變主判／次判市場狀態嘅主結突破回測。</li>
           <li>次判主結只有同大局／主判重大位置直接空間重疊，先升做P1。</li>
           <li>價格已離開大局重大區，之後回抽新形成次判主結，維持P2，只係有P1背景順風。</li>
+          <li>P2邊緣＋Q3降一級；P2邊緣＋Q2偏向Skip，本App採用保守0注。</li>
           <li>位置級別睇空間重疊，不是故事重疊。</li>
         </ul>
       </article>
 
       <article class="card">
-        <h2>Trigger精簡Filter</h2>
-        <ol>
-          <li>有效Sweep</li>
-          <li>有效Reclaim</li>
-          <li>Retest明顯弱過Reclaim</li>
-          <li>有效交易空間</li>
-        </ol>
-        <p>其他RVOL、收近極端、Fib、Impulse Origin、流動性重疊、Follow-through等只作加分證據。</p>
+        <h2>Trigger Model A｜Liquidity Reversal</h2>
+        <p class="large-rule">Sweep → Reclaim → Weak Retest</p>
+        <ul>
+          <li>有效Sweep。</li>
+          <li>有效Reclaim。</li>
+          <li>Retest明顯弱過Reclaim。</li>
+          <li>第一真實目標前有合理R:R。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Trigger Model B｜Breakout Continuation</h2>
+        <p class="large-rule">Breakout → Acceptance → Weak Retest</p>
+        <ul>
+          <li>Breakout位置有意義。</li>
+          <li>有真正Acceptance，而唔係插穿即收返。</li>
+          <li>Breakout有有效推動。</li>
+          <li>Retest弱過Breakout。</li>
+          <li>Retest有結構承接；唔需要精準回原Breakout線。</li>
+          <li>第一真實目標前有合理R:R。</li>
+        </ul>
+        <p><strong>冇Sweep唔代表0注。</strong> Breakout延續單只要Model B完整成立，就可以正常評Q3／Q2。</p>
       </article>
 
       <article class="card">
         <h2>亞洲盤2B</h2>
         <ul>
-          <li>可以Q2→Q3。</li>
-          <li>有結構基礎時可以P3→P2。</li>
+          <li>有原有結構基礎時可以P3→P2。</li>
+          <li>Trigger質素仍由Model A／B獨立評級。</li>
           <li>唔可以P2→P1。</li>
           <li>唔可以救P4。</li>
           <li>唔可以推翻大局障礙。</li>
@@ -594,8 +701,8 @@
         <h2>五項硬性否決</h2>
         <ol>
           <li>P4中間位或追價。</li>
-          <li>冇有效Sweep或冇真正Reclaim。</li>
-          <li>Retest明顯快、深、強，已否定Reclaim。</li>
+          <li>所選Trigger Model核心邏輯失效；Model A／B兩套都唔可以靠缺失核心條件硬做。</li>
+          <li>Retest明顯快、深、強，否定原Reclaim或Breakout推動。</li>
           <li>第一個真實目標前冇最低可接受R:R。</li>
           <li>違反交易時間或總風險上限。</li>
         </ol>
@@ -603,7 +710,7 @@
 
       <article class="card">
         <h2>資料與圖片</h2>
-        <p>文字紀錄同圖片只儲存在呢部裝置嘅網站資料。清除Safari網站資料會一併刪除。CSV唔包含圖片，重要圖片請另行下載保存。</p>
+        <p>文字紀錄同圖片只儲存在呢部裝置嘅網站資料。清除Safari網站資料會一併刪除。可以單獨匯出CSV，或者匯出「CSV＋全部照片 ZIP」作完整備份。</p>
       </article>
     </section>
   </main>
