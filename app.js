@@ -93,19 +93,19 @@ const STATES = {
 const POSITION_INFO = {
   P1: {
     title: "最高級位置",
-    note: "週／日線重大支持阻力、大局背景主結、主判主結、主判大型區間邊界、會改變主判／次判市場狀態嘅主結突破回測、次判主結同大局／主判重大位置直接重疊，以及W618／D618同實際HTF結構重疊。Fib本身唔可以成為P1。"
+    note: "W／D重大支持阻力、大局主結、主判主結、主判大型Range邊界、會改變主判／次判Market State嘅重要結構Break後首次Retest、次判主結直接重疊主判／大局結構，以及W618／D618＋真實HTF結構重疊。"
   },
   P2: {
-    title: "A級工作位置",
-    note: "次判主結、主判次結、次判重要區間邊界、普通工作結構突破接受後首次回測、impulse origin／swap zone，以及結構位置＋Asia／OPR／PDH／PDL。"
+    title: "重要工作位置",
+    note: "次判主結、主判次結、次判重要Range邊界、有意義Breakout後首次Retest、清晰Swap Zone、清晰Impulse Origin，以及結構＋Asia／OPR／PDH／PDL重疊。"
   },
   P3: {
-    title: "次級位置",
-    note: "次判次結、入場層主結、session liquidity＋普通局部結構、0.618＋普通swap、低級別區間邊界。主要適合健康同向順勢，或0.25注測試。"
+    title: "普通但有效位置",
+    note: "次判次結、Trigger TF主結、普通LTF結構、普通LTF Range Edge、0.618＋普通Swap，以及Session Liquidity＋普通Local Structure。"
   },
   P4: {
-    title: "無交易位置",
-    note: "橫行中間、純Fib、純Asia／OPR、純2B冇結構、追突破、距離上下重要位置相若，或者入場後即刻撞重大支持／阻力。P4無論Trigger幾靚都係0注。"
+    title: "冇交易價值位置",
+    note: "Range中間、純Fib、純Asia／OPR、純2B但冇結構基礎、Chase、上下重要邊界距離相若，或第一真實障礙令R:R不足。P4＝0注。"
   }
 };
 
@@ -123,7 +123,6 @@ const BONUS_IDS = [
   "bonusRetestTime",
   "bonusDepth",
   "bonusImpulseOrigin",
-  "bonusFib",
   "bonusLiquidityOverlap",
   "bonusFollowThrough"
 ];
@@ -238,7 +237,7 @@ function backgroundRelationInfo() {
     label: aligned
       ? `順大局${descriptor}`
       : `逆大局${descriptor}`,
-    note: "V3.3唔會因單純順／逆大局方向直接升級注碼；真正注碼限制由大局障礙位置及交易空間處理。"
+    note: "V3.5唔會因單純順／逆大局方向直接升級注碼；真正注碼限制由大局障礙位置及交易空間處理。"
   };
 }
 
@@ -476,23 +475,26 @@ function evaluateBaseTrigger() {
     countChecked(BONUS_IDS);
   const tradeSpace =
     $("tradeSpace").value;
-
-  const p2Edge =
-    $("positionLevel").value === "P2" &&
-    checked("p2EdgePosition");
+  const bonusDirectRepair =
+    checked("bonusDirectRepair");
+  const bonusNoDoubleCount =
+    checked("bonusNoDoubleCount");
 
   const result = {
     model,
     modelLabel:
       triggerModelLabel(model),
     quality: "Q1",
+    preBonusQuality: "Q1",
+    bonusUpgraded: false,
     failures,
     coreFailures,
     imperfections,
     positives,
     bonusCount,
+    bonusDirectRepair,
+    bonusNoDoubleCount,
     tradeSpace,
-    p2Edge,
     validSweep: false,
     validReclaim: false,
     reclaimQuality: null,
@@ -523,7 +525,7 @@ function evaluateBaseTrigger() {
 
     if (!validSweep) {
       coreFailures.push(
-        "Model A冇有效Sweep。"
+        "Model A冇真正有意義Sweep。"
       );
     } else {
       positives.push(
@@ -545,13 +547,13 @@ function evaluateBaseTrigger() {
       reclaimQuality === "negated"
     ) {
       coreFailures.push(
-        "Reclaim即刻被完全吞噬／否定。"
+        "Reclaim立即失敗／被完全吞噬。"
       );
     } else if (
       reclaimQuality === "ordinary"
     ) {
       imperfections.push(
-        "Reclaim質素普通，但核心邏輯仍成立。"
+        "Reclaim力度普通，但核心仍成立。"
       );
     } else {
       positives.push(
@@ -563,37 +565,18 @@ function evaluateBaseTrigger() {
       retestQuality === "invalid"
     ) {
       coreFailures.push(
-        "Retest快、深、強，已否定Reclaim。"
+        "Retest快／深／強到否定Reclaim。"
       );
     } else if (
       retestQuality === "imperfect"
     ) {
       imperfections.push(
-        "Retest有瑕疵，但未否定Reclaim。"
+        "Retest有1項未致命瑕疵，但未否定Reclaim。"
       );
     } else {
       positives.push(
-        "Retest明顯弱過Reclaim。"
+        "Retest屬Weak／Controlled Retest。"
       );
-    }
-
-    failures.push(
-      ...coreFailures
-    );
-
-    if (
-      failures.length === 0
-    ) {
-      const completeHighQuality =
-        reclaimQuality === "strong" &&
-        retestQuality === "weak" &&
-        tradeSpace === "full" &&
-        !checked("chasedBreakout");
-
-      result.quality =
-        completeHighQuality
-          ? "Q3"
-          : "Q2";
     }
   } else {
     const breakoutMeaningful =
@@ -617,7 +600,7 @@ function evaluateBaseTrigger() {
 
     if (!breakoutMeaningful) {
       coreFailures.push(
-        "Breakout位置唔夠重要；純micro high／low突破不足以構成Model B。"
+        "Model B Breakout位置冇重要性；純Micro High／Low不足以構成正式Model B。"
       );
     } else {
       positives.push(
@@ -630,18 +613,18 @@ function evaluateBaseTrigger() {
       "invalid"
     ) {
       coreFailures.push(
-        "冇真正Acceptance／False Breakout／插穿後立即收返。"
+        "冇真正Acceptance／False Breakout／即時返回原區。"
       );
     } else if (
       breakoutAcceptance ===
       "ordinary"
     ) {
       imperfections.push(
-        "Acceptance成立，但follow-through／線外企穩質素一般。"
+        "Acceptance仍成立，但質素／Follow-through一般。"
       );
     } else {
       positives.push(
-        "Acceptance清楚，有效收穿並留喺突破方向。"
+        "Acceptance清楚，Level外有效企穩。"
       );
     }
 
@@ -649,18 +632,18 @@ function evaluateBaseTrigger() {
       breakoutMomentum === "invalid"
     ) {
       coreFailures.push(
-        "Breakout冇有效推動，或推動即刻被抵消。"
+        "Breakout原推動已失效／即刻被抵消。"
       );
     } else if (
       breakoutMomentum ===
       "ordinary"
     ) {
       imperfections.push(
-        "Breakout動能普通，但仍屬有效突破。"
+        "Breakout Momentum普通，但核心Breakout仍成立。"
       );
     } else {
       positives.push(
-        "Breakout有明顯推動。"
+        "Breakout有明顯Push。"
       );
     }
 
@@ -669,18 +652,18 @@ function evaluateBaseTrigger() {
       "invalid"
     ) {
       coreFailures.push(
-        "Retest快、深、強，或已完全吞噬Breakout。"
+        "Retest快／深／強到否定Breakout。"
       );
     } else if (
       breakoutRetestQuality ===
       "imperfect"
     ) {
       imperfections.push(
-        "Retest偏快／偏深，但Breakout核心仍未失效。"
+        "Retest有1項未致命瑕疵，但未吞噬Breakout。"
       );
     } else {
       positives.push(
-        "Retest明顯弱過Breakout。"
+        "Retest屬Weak／Controlled Retest。"
       );
     }
 
@@ -689,69 +672,41 @@ function evaluateBaseTrigger() {
       "none"
     ) {
       coreFailures.push(
-        "Retest冇有效結構承接。"
+        "Retest冇有效結構支持。"
       );
     } else if (
       breakoutRetestSupport ===
       "ordinary"
     ) {
       imperfections.push(
-        "Retest只有一項有效結構承接，重疊質素普通。"
+        "Retest結構支持普通，但仍有效。"
       );
     } else {
       positives.push(
-        "Retest有兩項或以上結構承接／重疊。"
+        "Retest有清晰結構支持／重疊。"
       );
     }
-
-    failures.push(
-      ...coreFailures
-    );
-
-    if (
-      failures.length === 0
-    ) {
-      const completeHighQuality =
-        breakoutAcceptance ===
-          "strong" &&
-        breakoutMomentum ===
-          "strong" &&
-        breakoutRetestQuality ===
-          "weak" &&
-        breakoutRetestSupport ===
-          "strong" &&
-        tradeSpace === "full" &&
-        !checked("chasedBreakout");
-
-      result.quality =
-        completeHighQuality
-          ? "Q3"
-          : "Q2";
-    }
   }
+
+  failures.push(
+    ...coreFailures
+  );
 
   if (
     tradeSpace === "insufficient"
   ) {
     failures.push(
-      "第一個真實目標前空間不足。"
+      "第一個真實Target令R:R不足。"
     );
-    result.quality = "Q1";
   } else if (
     tradeSpace === "short"
   ) {
     imperfections.push(
-      "交易空間略短，但仍達最低可接受R:R。"
+      "到第一真實Target空間只屬最低可接受，未算完整。"
     );
-
-    if (
-      result.quality === "Q3"
-    ) {
-      result.quality = "Q2";
-    }
   } else {
     positives.push(
-      "到第一個真實目標有完整合理R:R。"
+      "到第一個真實Target有完整合理R:R。"
     );
   }
 
@@ -759,16 +714,72 @@ function evaluateBaseTrigger() {
     checked("chasedBreakout")
   ) {
     failures.push(
-      "入場屬追價。"
+      "實際入場屬Chase。"
     );
-    result.quality = "Q1";
   }
 
   if (
+    failures.length > 0
+  ) {
+    result.quality = "Q1";
+    result.preBonusQuality = "Q1";
+  } else if (
+    imperfections.length === 0
+  ) {
+    result.quality = "Q3";
+    result.preBonusQuality = "Q3";
+  } else {
+    result.quality = "Q2";
+    result.preBonusQuality = "Q2";
+  }
+
+  const upgradeEligible =
+    result.preBonusQuality === "Q2" &&
+    imperfections.length === 1 &&
+    bonusCount >= 2 &&
+    bonusDirectRepair &&
+    bonusNoDoubleCount;
+
+  if (upgradeEligible) {
+    result.quality = "Q3";
+    result.bonusUpgraded = true;
+    positives.push(
+      "Q2只有1項未致命瑕疵，而且有至少2項獨立加分、其中1項直接補強瑕疵並確認冇Double Count：Q2 → Q3。"
+    );
+  } else if (
+    result.preBonusQuality === "Q2" &&
+    bonusCount >= 2
+  ) {
+    if (
+      imperfections.length !== 1
+    ) {
+      positives.push(
+        "有至少2項加分，但原Trigger唔係只有1項瑕疵，所以冇Q2→Q3升級資格。"
+      );
+    } else if (!bonusDirectRepair) {
+      positives.push(
+        "有至少2項加分，但未確認有證據直接補強原本瑕疵，所以維持Q2。"
+      );
+    } else if (!bonusNoDoubleCount) {
+      positives.push(
+        "升級條件接近成立，但未確認冇Double Count，所以維持Q2。"
+      );
+    }
+  }
+
+  if (
+    result.preBonusQuality === "Q1" &&
     bonusCount > 0
   ) {
     positives.push(
-      `有${bonusCount}項Trigger加分證據。`
+      "Q1代表核心失效；任何數量加分都唔可以救返舊Trigger。"
+    );
+  } else if (
+    bonusCount > 0 &&
+    !result.bonusUpgraded
+  ) {
+    positives.push(
+      `記錄到${bonusCount}項獨立Trigger加分證據。`
     );
   }
 
@@ -903,7 +914,7 @@ function evaluateAsia2B(baseTrigger) {
   }
 
   reasons.push(
-    "V3.3入面OPR／Asia 2B只強化位置／執行優勢，不會改變Trigger Model評級，亦不會提高市場注碼上限。"
+    "V3.5入面OPR／Asia 2B只強化位置／執行優勢，不會改變Trigger Model評級，亦不會提高市場注碼上限。"
   );
 
   return {
@@ -1102,49 +1113,6 @@ function downgradeOneLevel(size) {
   return 0;
 }
 
-function applyPositionQualityAdjustment(
-  size,
-  position,
-  quality
-) {
-  const isP2Edge =
-    position === "P2" &&
-    checked("p2EdgePosition");
-
-  if (!isP2Edge) {
-    return {
-      adjustedSize: size,
-      explanation:
-        "位置質素＝標準，唔作額外降級。"
-    };
-  }
-
-  if (quality === "Q3") {
-    const adjusted =
-      downgradeOneLevel(size);
-
-    return {
-      adjustedSize: adjusted,
-      explanation:
-        `P2邊緣＋Q3按保守規則降一級：${SIZE_LABELS[size]} → ${SIZE_LABELS[adjusted]}。`
-    };
-  }
-
-  if (quality === "Q2") {
-    return {
-      adjustedSize: 0,
-      explanation:
-        `P2邊緣＋Q2屬邊緣位置再加Trigger瑕疵，V3.3採用保守預設Skip：${SIZE_LABELS[size]} → 0注。`
-    };
-  }
-
-  return {
-    adjustedSize: 0,
-    explanation:
-      "P2邊緣＋Q1＝0注。"
-  };
-}
-
 function insideObstacleCap(position, quality) {
   if (position === "P1" && quality === "Q3") return 0.5;
   if (position === "P2" && quality === "Q3") return 0.25;
@@ -1275,21 +1243,11 @@ function evaluateDecision(
       asia2B.effectiveQuality
     );
 
-  const marketLimitedSize =
+  const matrixLimitedSize =
     Math.min(
       marketCap,
       matrix.size
     );
-
-  const positionQuality =
-    applyPositionQualityAdjustment(
-      marketLimitedSize,
-      asia2B.effectivePosition,
-      asia2B.effectiveQuality
-    );
-
-  const matrixLimitedSize =
-    positionQuality.adjustedSize;
 
   let obstacle =
     applyObstacle(
@@ -1300,7 +1258,6 @@ function evaluateDecision(
 
   const mainState =
     $("mainState").value;
-
   const secondaryState =
     $("secondaryState").value;
 
@@ -1329,9 +1286,9 @@ function evaluateDecision(
       state: "inside",
       adjustedSize: 0,
       explanation:
-        "主判處於相反傾向嘅轉換，而目前係順次判做局部回調trade；價格已到主判潛在支持／阻力區，按V3.3停止開新局部方向倉，修正至0注。",
+        "主判處於相反傾向Transition，而目前順次判做局部回調trade；價格已進入主判潛在支持／阻力，停止開新局部方向倉，修正至0注。",
       management:
-        "已有局部方向倉準備食糊；停止新開同方向trade，觀察次判趨勢有冇被破壞，開始等待主判傾向方向setup。"
+        "已有倉準備管理／食糊；等待新Trigger，而唔係繼續追局部方向。"
     };
   }
 
@@ -1343,13 +1300,12 @@ function evaluateDecision(
 
   const reasons = [
     ...asia2B.reasons,
-    `注碼路徑① 主次關係：${relation}，市場最高注碼＝${SIZE_LABELS[marketCap]}。`,
-    `注碼路徑② 交易方向權限：${matrix.route}。`,
-    `注碼路徑③ Trigger Model：${baseTrigger.modelLabel}，評級＝${asia2B.effectiveQuality}。`,
-    `注碼路徑④ 位置＋Trigger：${matrix.cellExplanation}`,
-    `注碼路徑⑤ 市場上限同矩陣取較低值＝${SIZE_LABELS[marketLimitedSize]}。`,
-    `注碼路徑⑥ ${positionQuality.explanation}`,
-    `注碼路徑⑦ ${obstacle.explanation}`
+    `① Market State：${relation}，市場最高注碼＝${SIZE_LABELS[marketCap]}。`,
+    `② 交易方向權限：${matrix.route}。`,
+    `③ P位置：${asia2B.effectivePosition}；Trigger＝${baseTrigger.modelLabel}／${asia2B.effectiveQuality}。`,
+    `④ P × Q Matrix：${matrix.cellExplanation}`,
+    `⑤ 市場上限同Matrix取較低值＝${SIZE_LABELS[matrixLimitedSize]}。`,
+    `⑥ 大局障礙：${obstacle.explanation}`
   ];
 
   const warnings = [
@@ -1369,7 +1325,7 @@ function evaluateDecision(
     )
   ) {
     warnings.push(
-      "你標記目前入場價仍直接處於大局重大區。若所用次判／工作結構同該大局區直接空間重疊，按V3.3應重新檢查是否應列P1。位置級別睇空間重疊，不是故事重疊。"
+      "目前Entry仍直接處於大局／主判重大結構區；按V3.5應重新檢查實際位置是否屬P1。P評實際Entry位置，唔係行情故事。"
     );
   }
 
@@ -1377,31 +1333,31 @@ function evaluateDecision(
     $("backgroundDirectOverlap")
       .value === "no" &&
     asia2B.basePosition ===
-      "P2"
-  ) {
-    warnings.push(
-      "目前入場價已離開大局重大區：後續新形成次判主結維持P2，即使整段行情源於較早嘅P1大局反應。"
-    );
-  }
-
-  if (
-    $("positionLevel").value ===
       "P2" &&
-    checked("p2EdgePosition") &&
-    baseTrigger.quality ===
-      "Q2"
+    $("p1BackgroundTailwind")
+      .value === "yes"
   ) {
     warnings.push(
-      "P2邊緣＋Q2屬雙重瑕疵，V3.3偏向Skip；本App採用保守0注。"
+      "呢筆可記做P2＋P1背景順風；P1只係背景，唔會將Entry位置升成P1。"
     );
   }
 
   if (
-    baseTrigger.model === "B" &&
-    baseTrigger.quality === "Q2"
+    baseTrigger.preBonusQuality ===
+      "Q2" &&
+    baseTrigger.imperfections.length >
+      1
   ) {
     warnings.push(
-      "Breakout Model Q2：核心邏輯仍成立但有瑕疵；較理想係等Micro HL／LH＋二次Break確認先入。"
+      "Trigger核心仍生存，但有多過1項瑕疵；按V3.5冇Q2→Q3加分升級資格。"
+    );
+  }
+
+  if (
+    baseTrigger.bonusUpgraded
+  ) {
+    warnings.push(
+      "今次Q2→Q3升級只因已同時符合：單一未致命瑕疵、至少2項獨立加分、其中1項直接補強瑕疵，以及冇Double Count。"
     );
   }
 
@@ -1411,7 +1367,7 @@ function evaluateDecision(
     )
   ) {
     warnings.push(
-      "紀律標籤：曾因主觀方向偏見想放寬Trigger；本次不作獨立硬性取消，但應納入覆盤統計。"
+      "紀律標籤：曾因主觀方向偏見想放寬Trigger；最終仍只可以跟V3.5規則。"
     );
   }
 
@@ -1421,7 +1377,7 @@ function evaluateDecision(
     )
   ) {
     warnings.push(
-      "紀律標籤：曾因情緒／信心想加注；本次不作獨立硬性取消，但最終注碼仍只可跟矩陣。"
+      "紀律標籤：曾因情緒／信心想加注；最終注碼唔可以突破Matrix。"
     );
   }
 
@@ -1434,11 +1390,11 @@ function evaluateDecision(
     hardVetoes.length > 0
   ) {
     reasons.push(
-      `注碼路徑⑧ 硬性否決成立，最終由${SIZE_LABELS[obstacle.adjustedSize]}取消至0注。`
+      `⑦ Hard Veto成立，最終由${SIZE_LABELS[obstacle.adjustedSize]}取消至0注。`
     );
   } else {
     reasons.push(
-      `注碼路徑⑧ 冇硬性否決，最終注碼＝${SIZE_LABELS[finalSize]}。`
+      `⑦ 冇Hard Veto，最終注碼＝${SIZE_LABELS[finalSize]}。`
     );
   }
 
@@ -1458,7 +1414,7 @@ function evaluateDecision(
     matrixRoute:
       matrix.route,
     rawMatrixSize:
-      marketLimitedSize,
+      matrixLimitedSize,
     matrixSize:
       matrixLimitedSize,
     positionQualitySize:
@@ -1505,13 +1461,18 @@ function renderBaseTrigger(trigger) {
   $("triggerModelResult").textContent =
     trigger.modelLabel;
 
+  $("preBonusTriggerGrade").textContent =
+    trigger.preBonusQuality;
+
   const grade = $("baseTriggerGrade");
   grade.textContent =
     trigger.quality === "Q3"
-      ? "Q3｜完整高質"
+      ? trigger.bonusUpgraded
+        ? "Q3｜由Q2按加分規則升級"
+        : "Q3｜核心完整"
       : trigger.quality === "Q2"
-        ? "Q2｜可交易但有瑕疵"
-        : "Q1｜失效";
+        ? "Q2｜核心成立但有瑕疵"
+        : "Q1｜核心失效";
   grade.className =
     `grade ${trigger.quality.toLowerCase()}`;
 
@@ -1543,7 +1504,6 @@ function renderAsia2B(result) {
   if (!result.active) {
     $("asia2BQuality").textContent = "未啟用";
     $("asia2BPositionEffect").textContent = "無";
-    $("asia2BTriggerEffect").textContent = "無";
     return;
   }
 
@@ -1557,8 +1517,6 @@ function renderAsia2B(result) {
       ? `${result.basePosition} → ${result.effectivePosition}`
       : `維持${result.basePosition}`;
 
-  $("asia2BTriggerEffect").textContent =
-    `維持${result.baseQuality}｜V3.3由Trigger Model獨立評級`;
 }
 
 function obstacleDisplayLabel(state) {
@@ -1640,8 +1598,6 @@ function renderDecision(decision) {
     SIZE_LABELS[decision.marketCap];
   $("resultMatrixSize").textContent =
     SIZE_LABELS[decision.rawMatrixSize];
-  $("resultPositionQualitySize").textContent =
-    SIZE_LABELS[decision.positionQualitySize];
   $("resultObstacleSize").textContent =
     `${obstacleDisplayLabel(decision.obstacleState)} → ${SIZE_LABELS[decision.obstacleSize]}`;
   $("finalSize").textContent =
@@ -1758,14 +1714,6 @@ function updateInterface() {
   $("positionNote").textContent =
     info.note;
 
-  $("p2EdgeRow").classList.toggle(
-    "hidden",
-    position !== "P2"
-  );
-  if (position !== "P2") {
-    $("p2EdgePosition").checked = false;
-  }
-
   $("p3TestableRow").classList.toggle(
     "hidden",
     position !== "P3"
@@ -1837,8 +1785,12 @@ function triggerChecklistLines() {
 
   lines.push(
     `交易空間：${$("tradeSpace").selectedOptions[0].textContent}`,
-    `Trigger加分證據：${currentBaseTrigger.bonusCount}/${BONUS_IDS.length}`,
-    `Trigger質素：${currentAsia2B.effectiveQuality}`
+    `獨立Trigger加分證據：${currentBaseTrigger.bonusCount}/${BONUS_IDS.length}`,
+    `加分前Trigger：${currentBaseTrigger.preBonusQuality}`,
+    `至少1項直接補強瑕疵：${yesNo(currentBaseTrigger.bonusDirectRepair)}`,
+    `確認冇Double Count：${yesNo(currentBaseTrigger.bonusNoDoubleCount)}`,
+    `Q2→Q3升級：${yesNo(currentBaseTrigger.bonusUpgraded)}`,
+    `最終Trigger質素：${currentAsia2B.effectiveQuality}`
   );
 
   return lines;
@@ -1862,8 +1814,7 @@ function checklistSummary() {
     `P1背景順風：${$("p1BackgroundTailwind").value === "yes" ? "有" : "冇"}`,
     "",
     `原始位置：${currentAsia2B.basePosition}`,
-    `2B後位置：${currentAsia2B.effectivePosition}`,
-    `P2邊緣：${yesNo(checked("p2EdgePosition"))}`,
+    `最終P位置：${currentAsia2B.effectivePosition}`,
     `P3可小注測試：${yesNo(checked("p3Testable"))}`,
     "",
     ...triggerChecklistLines(),
@@ -1876,8 +1827,7 @@ function checklistSummary() {
     "",
     `大局障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
     `市場注碼上限：${SIZE_LABELS[currentDecision.marketCap]}`,
-    `Trigger矩陣許可：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
-    `位置質素修正：${SIZE_LABELS[currentDecision.positionQualitySize]}`,
+    `P × Q Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
     `大局修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
     `最終注碼：${SIZE_LABELS[currentDecision.finalSize]}`,
     "",
@@ -2336,9 +2286,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.12",
+      "PracticeJournal-V1.14",
     engineVersion:
-      "MasterTradeDecisionMatrix-V3.3",
+      "MasterTradeDecisionMatrix-V3.5",
 
     recordMode:
       recordMode(),
@@ -2385,7 +2335,7 @@ async function saveDecision(event) {
     position:
       currentAsia2B.effectivePosition,
     p2EdgePosition:
-      checked("p2EdgePosition"),
+      false,
     p3Testable:
       checked("p3Testable"),
 
@@ -2418,9 +2368,15 @@ async function saveDecision(event) {
       currentBaseTrigger.tradeSpace,
     bonusCount:
       currentBaseTrigger.bonusCount,
+    bonusDirectRepair:
+      currentBaseTrigger.bonusDirectRepair,
+    bonusNoDoubleCount:
+      currentBaseTrigger.bonusNoDoubleCount,
+    triggerBonusUpgraded:
+      currentBaseTrigger.bonusUpgraded,
 
     baseTrigger:
-      currentAsia2B.baseQuality,
+      currentBaseTrigger.preBonusQuality,
     trigger:
       currentAsia2B.effectiveQuality,
 
@@ -2523,7 +2479,7 @@ async function saveDecision(event) {
 
   renderHistory();
   showToast(
-    "已儲存V3.3練習／實戰紀錄"
+    "已儲存V3.5練習／實戰紀錄"
   );
 }
 
@@ -2586,14 +2542,15 @@ function renderHistory() {
     allRecords.filter(
       (record) =>
         record.entryStatus === "Entry" &&
-        Number.isFinite(record.profitR)
+        Number.isFinite(record.profitR) &&
+        record.profitR !== 0
     );
 
   if (winRateTrades.length > 0) {
     const wins =
       winRateTrades.filter(
         (record) =>
-          record.profitR > 0.99
+          record.profitR > 0
       ).length;
 
     const winRate =
@@ -3032,7 +2989,7 @@ async function openRecord(recordId) {
     <strong>原始位置：</strong>
     ${escapeHtml(basePosition)}
     <br>
-    <strong>2B後位置：</strong>
+    <strong>最終P位置：</strong>
     ${escapeHtml(effectivePosition)}
     <br>
     <strong>Trigger Model：</strong>
@@ -3430,7 +3387,7 @@ function buildCsv(records) {
     "大局位置實際重疊",
     "P1背景",
     "原始位置",
-    "2B後位置",
+    "最終P位置",
     "P2邊緣",
     "P3可小注測試",
     "Trigger Model",
@@ -3445,6 +3402,10 @@ function buildCsv(records) {
     "Breakout Retest結構承接",
     "交易空間",
     "Trigger加分數",
+    "加分前Trigger",
+    "至少1項加分直接補強瑕疵",
+    "確認冇Double Count",
+    "Q2升Q3",
     "Trigger質素",
     "Asia2B類型",
     "Asia2B高質",
@@ -3453,8 +3414,8 @@ function buildCsv(records) {
     "Asia2B結構基礎",
     "大局障礙",
     "市場注碼上限",
-    "Trigger矩陣許可",
-    "位置質素修正",
+    "P × Q Matrix",
+    "Legacy位置修正",
     "大局修正",
     "最終注碼",
     "入市結果",
@@ -3511,7 +3472,7 @@ function buildCsv(records) {
         : "No",
       record.triggerModelLabel ||
         (
-          record.engineVersion === "MasterTradeDecisionMatrix-V3.3"
+          record.engineVersion === "MasterTradeDecisionMatrix-V3.5"
             ? ""
             : "舊版｜Liquidity Reversal"
         ),
@@ -3550,6 +3511,18 @@ function buildCsv(records) {
         : "",
       record.tradeSpace || "",
       record.bonusCount ?? "",
+      record.baseTrigger ||
+        record.trigger ||
+        "",
+      record.bonusDirectRepair
+        ? "Yes"
+        : "No",
+      record.bonusNoDoubleCount
+        ? "Yes"
+        : "No",
+      record.triggerBonusUpgraded
+        ? "Yes"
+        : "No",
       record.trigger ||
         record.baseTrigger ||
         "",
@@ -4242,6 +4215,398 @@ async function exportBackupZip() {
   }
 }
 
+
+function liveRelationLabel(value) {
+  const labels = {
+    healthyAligned:
+      "健康同向",
+    weakTransition:
+      "同向有弱勢／包含Transition",
+    conflictMain:
+      "方向衝突｜順主判",
+    conflictCounter:
+      "方向衝突｜順次判、逆主判"
+  };
+
+  return labels[value] || value;
+}
+
+function liveRelationCap(value) {
+  return value ===
+    "healthyAligned"
+      ? 1
+      : 0.5;
+}
+
+function liveMatrixCell(
+  relation,
+  position,
+  quality,
+  p3Testable
+) {
+  if (
+    quality === "Q1" ||
+    position === "P4"
+  ) {
+    return 0;
+  }
+
+  if (
+    relation ===
+    "healthyAligned"
+  ) {
+    if (
+      (
+        position === "P1" ||
+        position === "P2"
+      ) &&
+      quality === "Q3"
+    ) {
+      return 1;
+    }
+
+    if (
+      (
+        position === "P1" ||
+        position === "P2"
+      ) &&
+      quality === "Q2"
+    ) {
+      return 0.5;
+    }
+
+    if (
+      position === "P3" &&
+      quality === "Q3"
+    ) {
+      return 0.5;
+    }
+
+    if (
+      position === "P3" &&
+      quality === "Q2"
+    ) {
+      return p3Testable
+        ? 0.25
+        : 0;
+    }
+
+    return 0;
+  }
+
+  if (
+    relation ===
+      "weakTransition" ||
+    relation ===
+      "conflictMain"
+  ) {
+    if (
+      (
+        position === "P1" ||
+        position === "P2"
+      ) &&
+      quality === "Q3"
+    ) {
+      return 0.5;
+    }
+
+    if (
+      (
+        position === "P1" ||
+        position === "P2"
+      ) &&
+      quality === "Q2"
+    ) {
+      return 0.25;
+    }
+
+    if (
+      position === "P3" &&
+      quality === "Q3"
+    ) {
+      return p3Testable
+        ? 0.25
+        : 0;
+    }
+
+    return 0;
+  }
+
+  if (
+    relation ===
+    "conflictCounter"
+  ) {
+    if (
+      position === "P1" &&
+      quality === "Q3"
+    ) {
+      return 0.5;
+    }
+
+    if (
+      position === "P1" &&
+      quality === "Q2"
+    ) {
+      return 0.25;
+    }
+
+    if (
+      position === "P2" &&
+      quality === "Q3"
+    ) {
+      return 0.25;
+    }
+
+    return 0;
+  }
+
+  return 0;
+}
+
+function recalculateLiveDecision() {
+  const relation =
+    $("liveRelation").value;
+  const marketCap =
+    liveRelationCap(relation);
+
+  const basePosition =
+    $("livePosition").value;
+  const highQuality2B =
+    checked("liveHighQuality2B");
+  const structureBase =
+    checked("live2BStructureBase");
+
+  let effectivePosition =
+    basePosition;
+
+  if (
+    basePosition === "P3" &&
+    highQuality2B &&
+    structureBase
+  ) {
+    effectivePosition =
+      "P2";
+  }
+
+  $("liveP3TestableRow")
+    .classList.toggle(
+      "hidden",
+      effectivePosition !== "P3"
+    );
+
+  if (
+    effectivePosition !== "P3"
+  ) {
+    $("liveP3Testable")
+      .checked = false;
+  }
+
+  const triggerModel =
+    $("liveTriggerModel").value;
+  const selectedQuality =
+    $("liveTriggerQuality").value;
+
+  $("liveModelBPanel")
+    .classList.toggle(
+      "hidden",
+      triggerModel !== "B"
+    );
+
+  $("liveQ2UpgradePanel")
+    .classList.toggle(
+      "hidden",
+      selectedQuality !== "Q2"
+    );
+
+  let effectiveQuality =
+    selectedQuality;
+
+  const bonusCount =
+    Number(
+      $("liveBonusCount").value
+    );
+
+  const q2Upgrade =
+    selectedQuality === "Q2" &&
+    bonusCount >= 2 &&
+    checked(
+      "liveBonusDirectRepair"
+    ) &&
+    checked(
+      "liveNoDoubleCount"
+    );
+
+  if (q2Upgrade) {
+    effectiveQuality =
+      "Q3";
+  }
+
+  const matrixSize =
+    Math.min(
+      marketCap,
+      liveMatrixCell(
+        relation,
+        effectivePosition,
+        effectiveQuality,
+        checked(
+          "liveP3Testable"
+        )
+      )
+    );
+
+  const obstacle =
+    $("liveObstacle").value;
+
+  let obstacleSize =
+    matrixSize;
+
+  if (obstacle === "near") {
+    obstacleSize =
+      downgradeOneLevel(
+        matrixSize
+      );
+  } else if (
+    obstacle ===
+    "insufficient"
+  ) {
+    obstacleSize = 0;
+  }
+
+  const vetoes = [];
+
+  if (
+    effectivePosition === "P4"
+  ) {
+    vetoes.push(
+      "P4＝直接Skip。"
+    );
+  }
+
+  if (
+    effectiveQuality === "Q1"
+  ) {
+    vetoes.push(
+      "Q1＝Trigger核心失效。"
+    );
+  }
+
+  if (
+    triggerModel === "B" &&
+    !checked(
+      "liveBreakoutMeaningful"
+    )
+  ) {
+    vetoes.push(
+      "Model B Breakout位置唔夠重要／只係純Micro Breakout。"
+    );
+  }
+
+  if (
+    obstacle ===
+    "insufficient"
+  ) {
+    vetoes.push(
+      "第一真實Target前R:R不足。"
+    );
+  }
+
+  if (
+    checked("liveChase")
+  ) {
+    vetoes.push(
+      "實際入場屬Chase。"
+    );
+  }
+
+  if (
+    checked(
+      "liveTimeRiskViolation"
+    )
+  ) {
+    vetoes.push(
+      "違反交易時間或單日／總風險限制。"
+    );
+  }
+
+  const finalSize =
+    vetoes.length > 0
+      ? 0
+      : obstacleSize;
+
+  $("liveMarketCap").textContent =
+    SIZE_LABELS[marketCap];
+  $("liveEffectivePosition").textContent =
+    effectivePosition;
+  $("liveEffectiveQ").textContent =
+    effectiveQuality;
+  $("liveResultCap").textContent =
+    SIZE_LABELS[marketCap];
+  $("liveMatrixSize").textContent =
+    SIZE_LABELS[matrixSize];
+  $("liveObstacleSize").textContent =
+    SIZE_LABELS[obstacleSize];
+  $("liveFinalSize").textContent =
+    SIZE_LABELS[finalSize];
+
+  const notes = [
+    `市場關係：${liveRelationLabel(relation)}，Max ${SIZE_LABELS[marketCap]}。`,
+    basePosition !==
+      effectivePosition
+      ? `位置：${basePosition}＋高質Asia／OPR 2B＋原有結構基礎 → ${effectivePosition}。`
+      : `位置：${effectivePosition}。`,
+    q2Upgrade
+      ? "Trigger：Q2符合2項以上獨立加分＋直接補強瑕疵＋冇Double Count，升為Q3。"
+      : `Trigger：${triggerModel === "A" ? "Model A" : "Model B"}／${effectiveQuality}。`,
+    obstacle === "near"
+      ? "大局：有障礙但R:R仍合理，注碼降一級並考慮TP提前。"
+      : obstacle ===
+          "insufficient"
+        ? "大局：R:R不足，Skip。"
+        : "大局：冇重大障礙，按原Matrix。"
+  ];
+
+  if (
+    basePosition === "P3" &&
+    highQuality2B &&
+    !structureBase
+  ) {
+    notes.push(
+      "高質Asia／OPR 2B冇原有結構基礎，所以唔可以創造P2。"
+    );
+  }
+
+  if (
+    selectedQuality === "Q1" &&
+    (
+      bonusCount >= 2 ||
+      checked(
+        "liveBonusDirectRepair"
+      )
+    )
+  ) {
+    notes.push(
+      "Q1永遠唔可以靠加分升級；之後有新結構只可以當新Trigger重新評。"
+    );
+  }
+
+  if (
+    vetoes.length > 0
+  ) {
+    notes.push(
+      `Hard Veto：${vetoes.join("；")}`
+    );
+  }
+
+  $("liveDecisionExplanation")
+    .innerHTML =
+      `<ul>${notes
+        .map(
+          (note) =>
+            `<li>${escapeHtml(note)}</li>`
+        )
+        .join("")}</ul>`;
+}
+
 function setupTabs() {
   document
     .querySelectorAll(
@@ -4345,6 +4710,18 @@ function populateSelects() {
 }
 
 function setupEvents() {
+  $("liveDecisionForm")
+    .addEventListener(
+      "input",
+      recalculateLiveDecision
+    );
+
+  $("liveDecisionForm")
+    .addEventListener(
+      "change",
+      recalculateLiveDecision
+    );
+
   $("timeframePreset")
     .addEventListener(
       "change",
@@ -4598,6 +4975,7 @@ function initialize() {
   setupEvents();
   setupServiceWorker();
 
+  recalculateLiveDecision();
   recalculate();
   renderHistory();
 }

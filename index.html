@@ -16,20 +16,188 @@
   <header class="app-header">
     <div>
       <p class="eyebrow">MASTER TRADE</p>
-      <h1>Practice & Live Journal</h1>
-      <p class="header-subtitle">Decision Matrix V3.3</p>
+      <h1>Master Trade System</h1>
+      <p class="header-subtitle">Rulebook V3.5 ＋ Live Decision Matrix V3.5</p>
     </div>
-    <span class="version-badge">V1.12</span>
+    <span class="version-badge">V1.14</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
-    <button class="tab-button active" data-tab="decision">記錄</button>
+    <button class="tab-button active" data-tab="live">Live Decision</button>
+    <button class="tab-button" data-tab="rulebook">Rulebook</button>
     <button class="tab-button" data-tab="history">紀錄庫</button>
     <button class="tab-button" data-tab="rules">規則</button>
   </nav>
 
   <main>
-    <section id="decision" class="tab-panel active">
+
+    <section id="live" class="tab-panel active">
+      <article class="card live-hero">
+        <p class="eyebrow">LIVE DECISION MATRIX V3.5</p>
+        <h2>盤中只做5步</h2>
+        <p class="large-rule">市場關係 → 位置P → Trigger Model／Q → 大局障礙 → Matrix落注</p>
+        <p class="muted">用途只有一個：快速回答「而家做唔做？做幾大？」。爭議Setup、Backtest同完整紀錄請去Rulebook。</p>
+      </article>
+
+      <form id="liveDecisionForm" novalidate>
+        <article class="card live-step">
+          <div class="live-step-title"><span>STEP 1</span><h2>市場關係</h2></div>
+          <label>
+            主判 × 次判
+            <select id="liveRelation">
+              <option value="healthyAligned">A｜健康同向｜Max 1注</option>
+              <option value="weakTransition">B｜同向有弱勢／包含Transition｜Max 0.5注</option>
+              <option value="conflictMain">C｜方向衝突｜順主判｜Max 0.5注</option>
+              <option value="conflictCounter">D｜方向衝突｜順次判、逆主判</option>
+            </select>
+          </label>
+          <div class="result-lines compact">
+            <div><span>市場最高注碼</span><strong id="liveMarketCap">1注</strong></div>
+          </div>
+        </article>
+
+        <article class="card live-step">
+          <div class="live-step-title"><span>STEP 2</span><h2>位置P</h2></div>
+          <label>
+            Entry實際位置
+            <select id="livePosition">
+              <option value="P1">P1｜重大HTF／主判核心位置</option>
+              <option value="P2" selected>P2｜重要工作位置</option>
+              <option value="P3">P3｜普通LTF有效結構</option>
+              <option value="P4">P4｜中間位／純Fib／純Liquidity／Chase</option>
+            </select>
+          </label>
+
+          <div class="conditional-panel">
+            <label class="toggle-row">
+              <input id="liveHighQuality2B" type="checkbox">
+              <span><strong>高質Asia／OPR頂底2B</strong><small>只係位置加強；本身冇結構就唔可以創造P2。</small></span>
+            </label>
+            <label class="toggle-row">
+              <input id="live2BStructureBase" type="checkbox">
+              <span><strong>本身已有P3結構基礎</strong><small>P3＋高質2B＋結構基礎先可以升P2。</small></span>
+            </label>
+          </div>
+
+          <label id="liveP3TestableRow" class="toggle-row hidden">
+            <input id="liveP3Testable" type="checkbox">
+            <span><strong>P3屬可接受小注測試位</strong><small>用於Matrix「0.25／0」酌情格。</small></span>
+          </label>
+
+          <div class="result-lines compact">
+            <div><span>最終位置</span><strong id="liveEffectivePosition">P2</strong></div>
+          </div>
+        </article>
+
+        <article class="card live-step">
+          <div class="live-step-title"><span>STEP 3</span><h2>Trigger</h2></div>
+
+          <label>
+            Trigger Model
+            <select id="liveTriggerModel">
+              <option value="A">Model A｜Sweep → Reclaim → Retest</option>
+              <option value="B">Model B｜Breakout → Acceptance → Retest</option>
+            </select>
+          </label>
+
+          <div id="liveModelBPanel" class="conditional-panel hidden">
+            <label class="toggle-row">
+              <input id="liveBreakoutMeaningful" type="checkbox">
+              <span><strong>Breakout位置夠重要</strong><small>純Micro High／Low突破＝Q1／Skip。</small></span>
+            </label>
+          </div>
+
+          <label>
+            初步Trigger質素
+            <select id="liveTriggerQuality">
+              <option value="Q3">Q3｜核心完整＋Retest弱／受控</option>
+              <option value="Q2" selected>Q2｜核心成立，但有1項未致命瑕疵</option>
+              <option value="Q1">Q1｜核心失效｜Skip</option>
+            </select>
+          </label>
+
+          <div id="liveQ2UpgradePanel" class="conditional-panel">
+            <label>
+              獨立加分證據數量
+              <select id="liveBonusCount">
+                <option value="0">0項</option>
+                <option value="1">1項</option>
+                <option value="2">2項或以上</option>
+              </select>
+            </label>
+            <label class="toggle-row">
+              <input id="liveBonusDirectRepair" type="checkbox">
+              <span>至少1項直接補強原本嗰個瑕疵</span>
+            </label>
+            <label class="toggle-row">
+              <input id="liveNoDoubleCount" type="checkbox">
+              <span>已確認冇將同一證據重複計分</span>
+            </label>
+          </div>
+
+          <div class="result-lines compact">
+            <div><span>最終Q</span><strong id="liveEffectiveQ">Q2</strong></div>
+          </div>
+        </article>
+
+        <article class="card live-step">
+          <div class="live-step-title"><span>STEP 4</span><h2>大局障礙</h2></div>
+          <label>
+            第一真實Target之前
+            <select id="liveObstacle">
+              <option value="far">冇重大障礙｜正常Matrix</option>
+              <option value="near">有障礙但RR仍合理｜降一級風險／TP提前</option>
+              <option value="insufficient">RR不足｜Skip</option>
+            </select>
+          </label>
+        </article>
+
+        <article class="card live-step">
+          <div class="live-step-title"><span>STEP 5</span><h2>查Matrix落注</h2></div>
+
+          <label class="toggle-row">
+            <input id="liveChase" type="checkbox">
+            <span>實際入場屬Chase</span>
+          </label>
+          <label class="toggle-row">
+            <input id="liveTimeRiskViolation" type="checkbox">
+            <span>違反交易時間／單日或總風險限制</span>
+          </label>
+
+          <div class="result-lines">
+            <div><span>市場上限</span><strong id="liveResultCap">1注</strong></div>
+            <div><span>P × Q Matrix</span><strong id="liveMatrixSize">0.5注</strong></div>
+            <div><span>大局修正後</span><strong id="liveObstacleSize">0.5注</strong></div>
+          </div>
+
+          <div class="final-size live-final-size">
+            <span>Live最終注碼</span>
+            <strong id="liveFinalSize">0.5注</strong>
+          </div>
+
+          <div id="liveDecisionExplanation" class="live-decision-explanation"></div>
+        </article>
+      </form>
+
+      <article class="card live-one-line">
+        <h2>盤中一句版</h2>
+        <ol>
+          <li>主判×次判，最高可以落幾多？</li>
+          <li>Entry係P1、P2、P3定P4？</li>
+          <li>Trigger係Model A定B？最後係Q3、Q2定Q1？</li>
+          <li>第一真實障礙會唔會令我降注或者冇RR？</li>
+          <li>查Matrix，落最終注碼。</li>
+        </ol>
+      </article>
+    </section>
+
+    <section id="rulebook" class="tab-panel">
+      <article class="card rulebook-hero">
+        <p class="eyebrow">MASTER TRADE RULEBOOK V3.5</p>
+        <h2>完整規則版</h2>
+        <p class="large-rule">大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置P → Trigger Model → Trigger質素Q → 大局障礙 → 注碼</p>
+        <p class="muted">用於Backtest、覆盤、爭議Setup同完整紀錄。位置P同Trigger Q分開評；大局只可以限制／降級。</p>
+      </article>
       <form id="decisionForm" novalidate>
         <article class="card">
           <h2>紀錄類型與市場</h2>
@@ -170,7 +338,8 @@
         </article>
 
         <article class="card">
-          <h2>位置級別</h2>
+          <h2>位置P評級</h2>
+          <p class="muted">P只評實際Entry位置本身，唔係成段行情由邊度開始。</p>
 
           <label>
             目前入場位置
@@ -203,13 +372,7 @@
           </label>
           <p class="state-note">只作背景標籤：可以記錄「P2＋P1背景順風」，但唔會將P2升P1，亦唔會提高注碼。</p>
 
-          <label id="p2EdgeRow" class="toggle-row">
-            <input id="p2EdgePosition" type="checkbox">
-            <span>
-              <strong>P2屬邊緣／質素普通位置</strong>
-              <small>位置質素同Trigger質素分開計：P2邊緣＋Q3會降一級；P2邊緣＋Q2偏向Skip，本App採用保守0注。</small>
-            </span>
-          </label>
+          
 
           <label id="p3TestableRow" class="toggle-row hidden">
             <input id="p3Testable" type="checkbox">
@@ -218,6 +381,39 @@
               <small>用於矩陣內「0.25注／0」嘅情況；未勾選時採用較保守0注。</small>
             </span>
           </label>
+        </article>
+
+        <article class="card two-b-card">
+          <h2>位置加分｜Asia／OPR頂底2B</h2>
+
+          <label>
+            2B Setup
+            <select id="asia2BType">
+              <option value="none">冇OPR／亞洲盤2B</option>
+              <option value="asiaTop">洗OPR／亞洲盤頂2B｜偏Short</option>
+              <option value="asiaBottom">洗OPR／亞洲盤底2B｜偏Long</option>
+            </select>
+          </label>
+
+          <div id="asia2BChecklist" class="hidden">
+            <label class="toggle-row"><input id="asia2BClearLiquidity" type="checkbox"><span>OPR／Asia High／Low係明確流動性池</span></label>
+            <label class="toggle-row"><input id="asia2BCleanSweep" type="checkbox"><span>Sweep乾淨，唔係反覆穿插</span></label>
+            <label class="toggle-row"><input id="asia2BReclaimBreak" type="checkbox"><span>Reclaim收復關鍵位並破微結構</span></label>
+            <label class="toggle-row"><input id="asia2BWeakRetest" type="checkbox"><span>Retest明顯較慢、較弱</span></label>
+            <label class="toggle-row"><input id="asia2BVolumeSupport" type="checkbox"><span>Reclaim有成交量／RVOL支持</span></label>
+            <label class="toggle-row"><input id="asia2BNoDoubleSweep" type="checkbox"><span>沒有頂底雙邊掃｜唔係先掃一邊再掃另一邊嘅雙向洗盤</span></label>
+            <label class="toggle-row"><input id="asia2BStructureOverlap" type="checkbox"><span>本身已有結構基礎，容許P3考慮升P2</span></label>
+          </div>
+
+          <div class="result-lines compact">
+            <div><span>2B質素</span><strong id="asia2BQuality">未啟用</strong></div>
+            <div><span>位置影響</span><strong id="asia2BPositionEffect">無</strong></div>
+            <div><span>市場上限影響</span><strong>永遠無</strong></div>
+          </div>
+
+          <p class="muted">
+            V3.5：Asia／OPR 2B正式歸入P評級。P3結構位＋高質2B可升P2；純Liquidity／冇結構基礎唔會創造P2。同一個Sweep如果已經係Model A核心證據，唔可以再當Trigger Bonus重複計分。
+          </p>
         </article>
 
         <article class="card trigger-model-card">
@@ -232,7 +428,7 @@
           </label>
 
           <div class="principle-box">
-            <strong>V3.3：冇Sweep ≠ 唔可以做。</strong>
+            <strong>V3.5：冇Sweep ≠ 唔可以做。</strong>
             <span>只要符合Model A或Model B其中一套完整核心邏輯，就可以正常評Q3／Q2／Q1。</span>
           </div>
         </article>
@@ -344,7 +540,7 @@
 
         <article class="card">
           <h2>Trigger加分證據</h2>
-          <p class="muted">以下係加分證據，唔係每項必須。現時：<strong id="bonusCount">0／9</strong></p>
+          <p class="muted">以下只係Q評級輔助證據。現時獨立加分：<strong id="bonusCount">0／8</strong></p>
 
           <label class="toggle-row"><input id="bonusRVOL" type="checkbox"><span>RVOL／成交量支持</span></label>
           <label class="toggle-row"><input id="bonusCloseExtreme" type="checkbox"><span>Long收近燭頂／Short收近燭底</span></label>
@@ -352,9 +548,15 @@
           <label class="toggle-row"><input id="bonusRetestTime" type="checkbox"><span>Retest用時明顯較原推動長</span></label>
           <label class="toggle-row"><input id="bonusDepth" type="checkbox"><span>Retest深度處於合理區域</span></label>
           <label class="toggle-row"><input id="bonusImpulseOrigin" type="checkbox"><span>Impulse Origin／Breakout Base重疊</span></label>
-          <label class="toggle-row"><input id="bonusFib" type="checkbox"><span>Fib重疊</span></label>
-          <label class="toggle-row"><input id="bonusLiquidityOverlap" type="checkbox"><span>Asia／OPR／PDH／PDL／Mon H/L重疊</span></label>
+          
+          <label class="toggle-row"><input id="bonusLiquidityOverlap" type="checkbox"><span>額外掃到另一個重要流動性｜例如Asia Low＋PDL</span></label>
           <label class="toggle-row"><input id="bonusFollowThrough" type="checkbox"><span>原推動後有Follow-through</span></label>
+          <div class="conditional-panel q-upgrade-panel">
+            <strong>Q2 → Q3升級檢查</strong>
+            <label class="toggle-row"><input id="bonusDirectRepair" type="checkbox"><span>至少1項加分證據直接補強原本嗰個瑕疵</span></label>
+            <label class="toggle-row"><input id="bonusNoDoubleCount" type="checkbox"><span>已確認同一證據冇重複計分</span></label>
+            <p class="state-note">只限原本Q2、只有1項未致命瑕疵、至少2項獨立加分，而且其中1項直接補強瑕疵。Q1永遠唔可以靠加分升級。</p>
+          </div>
         </article>
 
         <article class="card">
@@ -364,47 +566,15 @@
             <div><span>Trigger Model</span><strong id="triggerModelResult">Model A｜Liquidity Reversal</strong></div>
           </div>
 
-          <div class="grade-line">
-            <span>基礎評級</span>
-            <strong id="baseTriggerGrade" class="grade q1">Q1｜失效</strong>
+          <div class="result-lines compact">
+            <div><span>加分前Q</span><strong id="preBonusTriggerGrade">Q1</strong></div>
+            <div><span>最終Q</span><strong id="baseTriggerGrade" class="grade q1">Q1｜失效</strong></div>
           </div>
 
           <div id="triggerEvaluation"></div>
         </article>
 
-        <article class="card two-b-card">
-          <h2>OPR／亞洲盤頂／底2B｜執行優勢</h2>
-
-          <label>
-            2B Setup
-            <select id="asia2BType">
-              <option value="none">冇OPR／亞洲盤2B</option>
-              <option value="asiaTop">洗OPR／亞洲盤頂2B｜偏Short</option>
-              <option value="asiaBottom">洗OPR／亞洲盤底2B｜偏Long</option>
-            </select>
-          </label>
-
-          <div id="asia2BChecklist" class="hidden">
-            <label class="toggle-row"><input id="asia2BClearLiquidity" type="checkbox"><span>OPR／Asia High／Low係明確流動性池</span></label>
-            <label class="toggle-row"><input id="asia2BCleanSweep" type="checkbox"><span>Sweep乾淨，唔係反覆穿插</span></label>
-            <label class="toggle-row"><input id="asia2BReclaimBreak" type="checkbox"><span>Reclaim收復關鍵位並破微結構</span></label>
-            <label class="toggle-row"><input id="asia2BWeakRetest" type="checkbox"><span>Retest明顯較慢、較弱</span></label>
-            <label class="toggle-row"><input id="asia2BVolumeSupport" type="checkbox"><span>Reclaim有成交量／RVOL支持</span></label>
-            <label class="toggle-row"><input id="asia2BNoDoubleSweep" type="checkbox"><span>沒有頂底雙邊掃｜唔係先掃一邊再掃另一邊嘅雙向洗盤</span></label>
-            <label class="toggle-row"><input id="asia2BStructureOverlap" type="checkbox"><span>本身已有結構基礎，容許P3考慮升P2</span></label>
-          </div>
-
-          <div class="result-lines compact">
-            <div><span>2B質素</span><strong id="asia2BQuality">未啟用</strong></div>
-            <div><span>位置影響</span><strong id="asia2BPositionEffect">無</strong></div>
-            <div><span>Trigger影響</span><strong id="asia2BTriggerEffect">無</strong></div>
-            <div><span>市場上限影響</span><strong>永遠無</strong></div>
-          </div>
-
-          <p class="muted">
-            V3.3：高質2B係執行／位置優勢。有原有結構基礎時可以P3→P2；唔會改變Trigger Model評級，亦唔可以P2→P1、救P4、推翻大局障礙或將0.5注升到1注。
-          </p>
-        </article>
+        
 
         <article class="card obstacle-card">
           <h2>大局障礙修正</h2>
@@ -456,7 +626,7 @@
         </article>
 
         <article class="card result-card">
-          <h2>Decision Matrix V3.3結果</h2>
+          <h2>Master Trade Rulebook V3.5｜完整判斷</h2>
 
           <div class="result-lines">
             <div><span>大局背景</span><strong id="resultBackground"></strong></div>
@@ -466,14 +636,13 @@
             <div><span>主次關係</span><strong id="resultRelation"></strong></div>
             <div><span>交易優先方向</span><strong id="resultPreferredDirection"></strong></div>
             <div><span>原始位置</span><strong id="resultBasePosition"></strong></div>
-            <div><span>2B後位置</span><strong id="resultEffectivePosition"></strong></div>
+            <div><span>最終P位置</span><strong id="resultEffectivePosition"></strong></div>
             <div><span>P1背景</span><strong id="resultP1Background"></strong></div>
             <div><span>Trigger Model</span><strong id="resultTriggerModel"></strong></div>
             <div><span>Trigger質素</span><strong id="resultEffectiveTrigger"></strong></div>
             <div><span>2B Setup</span><strong id="resultAsia2B"></strong></div>
             <div><span>市場注碼上限</span><strong id="resultMarketCap"></strong></div>
-            <div><span>Trigger矩陣許可</span><strong id="resultMatrixSize"></strong></div>
-            <div><span>位置質素修正</span><strong id="resultPositionQualitySize"></strong></div>
+            <div><span>P × Q Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
           </div>
 
@@ -582,7 +751,7 @@
           <div><span>Miss</span><strong id="statMiss">0</strong></div>
           <div><span>Skip</span><strong id="statSkip">0</strong></div>
           <div><span>平均獲利R</span><strong id="statAverageR">未有資料</strong></div>
-          <div><span>勝率</span><strong id="statWinRate">未有資料</strong><small>只計Entry且已填R；R &gt; 0.99＝Win</small></div>
+          <div><span>勝率</span><strong id="statWinRate">未有資料</strong><small>只計Entry且R ≠ 0；R &gt; 0＝Win</small></div>
           <div><span>到RF比率</span><strong id="statRFRate">未有資料</strong></div>
           <div><span>到TP2比率</span><strong id="statTP2Rate">未有資料</strong></div>
           <div><span>實戰紀錄</span><strong id="statLive">0</strong></div>
@@ -617,104 +786,113 @@
 
     <section id="rules" class="tab-panel">
       <article class="card">
-        <h2>核心流程</h2>
-        <p class="large-rule">大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置級別 → Trigger Model → Trigger質素 → 大局障礙修正 → 最終注碼</p>
-      </article>
-
-      <article class="card">
-        <h2>七種市場狀態</h2>
+        <p class="eyebrow">MASTER TRADE V3.5</p>
+        <h2>核心架構</h2>
+        <p class="large-rule">Market State → P位置 → Trigger Model → Q質素 → 大局障礙 → Matrix注碼</p>
         <ul>
-          <li>健康升勢</li>
-          <li>弱升勢</li>
-          <li>轉換中－偏升</li>
-          <li>轉換中－中性</li>
-          <li>轉換中－偏跌</li>
-          <li>弱跌勢</li>
-          <li>健康跌勢</li>
+          <li>Market State決定方向及風險上限。</li>
+          <li>P只評實際Entry位置。</li>
+          <li>Q只評Trigger質素。</li>
+          <li>大局背景只可以限制／降級，唔可以升級。</li>
+          <li>位置好唔等於Trigger好；Trigger好亦唔等於位置好。</li>
         </ul>
-        <p>市場狀態由該時間框架自身結構決定；優先方向先由主判 × 次判互動決定。</p>
       </article>
 
       <article class="card">
-        <h2>一注唯一權限</h2>
-        <p class="large-rule">主判＋次判健康同向 ＋ P1／P2 ＋ Q3 ＋ 冇大局障礙 ＋ 冇硬性否決。</p>
-      </article>
-
-      <article class="card">
-        <h2>P1／P2最重要修正</h2>
+        <h2>主判 × 次判市場關係</h2>
         <ul>
-          <li>P1包括大局背景主結、主判主結、主判大型區間邊界，以及會改變主判／次判市場狀態嘅主結突破回測。</li>
-          <li>次判主結只有同大局／主判重大位置直接空間重疊，先升做P1。</li>
-          <li>價格已離開大局重大區，之後回抽新形成次判主結，維持P2，只係有P1背景順風。</li>
-          <li>P2邊緣＋Q3降一級；P2邊緣＋Q2偏向Skip，本App採用保守0注。</li>
-          <li>位置級別睇空間重疊，不是故事重疊。</li>
+          <li><strong>健康同向：</strong>最高1注；1注只限P1／P2＋Q3＋無重大障礙。</li>
+          <li><strong>同向有弱勢：</strong>最高0.5注。</li>
+          <li><strong>包含Transition：</strong>最高0.5注；偏向唔等於已確認Trend。</li>
+          <li><strong>方向衝突順主判：</strong>最高0.5注。</li>
+          <li><strong>方向衝突逆主判：</strong>P1 Q3最多0.5；P2 Q3通常0.25；P3／P4不做。</li>
+          <li><strong>弱勢衝突：</strong>只做重要邊界，中間位不做，最高0.5注。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>P位置評級</h2>
+        <ul>
+          <li><strong>P1：</strong>重大W／D支持阻力、大局／主判主結、主判大型Range邊界、改變主判／次判Market State嘅重要結構Break後首次Retest等。</li>
+          <li><strong>P2：</strong>次判主結、主判次結、重要Range Edge、有意義Breakout後首次Retest、清晰Swap／Impulse Origin等。</li>
+          <li><strong>P3：</strong>普通但有效LTF結構、次判次結、Trigger TF主結、普通Range Edge等。</li>
+          <li><strong>P4：</strong>Range中間、純Fib、純Liquidity、純2B冇結構、Chase、第一真實障礙令RR不足。</li>
+        </ul>
+        <p><strong>P2＋P1背景：</strong>Entry已離開P1後喺低級結構出Setup，Entry仍然係P2；P1只係背景。</p>
+      </article>
+
+      <article class="card">
+        <h2>Asia／OPR 2B位置規則</h2>
+        <ul>
+          <li>2B正式歸入P評級，唔再係獨立Decision Step。</li>
+          <li>P3結構位＋高質Asia／OPR頂底2B，可P3 → P2。</li>
+          <li>純Asia／OPR Sweep冇結構基礎，唔可以由P4創造P2。</li>
+          <li>高質2B沿用6項評分；5／6或以上具位置升級資格。</li>
+          <li>同一個Asia／OPR Sweep如果已係Model A核心證據，唔可以再當Q Bonus重複計分。</li>
         </ul>
       </article>
 
       <article class="card">
         <h2>Trigger Model A｜Liquidity Reversal</h2>
-        <p class="large-rule">Sweep → Reclaim → Weak Retest</p>
+        <p class="large-rule">Sweep → Reclaim → Retest</p>
         <ul>
-          <li>有效Sweep。</li>
-          <li>有效Reclaim。</li>
-          <li>Retest明顯弱過Reclaim。</li>
-          <li>第一真實目標前有合理R:R。</li>
+          <li><strong>Q3：</strong>有意義Sweep＋有效Reclaim＋Weak／Controlled Retest＋合理RR。</li>
+          <li><strong>Q2：</strong>核心仍成立，但有1項未致命瑕疵。</li>
+          <li><strong>Q1：</strong>冇真正Sweep／Reclaim、Retest否定Reclaim、Reclaim立即失敗或RR不足。</li>
         </ul>
       </article>
 
       <article class="card">
         <h2>Trigger Model B｜Breakout Continuation</h2>
-        <p class="large-rule">Breakout → Acceptance → Weak Retest</p>
+        <p class="large-rule">Breakout → Acceptance → Retest</p>
         <ul>
-          <li>Breakout位置有意義。</li>
-          <li>有真正Acceptance，而唔係插穿即收返。</li>
-          <li>Breakout有有效推動。</li>
-          <li>Retest弱過Breakout。</li>
-          <li>Retest有結構承接；唔需要精準回原Breakout線。</li>
-          <li>第一真實目標前有合理R:R。</li>
-        </ul>
-        <p><strong>冇Sweep唔代表0注。</strong> Breakout延續單只要Model B完整成立，就可以正常評Q3／Q2。</p>
-      </article>
-
-      <article class="card">
-        <h2>OPR／亞洲盤2B</h2>
-        <ul>
-          <li>高質門檻：6項條件中至少5項成立。</li>
-          <li>其中一項加分條件係「沒有頂底雙邊掃」。</li>
-          <li>有原有結構基礎時可以P3→P2。</li>
-          <li>Trigger質素仍由Model A／B獨立評級。</li>
-          <li>唔可以P2→P1。</li>
-          <li>唔可以救P4。</li>
-          <li>唔可以推翻大局障礙。</li>
-          <li>唔可以突破市場注碼上限。</li>
+          <li>Breakout必須係有意義結構；純Micro High／Low不足以構成正式Model B。</li>
+          <li><strong>Q3：</strong>有意義Breakout＋真正Acceptance＋Weak／Controlled Retest＋結構支持＋合理RR。</li>
+          <li><strong>Q2：</strong>核心仍成立，但Momentum／Follow-through／Acceptance／Retest其中1項有未致命瑕疵。</li>
+          <li><strong>Q1：</strong>位置唔重要、False Breakout、冇Acceptance、Retest否定Breakout或RR不足。</li>
         </ul>
       </article>
 
       <article class="card">
-        <h2>大局障礙</h2>
-        <ul>
-          <li>障礙仍遠、有完整R:R：按原矩陣。</li>
-          <li>接近障礙但仍有空間：注碼降一級。</li>
-          <li>到障礙空間不足：0注。</li>
-          <li>已處於障礙區內仍順原方向延伸：P1＋Q3最多0.5；P2＋Q3最多0.25；其他0。</li>
-          <li>特例：主判轉換傾向同次判趨勢相反，而你正順次判做局部回調trade；一到主判潛在支持／阻力區，停止開新同方向倉，直接0注。</li>
-        </ul>
-      </article>
-
-      <article class="card">
-        <h2>五項硬性否決</h2>
+        <h2>Q2 → Q3修正</h2>
         <ol>
-          <li>P4中間位或追價。</li>
-          <li>所選Trigger Model核心邏輯失效；Model A／B兩套都唔可以靠缺失核心條件硬做。</li>
-          <li>Retest明顯快、深、強，否定原Reclaim或Breakout推動。</li>
-          <li>第一個真實目標前冇最低可接受R:R。</li>
-          <li>違反交易時間或總風險上限。</li>
+          <li>原本只係Q2，而且只有1項輕微／未致命瑕疵。</li>
+          <li>至少2項獨立加分證據。</li>
+          <li>至少1項直接補強原本嗰個瑕疵。</li>
+          <li>同一證據只計一次，禁止Double Count。</li>
         </ol>
+        <p><strong>Q1永遠唔可以靠加分升級。</strong>之後出現新Reclaim／Breakout／Acceptance，只可以當新Trigger重新評級。</p>
       </article>
 
       <article class="card">
-        <h2>資料與圖片</h2>
-        <p>文字紀錄同圖片只儲存在呢部裝置嘅網站資料。清除Safari網站資料會一併刪除。可以單獨匯出CSV，或者匯出「CSV＋全部照片 ZIP」作完整備份。</p>
+        <h2>Hard Veto</h2>
+        <ul>
+          <li>P4。</li>
+          <li>Chase。</li>
+          <li>唔符合Model A或Model B／Trigger核心失效。</li>
+          <li>Model B Breakout位置冇重要性或冇Acceptance。</li>
+          <li>Retest快／深／強到否定原推動。</li>
+          <li>第一真實Target令RR不足。</li>
+          <li>違反交易時間或單日／總風險限制。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Live Risk Matrix</h2>
+        <div class="matrix-table-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr><th>市場關係</th><th>P1 Q3</th><th>P2 Q3</th><th>P1/P2 Q2</th><th>P3 Q3</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>健康同向</td><td>1</td><td>1</td><td>0.5</td><td>0.5</td></tr>
+              <tr><td>同向有弱勢／Transition</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25／0</td></tr>
+              <tr><td>衝突順主判</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25／0</td></tr>
+              <tr><td>衝突逆主判</td><td>0.5</td><td>0.25</td><td>0.25／0</td><td>0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>最後再套大局障礙：障礙遠＝原Matrix；近但RR合理＝降一級；RR不足＝0注。</p>
       </article>
     </section>
   </main>

@@ -1,8 +1,8 @@
-# Master Trade Practice & Live Journal V1.11
+# Master Trade System V1.14
 
 內置判斷引擎：
 
-`Master Trade Decision Matrix V3.3`
+`Master Trade Rulebook V3.5 ＋ Live Decision Matrix V3.5`
 
 呢個版本保留原有：
 
@@ -15,7 +15,7 @@
 - CSV匯出
 - 亞洲盤頂／底2B
 
-現行交易判斷引擎已更新成V3.3。
+現行系統已拆成Master Trade Rulebook V3.5同Live Decision Matrix V3.5，兩邊共用同一套P／Q／Risk Matrix邏輯。
 
 ---
 
@@ -651,3 +651,187 @@ V3.3入面：
 向下捲動超過約420px後，右下角會顯示「↑」按鍵。
 
 按一下會平滑返回頁面頂部。
+
+
+---
+
+## V1.13｜勝率計算修正
+
+紀錄庫「勝率」改為：
+
+- 只計 Entry
+- 必須已填有效獲利R
+- R = 0 完全排除，不計入分母
+- R > 0 = Win
+- R < 0 = Loss
+
+例如：
+
+- +0.5R → Win
+- +0.01R → Win
+- 0R → 不計
+- -0.2R → Loss
+- 未填R → 不計
+
+勝率顯示：
+
+勝率百分比｜Win數／可計算Entry數
+
+
+---
+
+# V1.14｜Master Trade V3.5雙層架構
+
+App正式拆成四個分頁：
+
+1. Live Decision
+2. Rulebook
+3. 紀錄庫
+4. 規則
+
+## Live Decision Matrix V3.5
+
+用途：
+
+盤中只回答「而家做唔做？做幾大？」
+
+只保留5步：
+
+1. 主判 × 次判市場關係
+2. Entry位置P
+3. Trigger Model＋最終Q
+4. 大局障礙
+5. 查Matrix落注
+
+Live Decision可直接選：
+
+- 健康同向
+- 同向有弱勢／包含Transition
+- 方向衝突｜順主判
+- 方向衝突｜順次判、逆主判
+
+位置：
+
+- P1
+- P2
+- P3
+- P4
+
+特殊位置規則：
+
+P3結構位＋高質Asia／OPR頂底2B＋原有結構基礎，可以P3升P2。
+
+純Liquidity／冇結構基礎嘅2B唔可以創造P2。
+
+Trigger：
+
+- Model A｜Sweep → Reclaim → Retest
+- Model B｜Breakout → Acceptance → Retest
+
+Q2快速升Q3只限：
+
+- Q2本身代表1項未致命瑕疵
+- 至少2項獨立加分證據
+- 至少1項直接補強原本瑕疵
+- 已確認冇Double Count
+
+Q1永遠唔可以靠加分升級。
+
+## Master Trade Rulebook V3.5
+
+原本完整Decision／Journal表正式放入Rulebook分頁。
+
+用途：
+
+- Backtest
+- 覆盤
+- 爭議Setup
+- 完整交易紀錄
+- 系統規則修改
+
+完整流程：
+
+大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置P → Trigger Model → Trigger質素Q → 大局障礙 → 注碼
+
+核心分工：
+
+- Market State決定方向及風險上限
+- P評實際Entry位置
+- Q評Trigger質素
+- 大局只可以限制／降級
+- Matrix決定最終注碼
+
+## Asia／OPR 2B
+
+V3.5正式歸入P位置評級，唔再作獨立Decision Step。
+
+高質2B沿用6項評分：
+
+5／6或以上具位置升級資格。
+
+P3＋高質2B＋原有結構基礎：
+
+P3 → P2
+
+但：
+
+- 純Asia／OPR Sweep唔可以由P4創造P2
+- 2B唔會直接改變Q
+- 同一個Sweep如果已經係Model A核心證據，唔可以再當Trigger Bonus重複計分
+
+## Trigger加分證據
+
+V3.5保留8項獨立加分證據。
+
+加分只用於Q2修正，唔係獨立Decision Step。
+
+Q2 → Q3要求：
+
+- 原本只有1項未致命瑕疵
+- 至少2項獨立加分
+- 至少1項直接補強原本瑕疵
+- 確認冇Double Count
+
+Q1唔可以靠任何加分救返。
+
+## Risk Matrix
+
+健康同向：
+
+- P1 Q3：1
+- P2 Q3：1
+- P1/P2 Q2：0.5
+- P3 Q3：0.5
+
+同向有弱勢／Transition：
+
+- P1 Q3：0.5
+- P2 Q3：0.5
+- P1/P2 Q2：0.25
+- P3 Q3：0.25／0
+
+方向衝突順主判：
+
+- P1 Q3：0.5
+- P2 Q3：0.5
+- P1/P2 Q2：0.25
+- P3 Q3：0.25／0
+
+方向衝突逆主判：
+
+- P1 Q3：0.5
+- P2 Q3：0.25
+- P1 Q2：0.25
+- P2 Q2：0／特殊情況
+- P3／P4：0
+
+## 資料相容
+
+原本localStorage key及IndexedDB圖片資料庫名稱保持不變。
+
+所以同一個GitHub Pages origin更新時，舊紀錄及圖片設計上會繼續沿用。
+
+新紀錄：
+
+- appVersion = PracticeJournal-V1.14
+- engineVersion = MasterTradeDecisionMatrix-V3.5

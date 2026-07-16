@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade Practice & Live Journal V1.12",
-  "short_name": "Trade Journal",
-  "description": "Practice and live trading journal using Master Trade Decision Matrix V3.3 with OPR/Asia 2B 5-of-6 grading, Entry-only win rate and back-to-top navigation.",
+  "name": "Master Trade System V1.14",
+  "short_name": "Master Trade",
+  "description": "Master Trade Rulebook V3.5 and Live Decision Matrix V3.5 with trading journal, statistics and image backup.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
