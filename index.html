@@ -19,7 +19,7 @@
       <h1>Practice & Live Journal</h1>
       <p class="header-subtitle">Decision Matrix V3.3</p>
     </div>
-    <span class="version-badge">V1.11</span>
+    <span class="version-badge">V1.12</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -373,23 +373,24 @@
         </article>
 
         <article class="card two-b-card">
-          <h2>亞洲盤頂／底2B｜執行優勢</h2>
+          <h2>OPR／亞洲盤頂／底2B｜執行優勢</h2>
 
           <label>
             2B Setup
             <select id="asia2BType">
-              <option value="none">冇亞洲盤2B</option>
-              <option value="asiaTop">洗亞洲盤頂2B｜偏Short</option>
-              <option value="asiaBottom">洗亞洲盤底2B｜偏Long</option>
+              <option value="none">冇OPR／亞洲盤2B</option>
+              <option value="asiaTop">洗OPR／亞洲盤頂2B｜偏Short</option>
+              <option value="asiaBottom">洗OPR／亞洲盤底2B｜偏Long</option>
             </select>
           </label>
 
           <div id="asia2BChecklist" class="hidden">
-            <label class="toggle-row"><input id="asia2BClearLiquidity" type="checkbox"><span>Asia High／Low係明確流動性池</span></label>
+            <label class="toggle-row"><input id="asia2BClearLiquidity" type="checkbox"><span>OPR／Asia High／Low係明確流動性池</span></label>
             <label class="toggle-row"><input id="asia2BCleanSweep" type="checkbox"><span>Sweep乾淨，唔係反覆穿插</span></label>
             <label class="toggle-row"><input id="asia2BReclaimBreak" type="checkbox"><span>Reclaim收復關鍵位並破微結構</span></label>
             <label class="toggle-row"><input id="asia2BWeakRetest" type="checkbox"><span>Retest明顯較慢、較弱</span></label>
             <label class="toggle-row"><input id="asia2BVolumeSupport" type="checkbox"><span>Reclaim有成交量／RVOL支持</span></label>
+            <label class="toggle-row"><input id="asia2BNoDoubleSweep" type="checkbox"><span>沒有頂底雙邊掃｜唔係先掃一邊再掃另一邊嘅雙向洗盤</span></label>
             <label class="toggle-row"><input id="asia2BStructureOverlap" type="checkbox"><span>本身已有結構基礎，容許P3考慮升P2</span></label>
           </div>
 
@@ -581,6 +582,7 @@
           <div><span>Miss</span><strong id="statMiss">0</strong></div>
           <div><span>Skip</span><strong id="statSkip">0</strong></div>
           <div><span>平均獲利R</span><strong id="statAverageR">未有資料</strong></div>
+          <div><span>勝率</span><strong id="statWinRate">未有資料</strong><small>只計Entry且已填R；R &gt; 0.99＝Win</small></div>
           <div><span>到RF比率</span><strong id="statRFRate">未有資料</strong></div>
           <div><span>到TP2比率</span><strong id="statTP2Rate">未有資料</strong></div>
           <div><span>實戰紀錄</span><strong id="statLive">0</strong></div>
@@ -675,8 +677,10 @@
       </article>
 
       <article class="card">
-        <h2>亞洲盤2B</h2>
+        <h2>OPR／亞洲盤2B</h2>
         <ul>
+          <li>高質門檻：6項條件中至少5項成立。</li>
+          <li>其中一項加分條件係「沒有頂底雙邊掃」。</li>
           <li>有原有結構基礎時可以P3→P2。</li>
           <li>Trigger質素仍由Model A／B獨立評級。</li>
           <li>唔可以P2→P1。</li>
@@ -809,6 +813,7 @@
     </form>
   </dialog>
 
+  <button id="backToTop" class="back-to-top" type="button" aria-label="返回網頁頂部" title="返回網頁頂部">↑</button>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="./app.js"></script>
 </body>

@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade Practice & Live Journal V1.11",
+  "name": "Master Trade Practice & Live Journal V1.12",
   "short_name": "Trade Journal",
-  "description": "Practice and live trading journal using Master Trade Decision Matrix V3.3 with independent Liquidity Reversal and Breakout Retest trigger models.",
+  "description": "Practice and live trading journal using Master Trade Decision Matrix V3.3 with OPR/Asia 2B 5-of-6 grading, Entry-only win rate and back-to-top navigation.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

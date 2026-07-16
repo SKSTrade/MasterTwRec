@@ -801,13 +801,14 @@ function evaluateAsia2B(baseTrigger) {
     checked("asia2BCleanSweep"),
     checked("asia2BReclaimBreak"),
     checked("asia2BWeakRetest"),
-    checked("asia2BVolumeSupport")
+    checked("asia2BVolumeSupport"),
+    checked("asia2BNoDoubleSweep")
   ].filter(Boolean).length;
 
   const highQuality =
     active &&
     directionMatches &&
-    criteriaCount >= 4;
+    criteriaCount >= 5;
 
   const basePosition =
     $("positionLevel").value;
@@ -828,10 +829,10 @@ function evaluateAsia2B(baseTrigger) {
 
   const label =
     type === "asiaTop"
-      ? "洗亞洲盤頂2B"
+      ? "洗OPR／亞洲盤頂2B"
       : type === "asiaBottom"
-        ? "洗亞洲盤底2B"
-        : "冇亞洲盤2B";
+        ? "洗OPR／亞洲盤底2B"
+        : "冇OPR／亞洲盤2B";
 
   if (!active) {
     return {
@@ -860,7 +861,7 @@ function evaluateAsia2B(baseTrigger) {
     );
   } else if (!highQuality) {
     warnings.push(
-      `${label}只符合${criteriaCount}/5項高質條件；最少要4/5先達高質標準。`
+      `${label}只符合${criteriaCount}/6項高質條件；最少要5/6先達高質標準。`
     );
   }
 
@@ -902,7 +903,7 @@ function evaluateAsia2B(baseTrigger) {
   }
 
   reasons.push(
-    "V3.3入面Asia 2B只強化位置／執行優勢，不會改變Trigger Model評級，亦不會提高市場注碼上限。"
+    "V3.3入面OPR／Asia 2B只強化位置／執行優勢，不會改變Trigger Model評級，亦不會提高市場注碼上限。"
   );
 
   return {
@@ -1548,8 +1549,8 @@ function renderAsia2B(result) {
 
   $("asia2BQuality").textContent =
     result.highQuality
-      ? `高質｜${result.criteriaCount}/5`
-      : `未達高質｜${result.criteriaCount}/5`;
+      ? `高質｜${result.criteriaCount}/6`
+      : `未達高質｜${result.criteriaCount}/6`;
 
   $("asia2BPositionEffect").textContent =
     result.positionPromoted
@@ -1867,9 +1868,10 @@ function checklistSummary() {
     "",
     ...triggerChecklistLines(),
     "",
-    `亞洲盤2B：${currentAsia2B.active ? currentAsia2B.label : "無"}`,
+    `OPR／亞洲盤2B：${currentAsia2B.active ? currentAsia2B.label : "無"}`,
     `2B高質：${yesNo(currentAsia2B.highQuality)}`,
-    `2B高質條件：${currentAsia2B.criteriaCount}/5`,
+    `OPR／亞洲盤2B高質條件：${currentAsia2B.criteriaCount}/6`,
+    `沒有頂底雙邊掃：${yesNo(checked("asia2BNoDoubleSweep"))}`,
     `2B結構基礎：${yesNo(currentAsia2B.structureOverlap)}`,
     "",
     `大局障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
@@ -2334,7 +2336,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.11",
+      "PracticeJournal-V1.12",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.3",
 
@@ -2430,6 +2432,8 @@ async function saveDecision(event) {
       currentAsia2B.highQuality,
     asia2BCriteriaCount:
       currentAsia2B.criteriaCount,
+    asia2BNoDoubleSweep:
+      checked("asia2BNoDoubleSweep"),
     asia2BStructureOverlap:
       currentAsia2B.structureOverlap,
     asia2BPositionPromoted:
@@ -2578,6 +2582,32 @@ function renderHistory() {
         record.recordMode === "Live"
     ).length;
 
+  const winRateTrades =
+    allRecords.filter(
+      (record) =>
+        record.entryStatus === "Entry" &&
+        Number.isFinite(record.profitR)
+    );
+
+  if (winRateTrades.length > 0) {
+    const wins =
+      winRateTrades.filter(
+        (record) =>
+          record.profitR > 0.99
+      ).length;
+
+    const winRate =
+      wins /
+      winRateTrades.length *
+      100;
+
+    $("statWinRate").textContent =
+      `${winRate.toFixed(1)}%｜${wins}/${winRateTrades.length}`;
+  } else {
+    $("statWinRate").textContent =
+      "未有資料";
+  }
+
   const recordsWithR =
     allRecords.filter(
       (record) =>
@@ -2699,8 +2729,8 @@ function renderHistory() {
         record.asia2BType !== "none"
           ? `<span class="history-tag">${escapeHtml(
               record.asia2BHighQuality
-                ? "高質Asia 2B"
-                : "Asia 2B"
+                ? "高質OPR／Asia 2B"
+                : "OPR／Asia 2B"
             )}</span>`
           : "";
 
@@ -2935,7 +2965,7 @@ async function openRecord(recordId) {
   const twoBText =
     record.asia2BType &&
     record.asia2BType !== "none"
-      ? `${record.asia2BLabel || "Asia 2B"}｜${
+      ? `${record.asia2BLabel || "OPR／Asia 2B"}｜${
           record.asia2BHighQuality
             ? "高質"
             : "未達高質"
@@ -3014,7 +3044,7 @@ async function openRecord(recordId) {
     <strong>Trigger質素：</strong>
     ${escapeHtml(effectiveTrigger)}
     <br>
-    <strong>Asia 2B：</strong>
+    <strong>OPR／亞洲盤2B：</strong>
     ${escapeHtml(twoBText)}
     <br>
     <strong>圖片數量：</strong>
@@ -3418,7 +3448,8 @@ function buildCsv(records) {
     "Trigger質素",
     "Asia2B類型",
     "Asia2B高質",
-    "Asia2B條件數",
+    "OPR／Asia2B條件數",
+    "沒有頂底雙邊掃",
     "Asia2B結構基礎",
     "大局障礙",
     "市場注碼上限",
@@ -3529,6 +3560,9 @@ function buildCsv(records) {
         : "No",
       record.asia2BCriteriaCount ??
         "",
+      record.asia2BNoDoubleSweep
+        ? "Yes"
+        : "No",
       record.asia2BStructureOverlap
         ? "Yes"
         : "No",
@@ -4496,6 +4530,30 @@ function setupEvents() {
       "close",
       clearRecordImageDisplay
     );
+
+  $("backToTop")
+    .addEventListener(
+      "click",
+      () => {
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
+        });
+      }
+    );
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      $("backToTop").classList.toggle(
+        "show",
+        window.scrollY > 420
+      );
+    },
+    {
+      passive: true
+    }
+  );
 }
 
 function setupServiceWorker() {
