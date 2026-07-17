@@ -213,8 +213,60 @@ function marketRelation(mainState, secondaryState) {
   return "方向衝突";
 }
 
+function specialCounterRelationActive() {
+  const backgroundBias =
+    stateBias(
+      $("backgroundState").value
+    );
+  const mainState =
+    $("mainState").value;
+  const secondaryState =
+    $("secondaryState").value;
+  const mainBias =
+    stateBias(mainState);
+  const secondaryBias =
+    stateBias(secondaryState);
+  const currentTradeBias =
+    tradeBias();
+
+  return (
+    backgroundBias !== null &&
+    mainBias !== null &&
+    secondaryBias !== null &&
+    !isTransition(mainState) &&
+    !isTransition(secondaryState) &&
+    mainBias === secondaryBias &&
+    currentTradeBias ===
+      backgroundBias &&
+    currentTradeBias !== mainBias
+  );
+}
+
+function tradeAwareMarketRelation() {
+  if (
+    specialCounterRelationActive()
+  ) {
+    return "特殊逆向｜只順大局、逆主判＋次判";
+  }
+
+  return marketRelation(
+    $("mainState").value,
+    $("secondaryState").value
+  );
+}
+
 function marketCapForRelation(relation) {
-  return relation === "健康同向" ? 1 : 0.5;
+  if (
+    relation ===
+    "特殊逆向｜只順大局、逆主判＋次判"
+  ) {
+    return 0.25;
+  }
+
+  return relation ===
+    "健康同向"
+      ? 1
+      : 0.5;
 }
 
 function backgroundRelationInfo() {
@@ -245,6 +297,17 @@ function preferredDirectionInfo() {
   const mainState = $("mainState").value;
   const secondaryState = $("secondaryState").value;
   const relation = marketRelation(mainState, secondaryState);
+
+  if (
+    specialCounterRelationActive()
+  ) {
+    return {
+      label:
+        `特殊逆向 ${direction()}｜只順大局`,
+      note:
+        "交易方向只順大局背景，但逆主判＋次判兩層現行同向趨勢。只容許大局核心P1＋最終Q3反轉Trigger，最高0.25注；其餘全部Skip。主判或次判Market State一改變到唔再符合條件，就立即退出特殊逆向並重新跑正常Matrix。"
+    };
+  }
 
   const mainBias = stateBias(mainState);
   const secondaryBias = stateBias(secondaryState);
@@ -940,6 +1003,17 @@ function evaluateAsia2B(baseTrigger) {
 function matrixCell(position, quality, p3Testable, mode) {
   if (quality === "Q1" || position === "P4") return 0;
 
+  if (mode === "specialCounter") {
+    if (
+      position === "P1" &&
+      quality === "Q3"
+    ) {
+      return 0.25;
+    }
+
+    return 0;
+  }
+
   if (mode === "healthyAligned") {
     if ((position === "P1" || position === "P2") && quality === "Q3") return 1;
     if ((position === "P1" || position === "P2") && quality === "Q2") return 0.5;
@@ -994,7 +1068,8 @@ function matrixCell(position, quality, p3Testable, mode) {
 function evaluateMatrix(effectivePosition, effectiveQuality) {
   const mainState = $("mainState").value;
   const secondaryState = $("secondaryState").value;
-  const relation = marketRelation(mainState, secondaryState);
+  const relation =
+    tradeAwareMarketRelation();
   const mainBias = stateBias(mainState);
   const secondaryBias = stateBias(secondaryState);
   const currentTradeBias = tradeBias();
@@ -1005,7 +1080,14 @@ function evaluateMatrix(effectivePosition, effectiveQuality) {
   let mode = "none";
   let route = "未有可交易方向權限";
 
-  if (relation === "健康同向") {
+  if (
+    relation ===
+    "特殊逆向｜只順大局、逆主判＋次判"
+  ) {
+    mode = "specialCounter";
+    route =
+      "特殊逆向｜只順大局、逆主判＋次判｜只做P1＋Q3，最高0.25注";
+  } else if (relation === "健康同向") {
     if (currentTradeBias === mainBias) {
       mode = "healthyAligned";
       route = "健康同向｜順共同趨勢";
@@ -1071,7 +1153,7 @@ function evaluateMatrix(effectivePosition, effectiveQuality) {
     }
   }
 
-  const size = matrixCell(
+  let size = matrixCell(
     effectivePosition,
     effectiveQuality,
     p3Testable,
@@ -1083,6 +1165,17 @@ function evaluateMatrix(effectivePosition, effectiveQuality) {
 
   let cellExplanation =
     `${currentCombination}喺「${route}」矩陣下最高許可${SIZE_LABELS[size]}。`;
+
+  if (
+    mode === "specialCounter" &&
+    $(
+      "backgroundDirectOverlap"
+    ).value !== "yes"
+  ) {
+    size = 0;
+    cellExplanation =
+      `${currentCombination}雖然係特殊逆向候選，但目前未確認Entry直接位於大局核心P1位置，所以0注。`;
+  }
 
   if (
     effectivePosition === "P3" &&
@@ -1221,10 +1314,7 @@ function evaluateDecision(
   asia2B
 ) {
   const relation =
-    marketRelation(
-      $("mainState").value,
-      $("secondaryState").value
-    );
+    tradeAwareMarketRelation();
 
   const marketCap =
     marketCapForRelation(
@@ -1313,6 +1403,31 @@ function evaluateDecision(
     preferred.note,
     background.note
   ];
+
+  if (
+    relation ===
+    "特殊逆向｜只順大局、逆主判＋次判"
+  ) {
+    reasons.push(
+      "特殊逆向規則：大局方向只提供反轉背景；P1大局核心位置只提供試反轉資格；最終Q3只提供Trigger確認。三者唔會互相跨欄加分。"
+    );
+
+    warnings.push(
+      "特殊逆向只做P1＋Q3，最高0.25注；P1＋Q2、P2、P3、P4、Q1全部0注。"
+    );
+
+    warnings.push(
+      "一旦主判或次判其中一層Market State有效改變，令目前關係唔再係逆主判＋次判兩層現行同向趨勢，特殊逆向立即終止；新Setup按最新Market State重新跑正常Matrix。"
+    );
+
+    if (
+      baseTrigger.model !== "A"
+    ) {
+      warnings.push(
+        "特殊逆向反轉Trigger優先Model A｜Sweep → Reclaim → Weak Retest；大局方向或P1位置唔可以用嚟補強Model B嘅Q級。"
+      );
+    }
+  }
 
   if (
     $("backgroundDirectOverlap")
@@ -2286,7 +2401,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.14",
+      "PracticeJournal-V1.15",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.5",
 
@@ -4225,17 +4340,28 @@ function liveRelationLabel(value) {
     conflictMain:
       "方向衝突｜順主判",
     conflictCounter:
-      "方向衝突｜順次判、逆主判"
+      "方向衝突｜順次判、逆主判",
+    specialCounter:
+      "特殊逆向｜只順大局、逆主判＋次判"
   };
 
   return labels[value] || value;
 }
 
 function liveRelationCap(value) {
-  return value ===
-    "healthyAligned"
-      ? 1
-      : 0.5;
+  if (
+    value === "healthyAligned"
+  ) {
+    return 1;
+  }
+
+  if (
+    value === "specialCounter"
+  ) {
+    return 0.25;
+  }
+
+  return 0.5;
 }
 
 function liveMatrixCell(
@@ -4248,6 +4374,20 @@ function liveMatrixCell(
     quality === "Q1" ||
     position === "P4"
   ) {
+    return 0;
+  }
+
+  if (
+    relation ===
+    "specialCounter"
+  ) {
+    if (
+      position === "P1" &&
+      quality === "Q3"
+    ) {
+      return 0.25;
+    }
+
     return 0;
   }
 
@@ -4388,6 +4528,19 @@ function recalculateLiveDecision() {
       "P2";
   }
 
+  $("liveSpecialCorePanel")
+    .classList.toggle(
+      "hidden",
+      relation !== "specialCounter"
+    );
+
+  if (
+    relation !== "specialCounter"
+  ) {
+    $("liveSpecialP1Core")
+      .checked = false;
+  }
+
   $("liveP3TestableRow")
     .classList.toggle(
       "hidden",
@@ -4441,18 +4594,29 @@ function recalculateLiveDecision() {
       "Q3";
   }
 
-  const matrixSize =
-    Math.min(
-      marketCap,
-      liveMatrixCell(
-        relation,
-        effectivePosition,
-        effectiveQuality,
-        checked(
-          "liveP3Testable"
-        )
+  const specialCoreQualified =
+    relation !== "specialCounter" ||
+    (
+      effectivePosition === "P1" &&
+      checked(
+        "liveSpecialP1Core"
       )
     );
+
+  const matrixSize =
+    specialCoreQualified
+      ? Math.min(
+          marketCap,
+          liveMatrixCell(
+            relation,
+            effectivePosition,
+            effectiveQuality,
+            checked(
+              "liveP3Testable"
+            )
+          )
+        )
+      : 0;
 
   const obstacle =
     $("liveObstacle").value;
@@ -4473,6 +4637,15 @@ function recalculateLiveDecision() {
   }
 
   const vetoes = [];
+
+  if (
+    relation === "specialCounter" &&
+    !specialCoreQualified
+  ) {
+    vetoes.push(
+      "特殊逆向必須係大局核心P1位置；未確認大局核心P1資格。"
+    );
+  }
 
   if (
     effectivePosition === "P4"
@@ -4535,6 +4708,12 @@ function recalculateLiveDecision() {
 
   $("liveMarketCap").textContent =
     SIZE_LABELS[marketCap];
+
+  $("liveRelationNote").textContent =
+    relation === "specialCounter"
+      ? "特殊逆向只容許P1＋最終Q3，最高0.25注；P1 Q2、P2、P3、P4、Q1全部Skip。主判或次判Market State一有效改變到唔再符合「逆兩層同向趨勢」，即退出特殊逆向並重新按正常Matrix。"
+      : "";
+
   $("liveEffectivePosition").textContent =
     effectivePosition;
   $("liveEffectiveQ").textContent =
@@ -4564,6 +4743,22 @@ function recalculateLiveDecision() {
         ? "大局：R:R不足，Skip。"
         : "大局：冇重大障礙，按原Matrix。"
   ];
+
+  if (
+    relation === "specialCounter"
+  ) {
+    notes.push(
+      "特殊逆向：大局只提供方向背景，P1只提供反轉位置資格，Q3只提供入場確認；三者各自負責一件事，唔可以跨欄重複加分。"
+    );
+
+    if (
+      triggerModel !== "A"
+    ) {
+      notes.push(
+        "特殊逆向Trigger優先使用Model A｜Sweep → Reclaim → Weak Retest；Model B唔會因為順大局而自動獲得Q加分。"
+      );
+    }
+  }
 
   if (
     basePosition === "P3" &&

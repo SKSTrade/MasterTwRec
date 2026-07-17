@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">Rulebook V3.5 ＋ Live Decision Matrix V3.5</p>
     </div>
-    <span class="version-badge">V1.14</span>
+    <span class="version-badge">V1.15</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -49,11 +49,13 @@
               <option value="weakTransition">B｜同向有弱勢／包含Transition｜Max 0.5注</option>
               <option value="conflictMain">C｜方向衝突｜順主判｜Max 0.5注</option>
               <option value="conflictCounter">D｜方向衝突｜順次判、逆主判</option>
+              <option value="specialCounter">E｜特殊逆向｜只順大局、逆主判＋次判｜只做P1 Q3 Max 0.25</option>
             </select>
           </label>
           <div class="result-lines compact">
             <div><span>市場最高注碼</span><strong id="liveMarketCap">1注</strong></div>
           </div>
+          <p id="liveRelationNote" class="state-note"></p>
         </article>
 
         <article class="card live-step">
@@ -83,6 +85,13 @@
             <input id="liveP3Testable" type="checkbox">
             <span><strong>P3屬可接受小注測試位</strong><small>用於Matrix「0.25／0」酌情格。</small></span>
           </label>
+
+          <div id="liveSpecialCorePanel" class="conditional-panel hidden">
+            <label class="toggle-row">
+              <input id="liveSpecialP1Core" type="checkbox">
+              <span><strong>呢個P1係大局核心位置</strong><small>例如大局主結、W／D重大支持阻力、大局大型Range極端；特殊逆向必須符合。</small></span>
+            </label>
+          </div>
 
           <div class="result-lines compact">
             <div><span>最終位置</span><strong id="liveEffectivePosition">P2</strong></div>
@@ -541,6 +550,10 @@
         <article class="card">
           <h2>Trigger加分證據</h2>
           <p class="muted">以下只係Q評級輔助證據。現時獨立加分：<strong id="bonusCount">0／8</strong></p>
+          <div class="principle-box">
+            <strong>V3.5防Double Count：</strong>
+            <span>大局核心位置只計P；大局方向只計市場背景；Sweep／Reclaim／Retest等Trigger證據先計Q。大局位置同大局方向都唔可以再當Trigger Bonus。</span>
+          </div>
 
           <label class="toggle-row"><input id="bonusRVOL" type="checkbox"><span>RVOL／成交量支持</span></label>
           <label class="toggle-row"><input id="bonusCloseExtreme" type="checkbox"><span>Long收近燭頂／Short收近燭底</span></label>
@@ -807,7 +820,23 @@
           <li><strong>方向衝突順主判：</strong>最高0.5注。</li>
           <li><strong>方向衝突逆主判：</strong>P1 Q3最多0.5；P2 Q3通常0.25；P3／P4不做。</li>
           <li><strong>弱勢衝突：</strong>只做重要邊界，中間位不做，最高0.5注。</li>
+          <li><strong>特殊逆向｜只順大局、逆主判＋次判：</strong>只做P1＋Q3，最高0.25注；其餘全部0。</li>
         </ul>
+      </article>
+
+      <article class="card special-counter-rule">
+        <h2>特殊逆向｜只順大局、逆主判＋次判</h2>
+        <p>當交易方向順大局背景，但同時逆主判＋次判兩層現行同向趨勢，唔當普通方向衝突處理。</p>
+        <ul>
+          <li><strong>唯一交易資格：</strong>P1大局核心位置＋Q3反轉Trigger。</li>
+          <li><strong>最高注碼：</strong>0.25注。</li>
+          <li>P1 Q2、P2、P3、P4、Q1全部0注。</li>
+          <li>Trigger優先Model A｜Sweep → Reclaim → Weak Retest。</li>
+          <li>大局核心位置只決定P1；大局方向只提供背景；兩者都唔屬於Trigger Q加分。</li>
+          <li>OPR／Asia 2B如果已作Model A本體，唔會再重複增加Q；位置已係P1亦唔需要再做P3→P2升級。</li>
+          <li><strong>終止：</strong>主判或次判其中一層Market State有效改變，令關係不再係「逆主判＋次判兩層同向趨勢」，立即退出特殊逆向，按最新Market State重新跑正常Matrix。</li>
+        </ul>
+        <p class="large-rule">口訣：只順大局、逆主判＋次判 → 只做P1＋Q3，最高0.25注。</p>
       </article>
 
       <article class="card">
@@ -889,6 +918,7 @@
               <tr><td>同向有弱勢／Transition</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25／0</td></tr>
               <tr><td>衝突順主判</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25／0</td></tr>
               <tr><td>衝突逆主判</td><td>0.5</td><td>0.25</td><td>0.25／0</td><td>0</td></tr>
+              <tr><td>特殊逆向｜只順大局、逆主判＋次判</td><td>0.25</td><td>0</td><td>0</td><td>0</td></tr>
             </tbody>
           </table>
         </div>

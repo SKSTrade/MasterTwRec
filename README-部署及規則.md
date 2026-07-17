@@ -1,4 +1,4 @@
-# Master Trade System V1.14
+# Master Trade System V1.15
 
 內置判斷引擎：
 
@@ -835,3 +835,92 @@ Q1唔可以靠任何加分救返。
 
 - appVersion = PracticeJournal-V1.14
 - engineVersion = MasterTradeDecisionMatrix-V3.5
+
+
+---
+
+# V1.15｜特殊逆向規則
+
+Master Trade Rulebook V3.5同Live Decision Matrix V3.5新增：
+
+## 特殊逆向｜只順大局、逆主判＋次判
+
+適用條件：
+
+- 交易方向順大局背景
+- 主判同次判仍然係同一方向嘅已確認趨勢
+- 交易方向同時逆主判＋次判
+
+例如：
+
+- 大局4H：弱跌
+- 主判1H：健康升
+- 次判15M：健康升
+- 計劃：Short
+
+呢種情況獨立分類為：
+
+特殊逆向｜只順大局、逆主判＋次判
+
+### 唯一交易資格
+
+只允許：
+
+P1大局核心位置＋最終Q3反轉Trigger
+
+最高：
+
+0.25注
+
+以下全部0：
+
+- P1＋Q2
+- P2＋Q3
+- P2＋Q2
+- P3
+- P4
+- Q1
+
+Trigger優先：
+
+Model A｜Sweep → Reclaim → Weak Retest
+
+### 自動終止
+
+Rulebook詳細引擎會根據最新Market State自動判斷。
+
+只要主判或次判其中一層有效改變，令市場關係唔再符合「逆主判＋次判兩層現行同向趨勢」：
+
+特殊逆向立即終止。
+
+之後新Setup按最新Market State重新跑正常Matrix，冇Stage 2／Stage 3。
+
+### 防Double Count正式統一
+
+- 大局核心位置 → 只計P
+- 大局方向 → 只計市場背景
+- Sweep／Reclaim／Retest質素 → 只計Q
+
+大局核心位置唔可以再當Trigger Bonus。
+
+大局方向亦唔可以再當Trigger Bonus。
+
+同一個OPR／Asia Sweep如果已經係Model A核心證據，唔會再用同一證據增加Q。
+
+例如：
+
+4H弱跌
+＋4H主結
+＋OPR High Sweep
+＋Reclaim
+＋Weak Retest
+
+拆分：
+
+- 大局方向：4H弱跌
+- 位置：4H主結＝P1
+- Trigger：OPR Sweep＋Reclaim＋Weak Retest＝Model A Q3
+- 市場關係：特殊逆向
+- 最終上限：0.25注
+
+唔會將4H方向、4H主結、OPR Sweep全部重複當成Q加分。

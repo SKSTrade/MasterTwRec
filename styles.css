@@ -1089,3 +1089,15 @@ dialog::backdrop {
     padding: 5px;
   }
 }
+
+
+.special-counter-rule {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+}
+
+.special-counter-rule .large-rule {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning) 10%, var(--card));
+}
