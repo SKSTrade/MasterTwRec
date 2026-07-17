@@ -1101,3 +1101,115 @@ dialog::backdrop {
   border-radius: 12px;
   background: color-mix(in srgb, var(--warning) 10%, var(--card));
 }
+
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.import-note {
+  margin-top: 12px;
+}
+
+.rulebook-anchor {
+  scroll-margin-top: 88px;
+}
+
+.quick-nav {
+  position: fixed;
+  top: 50%;
+  right: 14px;
+  z-index: 82;
+  width: 164px;
+  max-height: min(72vh, 620px);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px;
+  overflow-y: auto;
+  transform: translateY(-50%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 95%, transparent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.quick-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 4px 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.quick-nav-header button {
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.quick-nav > button[data-scroll-target] {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.quick-nav > button[data-scroll-target]:hover,
+.quick-nav > button[data-scroll-target]:focus-visible {
+  border-color: var(--border);
+  background: var(--panel);
+}
+
+.quick-nav-toggle {
+  display: none;
+  position: fixed;
+  right: 14px;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  z-index: 83;
+  min-width: 52px;
+  min-height: 42px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 1180px) {
+  .quick-nav {
+    top: auto;
+    right: 12px;
+    bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+    width: min(78vw, 220px);
+    max-height: 58vh;
+    display: none;
+    transform: none;
+  }
+
+  .quick-nav.open {
+    display: flex;
+  }
+
+  .quick-nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

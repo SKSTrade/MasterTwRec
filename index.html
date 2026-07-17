@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">Rulebook V3.5 ＋ Live Decision Matrix V3.5</p>
     </div>
-    <span class="version-badge">V1.15</span>
+    <span class="version-badge">V1.16</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -207,8 +207,29 @@
         <p class="large-rule">大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置P → Trigger Model → Trigger質素Q → 大局障礙 → 注碼</p>
         <p class="muted">用於Backtest、覆盤、爭議Setup同完整紀錄。位置P同Trigger Q分開評；大局只可以限制／降級。</p>
       </article>
+
+      <button id="quickNavToggle" class="quick-nav-toggle" type="button" aria-expanded="false" aria-controls="rulebookQuickNav">章節</button>
+      <aside id="rulebookQuickNav" class="quick-nav" aria-label="Rulebook章節快捷鍵">
+        <div class="quick-nav-header">
+          <strong>快速跳轉</strong>
+          <button id="quickNavClose" type="button" aria-label="關閉快捷導覽">×</button>
+        </div>
+        <button type="button" data-scroll-target="rbRecordMarket">紀錄／市場</button>
+        <button type="button" data-scroll-target="rbTimeframes">時間框架</button>
+        <button type="button" data-scroll-target="rbMarketState">Market State</button>
+        <button type="button" data-scroll-target="rbDirection">方向／關係</button>
+        <button type="button" data-scroll-target="rbPosition">位置P</button>
+        <button type="button" data-scroll-target="rb2B">Asia／OPR 2B</button>
+        <button type="button" data-scroll-target="rbTriggerModel">Trigger Model</button>
+        <button type="button" data-scroll-target="rbTradeSpace">交易空間</button>
+        <button type="button" data-scroll-target="rbTriggerBonus">Q加分／修正</button>
+        <button type="button" data-scroll-target="rbObstacle">大局障礙</button>
+        <button type="button" data-scroll-target="rbDecisionResult">完整判斷</button>
+        <button type="button" data-scroll-target="rbJournal">結果／儲存</button>
+      </aside>
+
       <form id="decisionForm" novalidate>
-        <article class="card">
+        <article id="rbRecordMarket" class="card rulebook-anchor">
           <h2>紀錄類型與市場</h2>
 
           <div class="segmented">
@@ -233,7 +254,7 @@
           </label>
         </article>
 
-        <article class="card">
+        <article id="rbTimeframes" class="card rulebook-anchor">
           <h2>四個功能時間框架</h2>
 
           <label>
@@ -272,7 +293,7 @@
           </p>
         </article>
 
-        <article class="card">
+        <article id="rbMarketState" class="card rulebook-anchor">
           <h2>三層市場狀態</h2>
 
           <label>
@@ -327,7 +348,7 @@
           </div>
         </article>
 
-        <article class="card">
+        <article id="rbDirection" class="card rulebook-anchor">
           <h2>交易方向與優先方向</h2>
 
           <div class="segmented">
@@ -346,7 +367,7 @@
           <p id="backgroundRelationNote" class="muted"></p>
         </article>
 
-        <article class="card">
+        <article id="rbPosition" class="card rulebook-anchor">
           <h2>位置P評級</h2>
           <p class="muted">P只評實際Entry位置本身，唔係成段行情由邊度開始。</p>
 
@@ -392,7 +413,7 @@
           </label>
         </article>
 
-        <article class="card two-b-card">
+        <article id="rb2B" class="card two-b-card rulebook-anchor">
           <h2>位置加分｜Asia／OPR頂底2B</h2>
 
           <label>
@@ -425,7 +446,7 @@
           </p>
         </article>
 
-        <article class="card trigger-model-card">
+        <article id="rbTriggerModel" class="card trigger-model-card rulebook-anchor">
           <h2>Trigger Model</h2>
 
           <label>
@@ -534,7 +555,7 @@
           </p>
         </article>
 
-        <article class="card">
+        <article id="rbTradeSpace" class="card rulebook-anchor">
           <h2>共同核心｜交易空間</h2>
 
           <label>
@@ -547,7 +568,7 @@
           </label>
         </article>
 
-        <article class="card">
+        <article id="rbTriggerBonus" class="card rulebook-anchor">
           <h2>Trigger加分證據</h2>
           <p class="muted">以下只係Q評級輔助證據。現時獨立加分：<strong id="bonusCount">0／8</strong></p>
           <div class="principle-box">
@@ -589,7 +610,7 @@
 
         
 
-        <article class="card obstacle-card">
+        <article id="rbObstacle" class="card obstacle-card rulebook-anchor">
           <h2>大局障礙修正</h2>
 
           <label>
@@ -638,7 +659,7 @@
           <label class="toggle-row"><input id="emotionalSizing" type="checkbox"><span>曾因連贏／連輸／特別有信心想加注</span></label>
         </article>
 
-        <article class="card result-card">
+        <article id="rbDecisionResult" class="card result-card rulebook-anchor">
           <h2>Master Trade Rulebook V3.5｜完整判斷</h2>
 
           <div class="result-lines">
@@ -667,7 +688,7 @@
           <div id="decisionExplanations"></div>
         </article>
 
-        <article class="card journal-card">
+        <article id="rbJournal" class="card journal-card rulebook-anchor">
           <h2>練習／實戰結果紀錄</h2>
 
           <label>
@@ -755,8 +776,16 @@
           <div class="export-actions">
             <button id="exportCsv" class="secondary-button">匯出CSV</button>
             <button id="exportBackupZip" class="secondary-button">匯出CSV＋照片 ZIP</button>
+            <button id="importCsvButton" class="secondary-button" type="button">匯入CSV</button>
+            <button id="importBackupZipButton" class="secondary-button" type="button">匯入備份ZIP</button>
+            <input id="importCsvFile" class="visually-hidden" type="file" accept=".csv,text/csv">
+            <input id="importBackupZipFile" class="visually-hidden" type="file" accept=".zip,application/zip">
           </div>
         </div>
+
+        <p class="state-note import-note">
+          匯入CSV會還原文字紀錄；匯入本App產生嘅「CSV＋照片 ZIP」會連照片一齊還原。相同紀錄ID會自動跳過，避免重複。舊CSV冇紀錄ID時會建立新ID。
+        </p>
 
         <div class="summary-grid stats-grid">
           <div><span>總紀錄</span><strong id="statCount">0</strong></div>

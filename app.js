@@ -2401,7 +2401,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.15",
+      "PracticeJournal-V1.16",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.5",
 
@@ -3480,6 +3480,7 @@ function csvEscape(value) {
 
 function buildCsv(records) {
   const headers = [
+    "紀錄ID",
     "交易日期",
     "建立時間",
     "App版本",
@@ -3548,6 +3549,7 @@ function buildCsv(records) {
 
   const rows =
     records.map((record) => [
+      record.id || "",
       recordTradeDate(record),
       record.createdAt,
       record.appVersion || "",
@@ -3752,7 +3754,7 @@ function exportCsv() {
 
   downloadBlob(
     blob,
-    `MasterTrade-V3_3-Journal-${new Date()
+    `MasterTrade-V3_5-Journal-${new Date()
       .toISOString()
       .slice(0, 10)}.csv`
   );
@@ -4234,6 +4236,16 @@ async function exportBackupZip() {
           "trades.csv",
         data:
           `\uFEFF${csv}`
+      },
+      {
+        name:
+          "records.json",
+        data:
+          JSON.stringify(
+            records,
+            null,
+            2
+          )
       }
     ];
 
@@ -4287,7 +4299,8 @@ async function exportBackupZip() {
       `Records: ${records.length}`,
       `Images: ${totalImages}`,
       "",
-      "trades.csv contains the journal records.",
+      "records.json contains the exact journal records for full restore.",
+      "trades.csv contains a spreadsheet-friendly copy of the journal records.",
       "images/ contains chart screenshots grouped by trade date, symbol and record ID."
     ].join("\n");
 
@@ -4305,7 +4318,7 @@ async function exportBackupZip() {
 
     downloadBlob(
       zipBlob,
-      `MasterTrade-V3_3-Backup-${new Date()
+      `MasterTrade-V3_5-Backup-${new Date()
         .toISOString()
         .slice(0, 10)}.zip`
     );
@@ -4329,6 +4342,1301 @@ async function exportBackupZip() {
       "匯出CSV＋照片 ZIP";
   }
 }
+
+
+function generateImportedRecordId() {
+  return crypto.randomUUID
+    ? crypto.randomUUID()
+    : `import-${Date.now()}-${Math.random()}`;
+}
+
+function stableImportedRecordId(
+  record
+) {
+  const source = [
+    record.tradeDate || "",
+    record.createdAt || "",
+    record.recordMode || "",
+    record.symbol || "",
+    record.direction || "",
+    record.basePosition || "",
+    record.position || "",
+    record.entryStatus || "",
+    Number.isFinite(
+      record.profitR
+    )
+      ? record.profitR
+      : "",
+    record.checklistSummary || "",
+    record.note || ""
+  ].join("|");
+
+  if (
+    source.replaceAll(
+      "|",
+      ""
+    ) === ""
+  ) {
+    return generateImportedRecordId();
+  }
+
+  let hash =
+    2166136261;
+
+  for (
+    let index = 0;
+    index < source.length;
+    index += 1
+  ) {
+    hash ^=
+      source.charCodeAt(
+        index
+      );
+
+    hash =
+      Math.imul(
+        hash,
+        16777619
+      );
+  }
+
+  return `legacy-${(
+    hash >>> 0
+  ).toString(16)}`;
+}
+
+function parseCsvText(text) {
+  const source =
+    String(text || "")
+      .replace(/^\uFEFF/, "");
+
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (
+    let index = 0;
+    index < source.length;
+    index += 1
+  ) {
+    const char = source[index];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (
+          source[index + 1] === '"'
+        ) {
+          field += '"';
+          index += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (
+      char === "\n"
+    ) {
+      row.push(
+        field.replace(/\r$/, "")
+      );
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+
+  if (
+    field.length > 0 ||
+    row.length > 0
+  ) {
+    row.push(
+      field.replace(/\r$/, "")
+    );
+    rows.push(row);
+  }
+
+  return rows.filter(
+    (item) =>
+      item.some(
+        (value) =>
+          String(value).trim() !== ""
+      )
+  );
+}
+
+function csvRowsToObjects(text) {
+  const rows =
+    parseCsvText(text);
+
+  if (rows.length < 2) {
+    return [];
+  }
+
+  const headers =
+    rows[0].map(
+      (header) =>
+        String(header).trim()
+    );
+
+  return rows
+    .slice(1)
+    .map((row) => {
+      const item = {};
+
+      headers.forEach(
+        (header, index) => {
+          item[header] =
+            row[index] ?? "";
+        }
+      );
+
+      return item;
+    });
+}
+
+function firstCsvValue(
+  row,
+  ...keys
+) {
+  for (const key of keys) {
+    const value =
+      row[key];
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ""
+    ) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function csvBoolean(value) {
+  const normalized =
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  return [
+    "yes",
+    "true",
+    "1",
+    "有"
+  ].includes(normalized);
+}
+
+function csvNumber(value) {
+  if (
+    value === "" ||
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  const number =
+    Number(value);
+
+  return Number.isFinite(number)
+    ? number
+    : null;
+}
+
+function obstacleStateFromCsv(value) {
+  const text =
+    String(value || "");
+
+  if (
+    text.includes("不足") ||
+    text === "insufficient"
+  ) {
+    return "insufficient";
+  }
+
+  if (
+    text.includes("接近") ||
+    text === "near"
+  ) {
+    return "near";
+  }
+
+  if (
+    text.includes("障礙區內") ||
+    text === "inside"
+  ) {
+    return "inside";
+  }
+
+  return "far";
+}
+
+function triggerModelFromCsv(value) {
+  const text =
+    String(value || "");
+
+  return (
+    text.includes("Model B") ||
+    text.includes("Breakout")
+  )
+    ? "B"
+    : "A";
+}
+
+function recordFromCsvRow(row) {
+  const triggerModelLabel =
+    firstCsvValue(
+      row,
+      "Trigger Model"
+    );
+
+  const triggerModel =
+    triggerModelFromCsv(
+      triggerModelLabel
+    );
+
+  const profitR =
+    csvNumber(
+      firstCsvValue(
+        row,
+        "獲利R"
+      )
+    );
+
+  return {
+    id:
+      String(
+        firstCsvValue(
+          row,
+          "紀錄ID"
+        ) || ""
+      ).trim(),
+    tradeDate:
+      firstCsvValue(
+        row,
+        "交易日期"
+      ),
+    createdAt:
+      firstCsvValue(
+        row,
+        "建立時間"
+      ) ||
+      new Date().toISOString(),
+    appVersion:
+      firstCsvValue(
+        row,
+        "App版本"
+      ) ||
+      "Imported-CSV",
+    engineVersion:
+      firstCsvValue(
+        row,
+        "Matrix版本"
+      ) ||
+      "MasterTradeDecisionMatrix-V3.5",
+    recordMode:
+      firstCsvValue(
+        row,
+        "類型"
+      ) ||
+      "Practice",
+    symbol:
+      firstCsvValue(
+        row,
+        "品種"
+      ),
+    backgroundTimeframe:
+      firstCsvValue(
+        row,
+        "大局背景TF"
+      ),
+    backgroundState:
+      firstCsvValue(
+        row,
+        "大局背景狀態"
+      ),
+    mainTimeframe:
+      firstCsvValue(
+        row,
+        "主判TF"
+      ),
+    mainState:
+      firstCsvValue(
+        row,
+        "主判狀態"
+      ),
+    secondaryTimeframe:
+      firstCsvValue(
+        row,
+        "次判TF"
+      ),
+    secondaryState:
+      firstCsvValue(
+        row,
+        "次判狀態"
+      ),
+    entryTimeframe:
+      firstCsvValue(
+        row,
+        "入場觸發TF"
+      ),
+    direction:
+      firstCsvValue(
+        row,
+        "交易方向"
+      ),
+    relation:
+      firstCsvValue(
+        row,
+        "主次關係"
+      ),
+    preferredDirection:
+      firstCsvValue(
+        row,
+        "交易優先方向"
+      ),
+    priorityDeployment:
+      firstCsvValue(
+        row,
+        "優先部署"
+      ),
+    secondaryDeployment:
+      firstCsvValue(
+        row,
+        "次要部署"
+      ),
+    backgroundRelation:
+      firstCsvValue(
+        row,
+        "大局方向關係"
+      ),
+    backgroundDirectOverlap:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "大局位置實際重疊"
+        )
+      )
+        ? "yes"
+        : "no",
+    p1BackgroundTailwind:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "P1背景"
+        )
+      )
+        ? "yes"
+        : "no",
+    basePosition:
+      firstCsvValue(
+        row,
+        "原始位置"
+      ),
+    position:
+      firstCsvValue(
+        row,
+        "最終P位置",
+        "2B後位置"
+      ),
+    p2EdgePosition:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "P2邊緣"
+        )
+      ),
+    p3Testable:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "P3可小注測試"
+        )
+      ),
+    triggerModel,
+    triggerModelLabel:
+      triggerModelLabel ||
+      (
+        triggerModel === "B"
+          ? "Model B｜Breakout／Retest Continuation"
+          : "Model A｜Liquidity Reversal"
+      ),
+    validSweep:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "有效Sweep"
+        )
+      ),
+    validReclaim:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "有效Reclaim"
+        )
+      ),
+    reclaimQuality:
+      firstCsvValue(
+        row,
+        "Reclaim質素"
+      ),
+    retestQuality:
+      firstCsvValue(
+        row,
+        "Model A Retest質素"
+      ),
+    breakoutMeaningful:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "Breakout位置有意義"
+        )
+      ),
+    breakoutAcceptance:
+      firstCsvValue(
+        row,
+        "Acceptance"
+      ),
+    breakoutMomentum:
+      firstCsvValue(
+        row,
+        "Breakout動能"
+      ),
+    breakoutRetestQuality:
+      firstCsvValue(
+        row,
+        "Breakout Retest質素"
+      ),
+    breakoutRetestSupport:
+      firstCsvValue(
+        row,
+        "Breakout Retest結構承接"
+      ),
+    tradeSpace:
+      firstCsvValue(
+        row,
+        "交易空間"
+      ),
+    bonusCount:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "Trigger加分數"
+        )
+      ) ?? 0,
+    baseTrigger:
+      firstCsvValue(
+        row,
+        "加分前Trigger",
+        "基礎Trigger"
+      ),
+    bonusDirectRepair:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "至少1項加分直接補強瑕疵"
+        )
+      ),
+    bonusNoDoubleCount:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "確認冇Double Count"
+        )
+      ),
+    triggerBonusUpgraded:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "Q2升Q3"
+        )
+      ),
+    trigger:
+      firstCsvValue(
+        row,
+        "Trigger質素",
+        "2B後Trigger"
+      ),
+    asia2BLabel:
+      firstCsvValue(
+        row,
+        "Asia2B類型"
+      ) ||
+      "無",
+    asia2BHighQuality:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "Asia2B高質"
+        )
+      ),
+    asia2BCriteriaCount:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "OPR／Asia2B條件數",
+          "Asia2B條件數"
+        )
+      ) ?? 0,
+    asia2BNoDoubleSweep:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "沒有頂底雙邊掃"
+        )
+      ),
+    asia2BStructureOverlap:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "Asia2B結構基礎"
+        )
+      ),
+    obstacleState:
+      obstacleStateFromCsv(
+        firstCsvValue(
+          row,
+          "大局障礙"
+        )
+      ),
+    marketCap:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "市場注碼上限"
+        )
+      ) ?? 0,
+    rawMatrixSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "P × Q Matrix",
+          "Trigger矩陣許可"
+        )
+      ) ?? 0,
+    matrixSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "P × Q Matrix",
+          "Trigger矩陣許可"
+        )
+      ) ?? 0,
+    positionQualitySize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "Legacy位置修正",
+          "位置質素修正"
+        )
+      ) ?? 0,
+    obstacleSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "大局修正"
+        )
+      ) ?? 0,
+    finalSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "最終注碼"
+        )
+      ) ?? 0,
+    entryStatus:
+      firstCsvValue(
+        row,
+        "入市結果"
+      ) ||
+      "Skip",
+    tpPlan:
+      firstCsvValue(
+        row,
+        "TP計劃"
+      ),
+    profitR,
+    reachedRF:
+      firstCsvValue(
+        row,
+        "去到RF"
+      ) ||
+      "N/A",
+    reachedTP2:
+      firstCsvValue(
+        row,
+        "去到TP2"
+      ) ||
+      "N/A",
+    hasImage: false,
+    imageCount: 0,
+    loosenedTriggerBecauseBias:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "方向偏見標籤"
+        )
+      ),
+    emotionalSizing:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "情緒加注標籤"
+        )
+      ),
+    checklistSummary:
+      firstCsvValue(
+        row,
+        "Checklist"
+      ),
+    note:
+      firstCsvValue(
+        row,
+        "備註"
+      )
+  };
+}
+
+function mimeTypeForImageName(name) {
+  const lower =
+    String(name || "")
+      .toLowerCase();
+
+  if (lower.endsWith(".png")) {
+    return "image/png";
+  }
+
+  if (lower.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  return "image/jpeg";
+}
+
+async function readStoredZipEntries(file) {
+  const bytes =
+    new Uint8Array(
+      await file.arrayBuffer()
+    );
+
+  const view =
+    new DataView(
+      bytes.buffer,
+      bytes.byteOffset,
+      bytes.byteLength
+    );
+
+  const entries =
+    new Map();
+
+  let offset = 0;
+
+  while (
+    offset + 4 <=
+    bytes.length
+  ) {
+    const signature =
+      view.getUint32(
+        offset,
+        true
+      );
+
+    if (
+      signature ===
+        0x02014B50 ||
+      signature ===
+        0x06054B50
+    ) {
+      break;
+    }
+
+    if (
+      signature !==
+      0x04034B50
+    ) {
+      throw new Error(
+        "Invalid ZIP structure"
+      );
+    }
+
+    if (
+      offset + 30 >
+      bytes.length
+    ) {
+      throw new Error(
+        "Incomplete ZIP header"
+      );
+    }
+
+    const flags =
+      view.getUint16(
+        offset + 6,
+        true
+      );
+    const method =
+      view.getUint16(
+        offset + 8,
+        true
+      );
+    const compressedSize =
+      view.getUint32(
+        offset + 18,
+        true
+      );
+    const nameLength =
+      view.getUint16(
+        offset + 26,
+        true
+      );
+    const extraLength =
+      view.getUint16(
+        offset + 28,
+        true
+      );
+
+    if (
+      flags & 0x0008
+    ) {
+      throw new Error(
+        "ZIP data descriptor is not supported"
+      );
+    }
+
+    if (method !== 0) {
+      throw new Error(
+        "只支援由Master Trade App匯出嘅備份ZIP"
+      );
+    }
+
+    const nameStart =
+      offset + 30;
+    const dataStart =
+      nameStart +
+      nameLength +
+      extraLength;
+    const dataEnd =
+      dataStart +
+      compressedSize;
+
+    if (
+      dataEnd >
+      bytes.length
+    ) {
+      throw new Error(
+        "Incomplete ZIP data"
+      );
+    }
+
+    const name =
+      new TextDecoder(
+        flags & 0x0800
+          ? "utf-8"
+          : "utf-8"
+      ).decode(
+        bytes.slice(
+          nameStart,
+          nameStart +
+            nameLength
+        )
+      );
+
+    entries.set(
+      name,
+      bytes.slice(
+        dataStart,
+        dataEnd
+      )
+    );
+
+    offset =
+      dataEnd;
+  }
+
+  return entries;
+}
+
+function decodeZipText(
+  entries,
+  name
+) {
+  const data =
+    entries.get(name);
+
+  if (!data) {
+    return null;
+  }
+
+  return new TextDecoder(
+    "utf-8"
+  ).decode(data)
+    .replace(/^\uFEFF/, "");
+}
+
+function assignLegacyZipRecordIds(
+  records,
+  entryNames
+) {
+  const folders =
+    [
+      ...new Set(
+        entryNames
+          .filter(
+            (name) =>
+              name.startsWith(
+                "images/"
+              )
+          )
+          .map(
+            (name) =>
+              name.split("/")[1]
+          )
+          .filter(Boolean)
+      )
+    ];
+
+  const used =
+    new Set();
+
+  records.forEach((record) => {
+    if (record.id) return;
+
+    const prefix =
+      `${safeZipSegment(
+        recordTradeDate(record)
+      )}_${safeZipSegment(
+        record.symbol
+      )}_`;
+
+    const folder =
+      folders.find(
+        (item) =>
+          !used.has(item) &&
+          item.startsWith(
+            prefix
+          )
+      );
+
+    if (!folder) {
+      return;
+    }
+
+    used.add(folder);
+    record.id =
+      folder.slice(
+        prefix.length
+      );
+  });
+}
+
+function buildZipImagesByRecord(
+  records,
+  entries
+) {
+  const result =
+    new Map();
+
+  for (
+    const [
+      name,
+      data
+    ] of entries
+  ) {
+    if (
+      !name.startsWith(
+        "images/"
+      )
+    ) {
+      continue;
+    }
+
+    const parts =
+      name.split("/");
+
+    if (
+      parts.length < 3
+    ) {
+      continue;
+    }
+
+    const folder =
+      parts[1];
+
+    const record =
+      records.find(
+        (item) =>
+          item.id &&
+          folder.endsWith(
+            `_${safeZipSegment(
+              item.id
+            )}`
+          )
+      );
+
+    if (!record) {
+      continue;
+    }
+
+    if (
+      !result.has(record.id)
+    ) {
+      result.set(
+        record.id,
+        []
+      );
+    }
+
+    result
+      .get(record.id)
+      .push(
+        new Blob(
+          [data],
+          {
+            type:
+              mimeTypeForImageName(
+                name
+              )
+          }
+        )
+      );
+  }
+
+  return result;
+}
+
+async function mergeImportedRecords(
+  importedRecords,
+  imagesByRecord =
+    new Map()
+) {
+  const existing =
+    loadRecords();
+
+  const existingIds =
+    new Set(
+      existing
+        .map(
+          (record) =>
+            record.id
+        )
+        .filter(Boolean)
+    );
+
+  const accepted = [];
+  let skipped = 0;
+  let imageCount = 0;
+
+  for (
+    const sourceRecord of
+      importedRecords
+  ) {
+    const record = {
+      ...sourceRecord
+    };
+
+    if (!record.id) {
+      record.id =
+        stableImportedRecordId(
+          record
+        );
+    }
+
+    if (
+      existingIds.has(
+        record.id
+      )
+    ) {
+      skipped += 1;
+      continue;
+    }
+
+    existingIds.add(
+      record.id
+    );
+
+    const images =
+      imagesByRecord.get(
+        record.id
+      ) || [];
+
+    if (
+      images.length > 0
+    ) {
+      await putImages(
+        record.id,
+        images
+      );
+
+      record.hasImage = true;
+      record.imageCount =
+        images.length;
+      imageCount +=
+        images.length;
+    } else {
+      record.hasImage = false;
+      record.imageCount = 0;
+    }
+
+    accepted.push(record);
+  }
+
+  if (
+    accepted.length > 0
+  ) {
+    saveRecords([
+      ...existing,
+      ...accepted
+    ]);
+  }
+
+  renderHistory();
+
+  return {
+    imported:
+      accepted.length,
+    skipped,
+    images:
+      imageCount
+  };
+}
+
+async function importCsvFile(file) {
+  const text =
+    await file.text();
+
+  const objects =
+    csvRowsToObjects(text);
+
+  const records =
+    objects.map(
+      recordFromCsvRow
+    );
+
+  if (
+    records.length === 0
+  ) {
+    throw new Error(
+      "CSV入面搵唔到可匯入紀錄"
+    );
+  }
+
+  const result =
+    await mergeImportedRecords(
+      records
+    );
+
+  return result;
+}
+
+async function importBackupZipFile(
+  file
+) {
+  const entries =
+    await readStoredZipEntries(
+      file
+    );
+
+  let records = [];
+
+  const recordsJson =
+    decodeZipText(
+      entries,
+      "records.json"
+    );
+
+  if (recordsJson) {
+    const parsed =
+      JSON.parse(
+        recordsJson
+      );
+
+    if (
+      !Array.isArray(parsed)
+    ) {
+      throw new Error(
+        "records.json格式錯誤"
+      );
+    }
+
+    records =
+      parsed.map(
+        (record) => ({
+          ...record
+        })
+      );
+  } else {
+    const csv =
+      decodeZipText(
+        entries,
+        "trades.csv"
+      );
+
+    if (!csv) {
+      throw new Error(
+        "ZIP入面搵唔到records.json或trades.csv"
+      );
+    }
+
+    records =
+      csvRowsToObjects(csv)
+        .map(
+          recordFromCsvRow
+        );
+
+    assignLegacyZipRecordIds(
+      records,
+      [...entries.keys()]
+    );
+  }
+
+  if (
+    records.length === 0
+  ) {
+    throw new Error(
+      "備份ZIP入面冇紀錄"
+    );
+  }
+
+  const imagesByRecord =
+    buildZipImagesByRecord(
+      records,
+      entries
+    );
+
+  return mergeImportedRecords(
+    records,
+    imagesByRecord
+  );
+}
+
+async function handleCsvImportFile(
+  event
+) {
+  const file =
+    event.target.files?.[0];
+
+  event.target.value = "";
+
+  if (!file) return;
+
+  $("importCsvButton").disabled =
+    true;
+  $("importCsvButton").textContent =
+    "匯入緊…";
+
+  try {
+    const result =
+      await importCsvFile(file);
+
+    showToast(
+      `CSV匯入完成：新增${result.imported}筆，跳過${result.skipped}筆重複紀錄`
+    );
+  } catch (error) {
+    console.error(
+      "CSV import failed:",
+      error
+    );
+
+    showToast(
+      `CSV匯入失敗：${error.message || "格式不支援"}`
+    );
+  } finally {
+    $("importCsvButton").disabled =
+      false;
+    $("importCsvButton").textContent =
+      "匯入CSV";
+  }
+}
+
+async function handleBackupZipImportFile(
+  event
+) {
+  const file =
+    event.target.files?.[0];
+
+  event.target.value = "";
+
+  if (!file) return;
+
+  $("importBackupZipButton").disabled =
+    true;
+  $("importBackupZipButton").textContent =
+    "匯入緊…";
+
+  try {
+    const result =
+      await importBackupZipFile(
+        file
+      );
+
+    showToast(
+      `ZIP還原完成：新增${result.imported}筆＋${result.images}張圖片，跳過${result.skipped}筆重複紀錄`
+    );
+  } catch (error) {
+    console.error(
+      "Backup ZIP import failed:",
+      error
+    );
+
+    showToast(
+      `ZIP匯入失敗：${error.message || "格式不支援"}`
+    );
+  } finally {
+    $("importBackupZipButton").disabled =
+      false;
+    $("importBackupZipButton").textContent =
+      "匯入備份ZIP";
+  }
+}
+
+function setQuickNavOpen(open) {
+  $("rulebookQuickNav")
+    .classList.toggle(
+      "open",
+      open
+    );
+
+  $("quickNavToggle")
+    .setAttribute(
+      "aria-expanded",
+      open
+        ? "true"
+        : "false"
+    );
+}
+
+function scrollToRulebookSection(
+  targetId
+) {
+  const target =
+    document.getElementById(
+      targetId
+    );
+
+  if (!target) return;
+
+  target.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+
+  setQuickNavOpen(false);
+}
+
 
 
 function liveRelationLabel(value) {
@@ -4846,6 +6154,13 @@ function setupTabs() {
             renderHistory();
           }
 
+          if (
+            button.dataset.tab !==
+            "rulebook"
+          ) {
+            setQuickNavOpen(false);
+          }
+
           window.scrollTo({
             top: 0,
             behavior: "smooth"
@@ -5024,6 +6339,74 @@ function setupEvents() {
     .addEventListener(
       "click",
       exportBackupZip
+    );
+
+  $("importCsvButton")
+    .addEventListener(
+      "click",
+      () =>
+        $("importCsvFile")
+          .click()
+    );
+
+  $("importBackupZipButton")
+    .addEventListener(
+      "click",
+      () =>
+        $("importBackupZipFile")
+          .click()
+    );
+
+  $("importCsvFile")
+    .addEventListener(
+      "change",
+      handleCsvImportFile
+    );
+
+  $("importBackupZipFile")
+    .addEventListener(
+      "change",
+      handleBackupZipImportFile
+    );
+
+  $("quickNavToggle")
+    .addEventListener(
+      "click",
+      () => {
+        const isOpen =
+          $("rulebookQuickNav")
+            .classList
+            .contains("open");
+
+        setQuickNavOpen(
+          !isOpen
+        );
+      }
+    );
+
+  $("quickNavClose")
+    .addEventListener(
+      "click",
+      () =>
+        setQuickNavOpen(false)
+    );
+
+  $("rulebookQuickNav")
+    .addEventListener(
+      "click",
+      (event) => {
+        const button =
+          event.target.closest(
+            "[data-scroll-target]"
+          );
+
+        if (!button) return;
+
+        scrollToRulebookSection(
+          button.dataset
+            .scrollTarget
+        );
+      }
     );
 
   $("saveRecordEdit")

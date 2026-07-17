@@ -1,4 +1,4 @@
-# Master Trade System V1.15
+# Master Trade System V1.16
 
 內置判斷引擎：
 
@@ -924,3 +924,63 @@ Rulebook詳細引擎會根據最新Market State自動判斷。
 - 最終上限：0.25注
 
 唔會將4H方向、4H主結、OPR Sweep全部重複當成Q加分。
+
+
+---
+
+# V1.16｜匯入紀錄＋Rulebook側邊快捷導覽
+
+## 匯入紀錄
+
+紀錄庫新增：
+
+- 匯入CSV
+- 匯入備份ZIP
+
+### 匯入CSV
+
+會還原文字紀錄。
+
+V1.16開始CSV新增「紀錄ID」欄位，同一紀錄ID再次匯入會自動跳過。
+
+舊版CSV冇紀錄ID時，App會按交易日期、建立時間、品種、方向、位置、結果、R及備註等資料建立穩定Legacy ID，重複匯入同一份舊CSV時亦盡量避免重複。
+
+CSV本身不包含圖片，所以用CSV匯入時不會還原照片。
+
+### 匯入備份ZIP
+
+V1.16開始完整備份ZIP包含：
+
+- records.json
+- trades.csv
+- images/
+- backup-info.txt
+
+匯入本App產生嘅備份ZIP時：
+
+- records.json用作精準還原完整紀錄
+- images/內照片會重新寫入IndexedDB
+- 相同紀錄ID會跳過，避免重複
+
+舊版Master Trade App產生嘅未壓縮備份ZIP亦提供相容匯入；如果舊備份只有trades.csv，會用CSV資料還原，並盡量按圖片資料夾對應原紀錄ID。
+
+## Rulebook側邊快捷導覽
+
+Rulebook新增側邊「快速跳轉」：
+
+- 紀錄／市場
+- 時間框架
+- Market State
+- 方向／關係
+- 位置P
+- Asia／OPR 2B
+- Trigger Model
+- 交易空間
+- Q加分／修正
+- 大局障礙
+- 完整判斷
+- 結果／儲存
+
+桌面版固定顯示喺右側。
+
+較窄畫面／手機版會顯示「章節」浮動按鍵，撳開後再揀目標章節，避免長頁面反覆上下捲動。
