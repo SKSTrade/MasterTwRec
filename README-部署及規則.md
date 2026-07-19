@@ -1,1168 +1,324 @@
-# Master Trade System V1.17
+# Master Trade System V1.19
 
-內置判斷引擎：
+現行判斷引擎：
 
-`Master Trade Rulebook V3.5 ＋ Live Decision Matrix V3.5`
+`Master Trade Decision Matrix V3.3｜精簡方向規則版`
 
-呢個版本保留原有：
+核心流程：
 
-- Practice／Live紀錄
-- Entry／Miss／Skip
-- TP計劃
-- 獲利R
-- RF／TP2統計
-- Chart Screenshot
-- CSV匯出
-- 亞洲盤頂／底2B
+> 大局背景 → 主判／次判市場關係 → P位置 → Q Trigger → 大局障礙修正 → 最終注碼
 
-現行系統已拆成Master Trade Rulebook V3.5同Live Decision Matrix V3.5，兩邊共用同一套P／Q／Risk Matrix邏輯。
+V3.3取消獨立Direction Permission Gate。
+
+方向規則直接整合入：
+
+> 主判 × 次判市場關係
 
 ---
 
-## 核心流程
+## 主判 × 次判四種市場關係
 
-大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置級別 → Trigger Model → Trigger質素 → 大局障礙修正 → 最終注碼
+### 1｜雙同向
 
-最終注碼永遠只可以向下限制，唔可以由大局或2B額外加到高過市場狀態權限。
+雙健康同向：
 
----
+- 只做共同方向
+- P1／P2＋Q3最高1注
 
-## 四個功能時間框架
+同向但其中一層弱：
 
-支援快速配置：
+- 仍然只做共同方向
+- P1／P2＋Q3最高0.5注
 
-### 外匯／黃金短線
+反共同方向：
 
-- 大局背景：D
-- 主判斷：4H
-- 次判斷：1H
-- 入場觸發：預設15M，可自行改15M／5M／1M等
+- 0注
+- 即使去到W／D／4H P1大位＋Q3都唔直接反向
+- 先等主判或次判Market State轉弱／轉換
 
-### HSI 1分鐘
+### 2｜方向衝突
 
-- 大局背景：4H
-- 主判斷：1H
-- 次判斷：15M
-- 入場觸發：1M
+順主判、逆次判：
 
-四層都可以自行修改。
+- P1／高質P2優先
+- P1／P2＋Q3最高0.5
+- P3＋Q3屬0.25／0，由「P3可小注測試」明確標記
 
----
+順次判、逆主判：
 
-## 七種市場狀態
+- 只當局部反彈／回調trade
+- 高質P1＋Q3最高0.25
+- P2通常0
+- P1＋Q2預設0；只有明確標記特殊可接受情況先考慮0.25
 
-- 健康升勢
-- 弱升勢
-- 轉換中－偏升
-- 轉換中－中性
-- 轉換中－偏跌
-- 弱跌勢
-- 健康跌勢
+### 3｜包含轉換
 
-轉換傾向直接屬於該時間框架自身市場狀態，不再用另一個附加Bias欄位。
+順已確認嗰一層方向：
 
----
+- P1／P2＋Q3最高0.5
+- 按限制交易Matrix處理
 
-## 主次市場關係
+反已確認方向：
 
-App會自動分類：
+- 只做Transition層真正P1＋Q3
+- 最高0.25
+- App要求明確勾選「呢個P1係Transition層真正大位」
+- P2以下或者Q2不做
 
-- 健康同向
-- 同向有弱勢
-- 包含轉換
-- 方向衝突
-- 弱勢衝突
+### 4｜雙轉換／橫行
 
-一注只屬於：
-
-主判＋次判健康同向
-＋ P1／P2
-＋ Q3
-＋ 冇大局障礙
-＋ 冇硬性否決
+- 只做邊界
+- P1＋Q3一般0.25
+- 清晰主要P1邊界＋Q3可到0.5
+- 清晰P2邊界＋Q3為0.25
+- P3／P4／中間位不做
+- 突破不追，等Acceptance＋首次Retest
 
 ---
 
-## P1／P2修正
+## P位置
 
-### P1
+### P1｜大局級位置
 
 包括：
 
-- 週／日線重大支持阻力
-- 大局背景主結
-- 主判主結
-- 主判大型區間邊界
-- 會改變主判／次判市場狀態嘅主結突破回測
-- 次判主結同大局／主判重大位置直接重疊
-- W618／D618同實際HTF結構重疊
+- W／D重大支持阻力
+- 大局背景／主判真正主結
+- 主判大型Range邊界
+- 會改變主判Market State嘅重大結構位
+- 多個HTF結構高度重疊
 
-### P2
+P1係高級位置，但：
+
+> 雙同向市場仍然唔會因為P1而自動開反向交易權。
+
+### P2｜A級工作位置
 
 包括：
 
 - 次判主結
 - 主判次結
-- 次判重要區間邊界
-- 普通工作結構突破接受後首次回測
-- impulse origin／swap zone
-- 結構位置＋Asia／OPR／PDH／PDL
+- 工作結構Break後首次Retest
+- 重要Swap／Impulse Origin
+- 實際結構＋Mon H/L／Asia H/L／OPR／PDH／PDL
 
-重要原則：
+Mon H/L或Liquidity單獨唔係P2。
 
-位置級別睇空間重疊，不是故事重疊。
+### P3｜次級位置
 
-如果行情由大局阻力跌開後，之後只回抽新形成嘅次判主結，該位置仍然係P2；唔會因為整段行情源於大局P1位置而一直當P1。
+包括：
+
+- 次判次結
+- 入場TF主結
+- 普通局部結構＋Session Liquidity
+- Fib＋普通Swap
+- 低TF區間邊界
+
+### P4｜無交易位置
+
+包括：
+
+- 橫行中間
+- 純Fib
+- 純Asia／OPR
+- 純2B冇結構
+- Chase
+- 前方立即撞重大支持阻力
+
+P4＝0注。
 
 ---
 
-## Trigger精簡Filter
+## Q Trigger
 
-核心只保留：
+核心：
+
+> Sweep → Reclaim → Weak Retest
+
+Q3四個核心：
 
 1. 有效Sweep
 2. 有效Reclaim
 3. Retest明顯弱過Reclaim
-4. 有效交易空間
+4. 有合理交易空間
 
-Q1硬失效包括：
+Q2：
 
-- 冇Sweep
-- 冇真正Reclaim
-- Reclaim立即被完全否定
-- Retest快深強
-- 空間不足
-- 追價
+核心成立，但有瑕疵，例如Retest較快／稍深、Momentum普通、Volume普通或Follow-through不足。
 
-加分證據：
+Q1：
 
-- RVOL
-- 收近燭頂／燭底
-- Reclaim更乾淨
-- Retest用時較長
-- 0.5–0.786
-- Impulse origin
-- Fib
-- Asia／OPR／PDH／PDL
-- Follow-through
+Trigger核心失效或空間不足，0注。
+
+### Price Action優先過Volume
+
+判斷次序：
+
+> 價格推進效率 → 深度 → K線力度 → 時間 → Volume
+
+Volume只係輔助，唔可以override Price Action。
 
 ---
 
-## Q3／Q2
+## Asia／OPR 2B
 
-### Q3
+2B係：
 
-- Sweep有效
-- Reclaim有效而且乾淨
-- Retest明顯較弱
-- 有完整合理R:R
-- 位置唔係P2邊緣標籤
+> Trigger優勢，唔係市場方向優勢。
 
-### Q2
+高質2B沿用6項評分：
 
-核心仍可交易，但存在瑕疵，例如：
-
-- Reclaim普通
-- Retest稍深／普通
-- 空間略短但仍達最低R:R
-- P2邊緣位置
-
----
-
-## 亞洲盤2B
-
-高質2B係執行優勢，不是市場狀態優勢。
+> 5／6或以上＝高質
 
 可以：
 
 - Q2 → Q3
-- 有結構基礎時P3 → P2
+- 有結構基礎嘅P3 → P2
+- 強化P2可信度
 
 唔可以：
 
-- 救Q1
+- 創造反向交易權
 - P2 → P1
 - 救P4
-- 製造本身不存在嘅R:R
+- 推翻主判×次判市場關係
 - 推翻大局障礙
-- 將0.5注市場上限升成1注
 
 ---
 
 ## 大局障礙
 
-### 無／仍遠
+### 障礙仍遠
 
-按原矩陣。
+完整R:R：
 
-### 接近，但仍有最低可接受空間
+> 按原Matrix。
 
-注碼降一級：
+### 接近障礙但仍有空間
 
-- 1 → 0.5
-- 0.5 → 0.25
-- 0.25 → 0
+降一級：
 
-TP放障礙前，少留或不留runner。
+> 1 → 0.5 → 0.25 → 0
+
+### 已處於大局障礙區內仍順原方向延伸
+
+- P1＋Q3最多0.5
+- P2＋Q3最多0.25
+- P3／P4為0
 
 ### 空間不足
 
-0注。
-
-### 已處於障礙區內仍順原方向延伸
-
-- P1＋Q3：最多0.5
-- P2＋Q3：最多0.25
-- 其他：0
+> 0注／Skip
 
 ---
 
-## 五項硬性否決
+## 五項Hard Veto
 
-1. P4中間位或追價
-2. 所選Trigger Model核心邏輯失效
-3. Retest快深強，否定原Reclaim或Breakout推動
-4. 第一真實目標前冇最低可接受R:R
-5. 違反交易時間或總風險上限
-
-Model A要求Sweep／Reclaim；Model B要求Breakout／Acceptance。Breakout Model唔需要Sweep。
-
-「方向偏見想放寬Trigger」及「情緒想加注」保留做紀律／統計標籤，唔再單獨列為自動硬性否決。
+1. P4／中間位／追價
+2. 冇有效Sweep或Reclaim
+3. Retest明顯快＋深＋強，已否定Reclaim
+4. 第一真實Target前空間不足
+5. 違反交易時間／總風險上限
 
 ---
 
-## 資料保存
+## Limit Entry管理
 
-文字紀錄使用瀏覽器localStorage。
+紀錄分開：
 
-圖片使用IndexedDB，會自動縮圖及JPEG壓縮。
+- Entry-time Q
+- Post-entry Q
+- Post-entry處理
 
-清除Safari網站資料會刪除文字同圖片。
+處理：
 
-可以單獨匯出CSV，亦可以匯出「CSV＋全部照片 ZIP」作完整備份。
-
-
-### 主判轉換＋次判局部趨勢特例
-
-例如：
-
-- 主判：轉換中－偏升
-- 次判：弱跌勢
-- 交易：Short
-
-價格未到主判潛在支持，而且到支持前仍有完整R:R：
-
-- P1／P2＋Q3可按包含轉換矩陣，最高0.5注。
-
-接近主判潛在支持：
-
-- 按大局／主判障礙規則降一級。
-
-已到主判潛在支持區：
-
-- 停止開新Short。
-- 已有Short準備食糊。
-- 觀察次判跌勢有冇被破壞。
-- 開始等待Long setup。
-- 新Short＝0注。
-
+- 深但仍弱、結構未失效 → Hold
+- 深＋強但Thesis未Invalid → Q3可降Q2，返入場／BE區考慮減半
+- Thesis正式Invalid → 即時Exit，唔等BE
+- Retest途中形成明顯反方向Micro Structure → 可放棄第一次Limit，等返P1／P2再打一個右側
 
 ---
 
-## V1.4 三層市場狀態部署提示
+## App功能
 
-大局背景、主判斷、次判斷每個已選市場狀態下面，新增：
-
-- 該層優先部署
-- 該層次要部署
-
-七種狀態都有獨立提示：
-
-- 健康升勢
-- 弱升勢
-- 轉換中－偏升
-- 轉換中－中性
-- 轉換中－偏跌
-- 弱跌勢
-- 健康跌勢
-
-重要：
-
-呢啲只係「該時間框架自身狀態」嘅部署提示。
-
-最終交易優先方向仍然由：
-
-主判斷 × 次判斷
-
-互動決定，唔會因單一時間框架顯示「Long優先」或「Short優先」而直接覆蓋V3.2主次關係邏輯。
-
-
----
-
-## V1.5 交易日期
-
-新增獨立「交易日期」欄位：
-
-- 新增紀錄時預設自動填裝置當日日期
-- 可以手動修改
-- 與系統自動記錄嘅建立時間分開保存
-- 紀錄列表會顯示交易日期
-- 紀錄詳情可以修改交易日期
-- CSV會分開匯出「交易日期」同「建立時間」
-
-舊紀錄如果未有tradeDate欄位，App會先用原本createdAt推算日期作相容顯示。
-
-
----
-
-## V1.6 主判 × 次判部署＋貼上圖片
-
-### 主判斷 × 次判斷部署
-
-移除原本大局、主判、次判每一層各自嘅「優先／次要部署」。
-
-改為在三層市場狀態下方，只顯示一組：
-
-- 主判斷 × 次判斷｜優先部署
-- 主判斷 × 次判斷｜次要部署
-
-內容會按以下關係動態改變：
-
-- 健康同向
-- 同向有弱勢
-- 包含轉換
-- 方向衝突
-- 弱勢衝突
-- 兩層都轉換／橫行邊界
-
-大局背景唔會直接決定呢兩行部署，只負責後續障礙、風險及目標修正。
-
-### Chart Screenshot貼上
-
-圖片輸入由檔案上載改成剪貼簿貼上：
-
-- Mac：點擊貼上區後按Command+V或Ctrl+V
-- iPhone／iPad：點擊貼上區，使用系統貼上操作
-- 亦提供「從剪貼簿貼上圖片」按鈕；瀏覽器容許直接讀取剪貼簿時可一鍵貼上
-- 編輯舊紀錄時亦可以用同一方式貼上新圖片取代舊圖
-
-圖片仍然會自動縮細、壓縮並儲存在IndexedDB。
-
-
----
-
-## V1.7 多張Chart Screenshot
-
-每筆交易紀錄而家可以保存多張圖片。
-
-### 新紀錄
-
-- 可以連續貼上多次圖片
-- 每次貼上會新增圖片，不會覆蓋之前圖片
-- 預覽區會顯示目前圖片總數
-- 可以逐張移除
-- 亦可以一次移除全部
-
-### 編輯舊紀錄
-
-- 舊版原本只保存一張圖片嘅紀錄會自動兼容
-- 打開舊紀錄後，可以繼續貼上新圖片追加
-- 可以逐張下載
-- 可以逐張移除
-- 可以下載全部圖片
-- 可以移除全部圖片
-- 圖片新增／移除要按「儲存修改」後正式生效
-
-### 儲存方式
-
-IndexedDB同一個record ID底下會保存Blob陣列。
-
-舊版如果該record ID只儲存單一Blob，V1.7會自動轉成單張圖片陣列讀取，所以唔需要手動搬資料。
-
-CSV新增「圖片數量」欄位，但圖片檔本身仍然唔會放入CSV。
-
-
----
-
-## V1.8 匯出CSV＋照片 ZIP
-
-紀錄庫新增兩種匯出：
-
-### 匯出CSV
-
-只匯出文字紀錄。
-
-### 匯出CSV＋照片 ZIP
-
-會產生一個ZIP備份包，內容包括：
-
-- trades.csv
-- backup-info.txt
-- images/交易日期_品種_紀錄ID/image-1.jpg
-- images/交易日期_品種_紀錄ID/image-2.jpg
-- 其他同一筆紀錄圖片
-
-多張Chart Screenshot會全部一齊匯出。
-
-舊版單張圖片紀錄亦會自動包含喺ZIP。
-
-ZIP功能係App內置產生，唔依賴外部CDN或第三方網站。
-
-
----
-
-## V1.9 修正
-
-### RF／TP2新增N/A
-
-「去唔去到推RF位」及「去唔去到TP2」新增：
-
-- Yes
-- No
-- N/A｜掛盤但冇成交／不適用
-
-統計RF Rate及TP2 Rate時，N/A紀錄會排除喺分母之外，避免Miss／掛盤未成交紀錄拉低命中率。
-
-### 外匯／黃金快速配置
-
-預設：
-
-- 大局背景：D
-- 主判：4H
-- 次判：1H
-- 入場觸發：15M
-
-### 交易空間預設
-
-「到第一個真實目標嘅交易空間」預設改為：
-
-- 有完整合理R:R
-
-### 亞洲盤2B
-
-高質門檻由5/5改為：
-
-- 4/5或5/5＝高質
-
-其他2B限制不變：
-
-- 仍然要同交易方向一致
-- 只可Q2→Q3
-- 有結構基礎先可P3→P2
-- 不可救Q1／P4
-- 不可P2→P1
-- 不可突破市場注碼上限
-
-
----
-
-## V1.10 P1／P2定義修正
-
-V1.9曾誤將「會改變主判／次判市場狀態嘅突破回測」加入P2，現已修正。
-
-### P1
-
-包括：
-
-- 會改變主判／次判市場狀態嘅突破回測
-
-### P2
-
-還原原本定義，包括：
-
-- 次判主結
-- 主判次結
-- 次判重要區間邊界
-- 普通工作結構突破接受後首次回測
-- impulse origin／swap zone
-- 結構位置＋Asia／OPR／PDH／PDL
-
-
----
-
-## V1.11｜Master Trade Decision Matrix V3.3
-
-核心流程：
-
-大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置級別 → Trigger Model → Trigger質素 → 大局障礙修正 → 最終注碼
-
-### Model A｜Liquidity Reversal
-
-Sweep → Reclaim → Weak Retest
-
-Q3核心：
-
-- 有效Sweep
-- 有效Reclaim
-- Retest明顯較弱
-- 完整合理R:R
-
-Q2：
-
-- 核心邏輯仍成立
-- Reclaim普通／Retest有瑕疵／空間較短等
-
-Q1：
-
-- 冇真正Sweep
-- 冇真正Reclaim
-- Reclaim被否定
-- Retest快深強
-- R:R不足
-
-### Model B｜Breakout／Retest Continuation
-
-Breakout → Acceptance → Weak Retest
-
-Q3核心：
-
-- Breakout位置有意義
-- Acceptance清楚
-- Breakout有明顯推動
-- Retest淺／慢／弱
-- Retest有兩項或以上結構承接
-- 完整合理R:R
-
-Q2：
-
-- 核心仍成立但Acceptance／動能／Retest／結構重疊／空間其中一項有瑕疵
-
-Q1：
-
-- False Breakout
-- 冇Acceptance
-- Breakout冇有效推動
-- Retest吞噬Breakout
-- 冇有效結構承接
-- R:R不足
-
-### 重要硬性修正
-
-舊版「冇Sweep＝0注」正式取消。
-
-而家只要所選Setup完整符合：
-
-- Model A：Sweep → Reclaim → Weak Retest
-
-或
-
-- Model B：Breakout → Acceptance → Weak Retest
-
-其中一套，就可以正常進入Q3／Q2評級。
-
-### P2邊緣
-
-位置質素同Trigger質素正式分開：
-
-- P2邊緣＋Q3：注碼降一級
-- P2邊緣＋Q2：偏向Skip；本App採用保守0注
-
-### P1背景
-
-可以獨立記錄：
-
-- P1背景：有／冇
-
-例如價格先喺P1重大位置反應，之後跌／升開一段，再喺新形成次判工作結構做P2，可以記做：
-
-- P2＋P1背景順風
-
-P1背景只係背景標籤，唔會將P2升P1，亦唔會提高注碼。
-
-### Asia 2B
-
-V3.3入面：
-
-- 有原有結構基礎時，高質2B可以P3→P2
-- 2B不再改變Trigger Model本身Q級
-- 不可P2→P1
-- 不可救P4
-- 不可突破市場注碼上限
-
-### 紀錄與CSV
-
-新增保存：
-
-- Trigger Model
-- Breakout位置是否有意義
-- Acceptance質素
-- Breakout動能
-- Breakout Retest質素
-- Retest結構承接
-
-舊V3.2紀錄仍可繼續顯示。
-
-
----
-
-## V1.12｜OPR／亞洲盤2B、勝率、返回頂部
-
-### OPR／亞洲盤頂／底2B
-
-標題由：
-
-- 亞洲盤頂／底2B｜執行優勢
-
-改為：
-
-- OPR／亞洲盤頂／底2B｜執行優勢
-
-高質條件由5項增至6項，新增：
-
-- 沒有頂底雙邊掃
-
-即唔係先掃一邊、再掃另一邊嘅雙向洗盤。
-
-高質門檻改為：
-
-- 5/6或6/6＝高質
-- 0–4/6＝未達高質
-
-其他限制不變：
-
-- 要同交易方向一致
-- 有原有結構基礎先可P3→P2
-- 不可P2→P1
-- 不可救P4
-- 不可突破市場注碼上限
-
-### 勝率
-
-紀錄庫與統計新增「勝率」。
-
-計算方式：
-
-- 只計Entry
-- 只計已填有效獲利R嘅Entry
-- 獲利R > 0.99＝Win
-- 獲利R <= 0.99＝非Win
-
-顯示格式：
-
-- 勝率百分比
-- Win數／可計算Entry數
-
-例如：
-
-50.0%｜5/10
-
-### 返回網頁頂部
-
-向下捲動超過約420px後，右下角會顯示「↑」按鍵。
-
-按一下會平滑返回頁面頂部。
-
-
----
-
-## V1.13｜勝率計算修正
-
-紀錄庫「勝率」改為：
-
-- 只計 Entry
-- 必須已填有效獲利R
-- R = 0 完全排除，不計入分母
-- R > 0 = Win
-- R < 0 = Loss
-
-例如：
-
-- +0.5R → Win
-- +0.01R → Win
-- 0R → 不計
-- -0.2R → Loss
-- 未填R → 不計
-
-勝率顯示：
-
-勝率百分比｜Win數／可計算Entry數
-
-
----
-
-# V1.14｜Master Trade V3.5雙層架構
-
-App正式拆成四個分頁：
+四個分頁：
 
 1. Live Decision
 2. Rulebook
 3. 紀錄庫
 4. 規則
 
-## Live Decision Matrix V3.5
+保留：
 
-用途：
-
-盤中只回答「而家做唔做？做幾大？」
-
-只保留5步：
-
-1. 主判 × 次判市場關係
-2. Entry位置P
-3. Trigger Model＋最終Q
-4. 大局障礙
-5. 查Matrix落注
-
-Live Decision可直接選：
-
-- 健康同向
-- 同向有弱勢／包含Transition
-- 方向衝突｜順主判
-- 方向衝突｜順次判、逆主判
-
-位置：
-
-- P1
-- P2
-- P3
-- P4
-
-特殊位置規則：
-
-P3結構位＋高質Asia／OPR頂底2B＋原有結構基礎，可以P3升P2。
-
-純Liquidity／冇結構基礎嘅2B唔可以創造P2。
-
-Trigger：
-
-- Model A｜Sweep → Reclaim → Retest
-- Model B｜Breakout → Acceptance → Retest
-
-Q2快速升Q3只限：
-
-- Q2本身代表1項未致命瑕疵
-- 至少2項獨立加分證據
-- 至少1項直接補強原本瑕疵
-- 已確認冇Double Count
-
-Q1永遠唔可以靠加分升級。
-
-## Master Trade Rulebook V3.5
-
-原本完整Decision／Journal表正式放入Rulebook分頁。
-
-用途：
-
-- Backtest
-- 覆盤
-- 爭議Setup
-- 完整交易紀錄
-- 系統規則修改
-
-完整流程：
-
-大局背景 → 主判斷 × 次判斷 → 交易優先方向 → 位置P → Trigger Model → Trigger質素Q → 大局障礙 → 注碼
-
-核心分工：
-
-- Market State決定方向及風險上限
-- P評實際Entry位置
-- Q評Trigger質素
-- 大局只可以限制／降級
-- Matrix決定最終注碼
-
-## Asia／OPR 2B
-
-V3.5正式歸入P位置評級，唔再作獨立Decision Step。
-
-高質2B沿用6項評分：
-
-5／6或以上具位置升級資格。
-
-P3＋高質2B＋原有結構基礎：
-
-P3 → P2
-
-但：
-
-- 純Asia／OPR Sweep唔可以由P4創造P2
-- 2B唔會直接改變Q
-- 同一個Sweep如果已經係Model A核心證據，唔可以再當Trigger Bonus重複計分
-
-## Trigger加分證據
-
-V3.5保留8項獨立加分證據。
-
-加分只用於Q2修正，唔係獨立Decision Step。
-
-Q2 → Q3要求：
-
-- 原本只有1項未致命瑕疵
-- 至少2項獨立加分
-- 至少1項直接補強原本瑕疵
-- 確認冇Double Count
-
-Q1唔可以靠任何加分救返。
-
-## Risk Matrix
-
-健康同向：
-
-- P1 Q3：1
-- P2 Q3：1
-- P1/P2 Q2：0.5
-- P3 Q3：0.5
-
-同向有弱勢／Transition：
-
-- P1 Q3：0.5
-- P2 Q3：0.5
-- P1/P2 Q2：0.25
-- P3 Q3：0.25／0
-
-方向衝突順主判：
-
-- P1 Q3：0.5
-- P2 Q3：0.5
-- P1/P2 Q2：0.25
-- P3 Q3：0.25／0
-
-方向衝突逆主判：
-
-- P1 Q3：0.5
-- P2 Q3：0.25
-- P1 Q2：0.25
-- P2 Q2：0／特殊情況
-- P3／P4：0
-
-## 資料相容
-
-原本localStorage key及IndexedDB圖片資料庫名稱保持不變。
-
-所以同一個GitHub Pages origin更新時，舊紀錄及圖片設計上會繼續沿用。
-
-新紀錄：
-
-- appVersion = PracticeJournal-V1.14
-- engineVersion = MasterTradeDecisionMatrix-V3.5
-
+- Practice／Live紀錄
+- Entry／Miss／Skip
+- 多張Chart Screenshot
+- Clipboard貼圖
+- Entry-time Q／Post-entry Q
+- RF／TP2 N/A
+- 勝率、平均R、RF率、TP2率
+- CSV匯出／匯入
+- CSV＋照片ZIP完整備份／還原
+- UUID紀錄ID去重
+- Rulebook側邊快捷導覽
+- 返回頂部按鍵
 
 ---
 
-# V1.15｜特殊逆向規則
+## 匯入／匯出
 
-Master Trade Rulebook V3.5同Live Decision Matrix V3.5新增：
+### CSV
 
-## 特殊逆向｜只順大局、逆主判＋次判
+V1.19 CSV包含：
 
-適用條件：
+- 主次市場關係
+- 交易路線
+- P／Q
+- 市場關係上限
+- 路線特殊標記
+- Entry-time／Post-entry Q
+- 結果及R
 
-- 交易方向順大局背景
-- 主判同次判仍然係同一方向嘅已確認趨勢
-- 交易方向同時逆主判＋次判
+舊版CSV仍保留相容匯入。
 
-例如：
+### 完整ZIP
 
-- 大局4H：弱跌
-- 主判1H：健康升
-- 次判15M：健康升
-- 計劃：Short
-
-呢種情況獨立分類為：
-
-特殊逆向｜只順大局、逆主判＋次判
-
-### 唯一交易資格
-
-只允許：
-
-P1大局核心位置＋最終Q3反轉Trigger
-
-最高：
-
-0.25注
-
-以下全部0：
-
-- P1＋Q2
-- P2＋Q3
-- P2＋Q2
-- P3
-- P4
-- Q1
-
-Trigger優先：
-
-Model A｜Sweep → Reclaim → Weak Retest
-
-### 自動終止
-
-Rulebook詳細引擎會根據最新Market State自動判斷。
-
-只要主判或次判其中一層有效改變，令市場關係唔再符合「逆主判＋次判兩層現行同向趨勢」：
-
-特殊逆向立即終止。
-
-之後新Setup按最新Market State重新跑正常Matrix，冇Stage 2／Stage 3。
-
-### 防Double Count正式統一
-
-- 大局核心位置 → 只計P
-- 大局方向 → 只計市場背景
-- Sweep／Reclaim／Retest質素 → 只計Q
-
-大局核心位置唔可以再當Trigger Bonus。
-
-大局方向亦唔可以再當Trigger Bonus。
-
-同一個OPR／Asia Sweep如果已經係Model A核心證據，唔會再用同一證據增加Q。
-
-例如：
-
-4H弱跌
-＋4H主結
-＋OPR High Sweep
-＋Reclaim
-＋Weak Retest
-
-拆分：
-
-- 大局方向：4H弱跌
-- 位置：4H主結＝P1
-- Trigger：OPR Sweep＋Reclaim＋Weak Retest＝Model A Q3
-- 市場關係：特殊逆向
-- 最終上限：0.25注
-
-唔會將4H方向、4H主結、OPR Sweep全部重複當成Q加分。
-
-
----
-
-# V1.16｜匯入紀錄＋Rulebook側邊快捷導覽
-
-## 匯入紀錄
-
-紀錄庫新增：
-
-- 匯入CSV
-- 匯入備份ZIP
-
-### 匯入CSV
-
-會還原文字紀錄。
-
-V1.16開始CSV新增「紀錄ID」欄位，同一紀錄ID再次匯入會自動跳過。
-
-舊版CSV冇紀錄ID時，App會按交易日期、建立時間、品種、方向、位置、結果、R及備註等資料建立穩定Legacy ID，重複匯入同一份舊CSV時亦盡量避免重複。
-
-CSV本身不包含圖片，所以用CSV匯入時不會還原照片。
-
-### 匯入備份ZIP
-
-V1.16開始完整備份ZIP包含：
+包含：
 
 - records.json
 - trades.csv
 - images/
 - backup-info.txt
 
-匯入本App產生嘅備份ZIP時：
-
-- records.json用作精準還原完整紀錄
-- images/內照片會重新寫入IndexedDB
-- 相同紀錄ID會跳過，避免重複
-
-舊版Master Trade App產生嘅未壓縮備份ZIP亦提供相容匯入；如果舊備份只有trades.csv，會用CSV資料還原，並盡量按圖片資料夾對應原紀錄ID。
-
-## Rulebook側邊快捷導覽
-
-Rulebook新增側邊「快速跳轉」：
-
-- 紀錄／市場
-- 時間框架
-- Market State
-- 方向／關係
-- 位置P
-- Asia／OPR 2B
-- Trigger Model
-- 交易空間
-- Q加分／修正
-- 大局障礙
-- 完整判斷
-- 結果／儲存
-
-桌面版固定顯示喺右側。
-
-較窄畫面／手機版會顯示「章節」浮動按鍵，撳開後再揀目標章節，避免長頁面反覆上下捲動。
-
+同一紀錄ID重複匯入會自動跳過。
 
 ---
 
-# V1.17｜Master Trade Decision Matrix V3.2｜Direction Permission Gate
+## 資料保存
 
-現行核心流程：
+文字紀錄：
 
-大局背景 → 主判／次判Market State → Direction Permission → P位置 → Q Trigger → 大局障礙 → 最終注碼
+`localStorage key = masterTradePracticeJournalV1Records`
 
-## Direction Permission
+圖片：
 
-方向權限係Gate。
+`IndexedDB = masterTradePracticeJournalImages`
 
-### 正常方向權限
+同一GitHub Pages origin更新版本時，儲存key保持不變，設計上舊紀錄及圖片會繼續沿用。
 
-典型：
+清除Safari／瀏覽器網站資料仍然可能刪除本機紀錄，所以重要資料應定期匯出完整ZIP。
 
-- 主判健康升＋次判健康升做Long
-- 主判健康跌＋次判健康跌做Short
+---
 
-最高1注。
+# V1.19更新重點
 
-### 限制方向權限
-
-典型：
-
-- 同向但其中一層弱
-- 主判健康跌＋次判轉換偏跌做Short
-- 主判轉換偏升＋次判健康升做Long
-- 主次方向衝突，但交易方向順主判已確認方向
-
-最高0.5注。
-
-### 無方向權限
-
-例如：
-
-- 主判健康升＋次判健康升，普通位置想Short
-- 只因低TF出Short 2B，但主判方向未支持Short
-- 順次判但逆主判
-
-正常P1／P2＋Q3都係0。
-
-P/Q唔可以創造Direction Permission。
-
-## 唯一例外｜大局P1反轉
-
-原本Direction Permission＝0，但同時符合：
-
-- 真正大局P1
-- Q3右側反轉確認
-
-可以開：
-
-0.25注試單
-
-真正大局P1包括：
-
-- W／D重大支持阻力
-- 大局背景／主判真正主結
-- 大局大型Range真正邊界
-- 其他真正大局級核心位置
-
-P2＋Q3、純Asia／OPR、純Fib、冇右側確認都唔可以使用例外。
-
-## P × Q Matrix
-
-正常方向權限：
-
-- P1 Q3 = 1
-- P2 Q3 = 1
-- P1/P2 Q2 = 0.5
-- P3 Q3 = 0.5
-- P3 Q2 = 0.25
-
-限制方向權限：
-
-- P1 Q3 = 0.5
-- P2 Q3 = 0.5
-- P1/P2 Q2 = 0.25
-- P3 Q3 = 0.25
-- P3 Q2 = 0
-
-無方向權限：
-
-全部0。
-
-唯一例外：
-
-真正大局P1＋Q3右側反轉 = 0.25。
-
-## Q Trigger
-
-V1.17現行Trigger：
-
-Sweep → Reclaim → Weak Retest
-
-Q3：
-
-- 有效Sweep
-- 有效Reclaim
-- Retest明顯弱過Reclaim
-- 完整合理R:R
-
-Q2：
-
-核心仍成立，但有可接受瑕疵。
-
-Q1：
-
-核心失效或R:R不足。
-
-Price Action優先過Volume：
-
-價格推進效率 → 深度 → K線力度 → 時間 → Volume
-
-Volume只係加分，唔可以override Price Action。
-
-## Asia／OPR 2B
-
-2B係執行優勢，唔係方向優勢。
-
-可以：
-
-- 高質2B將Q2 → Q3
-- 有結構基礎時P3 → P2
-- 強化P2可信度
-
-唔可以：
-
-- 創造Direction Permission
-- P2 → P1
-- 將正常0注變0.5
-- 救P4
-- 推翻大局障礙
-
-## 大局障礙
-
-障礙仍遠：
-
-按原Matrix。
-
-接近但仍有合理空間：
-
-1 → 0.5 → 0.25 → 0
-
-已處於大局障礙區內仍順原方向延伸：
-
-- P1 Q3最多0.5
-- P2 Q3最多0.25
-- P3／P4為0
-
-空間不足：
-
-0注。
-
-## Limit Entry
-
-新增紀錄：
-
-- Entry-time Q
-- Post-entry Q
-- Post-entry處理
-
-原則：
-
-- 深但仍弱、結構未失效：Hold
-- 深＋強但Thesis未Invalid：Q3可降Q2，返BE／入場區考慮減半
-- Thesis正式Invalid：即時Exit，唔等BE
-- 第一次Limit Entry因Retest變強：可以放棄掛盤，等原P1／P2再做第二次右側確認
-
-## 資料功能
-
-保留：
-
-- 多張Chart Screenshot
-- CSV匯出／匯入
-- CSV＋照片ZIP完整備份／還原
-- 紀錄ID去重
-- Rulebook側邊快捷導覽
-- 勝率、平均R、RF／TP2統計
+- Matrix升級至V3.3精簡方向規則版
+- 移除獨立Direction Permission Gate
+- 移除「大局P1反轉例外」概念
+- 雙同向反向固定0
+- 衝突市場分順主判／順次判逆主判
+- 包含轉換加入正常P1反向試單路線
+- 雙轉換加入邊界Matrix
+- Live Decision改為直接選「市場關係＋交易路線」
+- Rulebook自動由主判／次判Market State＋實際交易方向分類路線
+- 保留高質Asia／OPR 2B嘅P／Q強化功能，但唔會推翻市場關係

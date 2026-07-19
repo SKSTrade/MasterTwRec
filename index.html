@@ -17,9 +17,9 @@
     <div>
       <p class="eyebrow">MASTER TRADE</p>
       <h1>Master Trade System</h1>
-      <p class="header-subtitle">Decision Matrix V3.2｜Direction Permission Gate</p>
+      <p class="header-subtitle">Decision Matrix V3.3｜精簡方向規則版</p>
     </div>
-    <span class="version-badge">V1.17</span>
+    <span class="version-badge">V1.19</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -33,32 +33,35 @@
 
     <section id="live" class="tab-panel active">
       <article class="card live-hero">
-        <p class="eyebrow">LIVE DECISION MATRIX V3.2</p>
-        <h2>Direction Permission Gate版</h2>
-        <p class="large-rule">市場狀態 → 方向權限 → P位置 → Q Trigger → 大局障礙 → 最終注碼</p>
-        <p class="muted">盤中先問「呢個方向有冇權限？」。有權限先查P × Q；無權限正常直接0注，唯一例外係真正大局P1＋Q3右側反轉確認。</p>
+        <p class="eyebrow">LIVE DECISION MATRIX V3.3</p>
+        <h2>精簡方向規則版</h2>
+        <p class="large-rule">大局背景 → 主判／次判市場關係 → P位置 → Q Trigger → 大局障礙 → 最終注碼</p>
+        <p class="muted">方向規則已直接整合入市場關係：雙同向只做共同方向；衝突順主判優先；包含轉換可順已確認方向，P1先考慮反向試單；雙轉換只做邊界。</p>
       </article>
 
       <form id="liveDecisionForm" novalidate>
         <article class="card live-step">
-          <div class="live-step-title"><span>STEP 1</span><h2>Direction Permission｜方向權限</h2></div>
+          <div class="live-step-title"><span>STEP 1</span><h2>主判 × 次判｜市場關係／交易路線</h2></div>
 
           <label>
-            目前交易方向權限
-            <select id="livePermission">
-              <option value="normal">A｜正常方向權限｜Max 1注</option>
-              <option value="limited">B｜限制方向權限｜Max 0.5注</option>
-              <option value="none">C｜無方向權限｜正常0注</option>
+            目前市場關係＋今次交易路線
+            <select id="liveMarketRoute">
+              <option value="healthyAligned">A｜雙健康同向｜順共同方向｜Max 1注</option>
+              <option value="weakAligned">B｜同向有弱勢｜順共同方向｜Max 0.5注</option>
+              <option value="alignedReverse">C｜雙同向｜反共同方向｜禁止</option>
+              <option value="conflictMain">D｜方向衝突｜順主判、逆次判｜Max 0.5注</option>
+              <option value="conflictSecondary">E｜方向衝突｜順次判、逆主判｜P1為主｜Max 0.25注</option>
+              <option value="transitionConfirmed">F｜包含轉換｜順已確認方向｜Max 0.5注</option>
+              <option value="transitionReverse">G｜包含轉換｜P1反向試單｜Max 0.25注</option>
+              <option value="bothTransition">H｜雙轉換／橫行｜只做邊界｜Max 0.5注</option>
             </select>
           </label>
 
           <div class="result-lines compact">
-            <div><span>方向權限上限</span><strong id="liveMarketCap">1注</strong></div>
+            <div><span>市場關係上限</span><strong id="liveMarketCap">1注</strong></div>
           </div>
 
-          <p id="liveRelationNote" class="state-note">
-            正常權限例：主判＋次判健康同向並順共同方向。限制權限例：同向有弱勢／Transition，或者方向衝突但順主判。
-          </p>
+          <p id="liveRelationNote" class="state-note"></p>
         </article>
 
         <article class="card live-step">
@@ -67,17 +70,17 @@
           <label>
             Entry實際位置
             <select id="livePosition">
-              <option value="P1">P1｜真正大局／主判核心位置</option>
+              <option value="P1">P1｜大局級／主判核心位置</option>
               <option value="P2" selected>P2｜A級工作位置</option>
-              <option value="P3">P3｜普通局部有效位置</option>
-              <option value="P4">P4｜禁止位置</option>
+              <option value="P3">P3｜次級有效位置</option>
+              <option value="P4">P4｜無交易位置</option>
             </select>
           </label>
 
           <div class="conditional-panel">
             <label class="toggle-row">
               <input id="liveHighQuality2B" type="checkbox">
-              <span><strong>高質Asia／OPR 2B</strong><small>可強化P／Q，但永遠唔可以創造Direction Permission。</small></span>
+              <span><strong>高質Asia／OPR 2B</strong><small>可以Q2→Q3、或者有結構基礎時P3→P2；唔可以推翻主判×次判市場關係。</small></span>
             </label>
             <label class="toggle-row">
               <input id="live2BStructureBase" type="checkbox">
@@ -85,13 +88,31 @@
             </label>
           </div>
 
-          <div id="liveP1ExceptionPanel" class="conditional-panel hidden">
+          <div id="liveTransitionLayerP1Row" class="conditional-panel hidden">
             <label class="toggle-row">
-              <input id="liveBigPictureP1Exception" type="checkbox">
-              <span>
-                <strong>真正大局P1反轉例外資格</strong>
-                <small>只限W／D重大支持阻力、大局／主判真正主結、大局Range真正邊界等；仍然必須最終Q3右側確認。</small>
-              </span>
+              <input id="liveTransitionLayerP1" type="checkbox">
+              <span><strong>呢個P1係Transition層真正大位</strong><small>包含轉換反向試單必須確認；其他P1唔會自動開反向劇本。</small></span>
+            </label>
+          </div>
+
+          <div id="liveP3ConflictTestableRow" class="conditional-panel hidden">
+            <label class="toggle-row">
+              <input id="liveP3ConflictTestable" type="checkbox">
+              <span><strong>衝突順主判｜P3屬可接受小注測試位</strong><small>只影響P3＋Q3嘅0.25／0選擇；預設保守為0。</small></span>
+            </label>
+          </div>
+
+          <div id="liveCounterP1Q2SpecialRow" class="conditional-panel hidden">
+            <label class="toggle-row">
+              <input id="liveCounterP1Q2Special" type="checkbox">
+              <span><strong>逆主判P1＋Q2屬特殊可接受情況</strong><small>勾選先容許0.25；預設0。P2以下仍然唔做。</small></span>
+            </label>
+          </div>
+
+          <div id="liveBothTransitionMajorP1Row" class="conditional-panel hidden">
+            <label class="toggle-row">
+              <input id="liveBothTransitionMajorP1" type="checkbox">
+              <span><strong>雙轉換P1屬清晰主要區間邊界</strong><small>P1＋Q3一般0.25；清晰主要邊界可到0.5。</small></span>
             </label>
           </div>
 
@@ -108,15 +129,15 @@
           <label>
             基礎Q
             <select id="liveTriggerQuality">
-              <option value="Q3">Q3｜Sweep＋Reclaim完整，Retest弱，有合理空間</option>
-              <option value="Q2" selected>Q2｜核心仍成立，但有可接受瑕疵</option>
-              <option value="Q1">Q1｜核心失效｜0注</option>
+              <option value="Q3">Q3｜四個核心完整</option>
+              <option value="Q2" selected>Q2｜核心成立，但有可接受瑕疵</option>
+              <option value="Q1">Q1｜Trigger失效｜0注</option>
             </select>
           </label>
 
           <div class="principle-box">
             <strong>Price Action優先過Volume。</strong>
-            <span>Retest如果快、深、連續大實體，就算Volume細都仍然係強Retest，唔可以靠Volume升Q。</span>
+            <span>價格推進效率 → 深度 → K線力度 → 時間 → Volume。Volume只係輔助。</span>
           </div>
 
           <div class="result-lines compact">
@@ -139,7 +160,7 @@
         </article>
 
         <article class="card live-step">
-          <div class="live-step-title"><span>STEP 5</span><h2>Gate＋P × Q＋障礙</h2></div>
+          <div class="live-step-title"><span>STEP 5</span><h2>市場關係＋P × Q＋障礙</h2></div>
 
           <label class="toggle-row">
             <input id="liveChase" type="checkbox">
@@ -152,7 +173,7 @@
           </label>
 
           <div class="result-lines">
-            <div><span>方向權限上限</span><strong id="liveResultCap">1注</strong></div>
+            <div><span>市場關係上限</span><strong id="liveResultCap">1注</strong></div>
             <div><span>P × Q Matrix</span><strong id="liveMatrixSize">0.5注</strong></div>
             <div><span>大局修正後</span><strong id="liveObstacleSize">0.5注</strong></div>
           </div>
@@ -169,21 +190,21 @@
       <article class="card live-one-line">
         <h2>盤中五句</h2>
         <ol>
-          <li>呢個Long／Short有冇Direction Permission？</li>
+          <li>主判×次判係雙同向、衝突、包含轉換，定雙轉換？今次做邊條路線？</li>
           <li>Entry係P1、P2、P3定P4？</li>
           <li>Sweep／Reclaim／Retest最後係Q3、Q2定Q1？</li>
           <li>第一真實障礙係遠、近、區內定空間不足？</li>
-          <li>Gate通過先查P × Q；所有限制取最低注碼。</li>
+          <li>查對應市場關係Matrix，再套大局障礙，取最低注碼。</li>
         </ol>
       </article>
     </section>
 
     <section id="rulebook" class="tab-panel">
       <article class="card rulebook-hero">
-        <p class="eyebrow">MASTER TRADE DECISION MATRIX V3.2</p>
+        <p class="eyebrow">MASTER TRADE DECISION MATRIX V3.3</p>
         <h2>完整規則版</h2>
-        <p class="large-rule">大局背景 → 主判／次判市場狀態 → Direction Permission → P位置 → Q Trigger → 大局障礙 → 最終注碼</p>
-        <p class="muted">Direction Permission係Gate：先決定Long／Short有冇資格，再用P × Q決定值唔值得做同打幾多；大局障礙只可以限制／降級。</p>
+        <p class="large-rule">大局背景 → 主判／次判市場關係 → P位置 → Q Trigger → 大局障礙 → 最終注碼</p>
+        <p class="muted">方向規則已整合入主判 × 次判市場關係：雙同向只順共同方向；衝突／包含轉換／雙轉換按各自劇本分級；大局障礙只可以限制／降級。</p>
       </article>
 
       <button id="quickNavToggle" class="quick-nav-toggle" type="button" aria-expanded="false" aria-controls="rulebookQuickNav">章節</button>
@@ -195,7 +216,7 @@
         <button type="button" data-scroll-target="rbRecordMarket">紀錄／市場</button>
         <button type="button" data-scroll-target="rbTimeframes">時間框架</button>
         <button type="button" data-scroll-target="rbMarketState">Market State</button>
-        <button type="button" data-scroll-target="rbDirection">方向權限</button>
+        <button type="button" data-scroll-target="rbDirection">市場關係／方向</button>
         <button type="button" data-scroll-target="rbPosition">位置P</button>
         <button type="button" data-scroll-target="rb2B">Asia／OPR 2B</button>
         <button type="button" data-scroll-target="rbTriggerModel">Q Trigger</button>
@@ -307,7 +328,7 @@
           </div>
 
           <div class="state-deployment-disclaimer">
-            市場狀態由各TF自身結構決定；Direction Permission再用主判／次判互動判斷交易方向資格。大局背景只負責背景、障礙及P1反轉例外。
+            市場狀態由各TF自身結構決定；方向規則直接整合喺主判 × 次判市場關係。大局背景只負責順風／逆風、重大支持阻力、目標空間同必要降級。
           </div>
 
           <div class="principle-box">
@@ -317,7 +338,7 @@
         </article>
 
         <article id="rbDirection" class="card rulebook-anchor">
-          <h2>Direction Permission｜方向權限</h2>
+          <h2>主判 × 次判市場關係｜方向規則</h2>
 
           <div class="segmented">
             <label><input type="radio" name="direction" value="Long"><span>Long</span></label>
@@ -326,14 +347,19 @@
 
           <div class="result-lines compact">
             <div><span>主次市場關係</span><strong id="marketRelation"></strong></div>
-            <div><span>Direction Permission</span><strong id="directionPermission"></strong></div>
+            <div><span>今次交易路線</span><strong id="marketRoute"></strong></div>
             <div><span>交易優先方向</span><strong id="preferredDirection"></strong></div>
-            <div><span>方向權限上限</span><strong id="marketCap"></strong></div>
+            <div><span>市場最高注碼</span><strong id="marketCap"></strong></div>
             <div><span>大局方向關係</span><strong id="backgroundRelation"></strong></div>
           </div>
 
           <p id="priorityNote" class="muted"></p>
-          <div class="principle-box"><strong>Direction Permission係Gate。</strong><span>無權限時P1／P2＋Q3正常都係0；P/Q唔可以創造方向權限。</span></div>
+
+          <div class="principle-box">
+            <strong>方向規則直接包含喺市場關係。</strong>
+            <span>雙同向只做共同方向；衝突順主判優先；包含轉換可順已確認方向，反向要等P1；雙轉換只做邊界。</span>
+          </div>
+
           <p id="backgroundRelationNote" class="muted"></p>
         </article>
 
@@ -371,13 +397,26 @@
             </select>
           </label>
           <p class="state-note">只作背景標籤：可以記錄「P2＋P1背景順風」，但唔會將P2升P1，亦唔會提高注碼。</p>
-          <label id="bigPictureP1ExceptionRow" class="toggle-row hidden">
-            <input id="bigPictureP1ReversalException" type="checkbox">
-            <span>
-              <strong>真正大局P1反轉例外資格</strong>
-              <small>只限W／D重大支持阻力、大局背景／主判真正主結、大局大型Range真正邊界等。只有原方向權限＝0＋最終P1＋Q3右側反轉確認，先可開0.25注試單。</small>
-            </span>
+          <label id="transitionLayerP1Row" class="toggle-row hidden">
+            <input id="transitionLayerP1" type="checkbox">
+            <span><strong>包含轉換反向｜呢個P1係Transition層真正大位</strong><small>只有確認後，P1＋Q3先按0.25反向試單計算。</small></span>
           </label>
+
+          <label id="p3ConflictTestableRow" class="toggle-row hidden">
+            <input id="p3ConflictTestable" type="checkbox">
+            <span><strong>衝突順主判｜P3屬可接受小注測試位</strong><small>只影響P3＋Q3嘅0.25／0選擇；預設保守為0。</small></span>
+          </label>
+
+          <label id="counterP1Q2SpecialRow" class="toggle-row hidden">
+            <input id="counterP1Q2Special" type="checkbox">
+            <span><strong>順次判逆主判｜P1＋Q2屬特殊可接受情況</strong><small>勾選先容許0.25；預設0。</small></span>
+          </label>
+
+          <label id="bothTransitionMajorP1Row" class="toggle-row hidden">
+            <input id="bothTransitionMajorP1" type="checkbox">
+            <span><strong>雙轉換P1屬清晰主要區間邊界</strong><small>P1＋Q3一般0.25；清晰主要邊界可到0.5。</small></span>
+          </label>
+
 
         </article>
 
@@ -407,11 +446,11 @@
             <div><span>2B質素</span><strong id="asia2BQuality">未啟用</strong></div>
             <div><span>位置影響</span><strong id="asia2BPositionEffect">無</strong></div>
             <div><span>Q影響</span><strong id="asia2BTriggerEffect">無</strong></div>
-            <div><span>Direction Permission影響</span><strong>永遠無</strong></div>
+            <div><span>市場關係／方向規則影響</span><strong>永遠無</strong></div>
           </div>
 
           <p class="muted">
-            V3.2：2B係執行優勢，唔係方向優勢。高質2B可以Q2→Q3；有結構基礎時P3→P2；可以強化P2可信度。但唔可以創造Direction Permission、P2→P1、0注→0.5、救P4或推翻大局障礙。
+            V3.3：2B係Trigger優勢，唔係方向優勢。高質2B可以Q2→Q3；有結構基礎時P3→P2；可以強化P2可信度。但唔可以創造反向交易權、P2→P1、救P4或推翻大局障礙。
           </p>
         </article>
 
@@ -524,7 +563,7 @@
           <h2>五項硬性否決</h2>
 
           <p class="muted">
-            V3.2核心Trigger要求Sweep＋Reclaim；Retest如果快、深、強到否定Reclaim，或者第一真實Target冇合理R:R，直接Q1／0注。
+            V3.3核心Trigger要求Sweep＋Reclaim；Retest如果快、深、強到否定Reclaim，或者第一真實Target冇合理R:R，直接Q1／0注。
           </p>
 
           <label class="toggle-row">
@@ -554,7 +593,7 @@
         </article>
 
         <article id="rbDecisionResult" class="card result-card rulebook-anchor">
-          <h2>Master Trade Decision Matrix V3.2｜完整判斷</h2>
+          <h2>Master Trade Decision Matrix V3.3｜完整判斷</h2>
 
           <div class="result-lines">
             <div><span>大局背景</span><strong id="resultBackground"></strong></div>
@@ -566,10 +605,10 @@
             <div><span>原始位置</span><strong id="resultBasePosition"></strong></div>
             <div><span>最終P位置</span><strong id="resultEffectivePosition"></strong></div>
             <div><span>P1背景</span><strong id="resultP1Background"></strong></div>
-            <div><span>Direction Permission</span><strong id="resultDirectionPermission"></strong></div>
+            <div><span>交易路線</span><strong id="resultMarketRoute"></strong></div>
             <div><span>Trigger質素</span><strong id="resultEffectiveTrigger"></strong></div>
             <div><span>2B Setup</span><strong id="resultAsia2B"></strong></div>
-            <div><span>方向權限上限</span><strong id="resultMarketCap"></strong></div>
+            <div><span>市場關係上限</span><strong id="resultMarketCap"></strong></div>
             <div><span>P × Q Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
           </div>
@@ -760,42 +799,39 @@
 
     <section id="rules" class="tab-panel">
       <article class="card">
-        <p class="eyebrow">MASTER TRADE DECISION MATRIX V3.2</p>
-        <h2>核心流程</h2>
-        <p class="large-rule">大局背景 → 主判／次判市場狀態 → Direction Permission → P位置 → Q Trigger → 大局障礙 → 最終注碼</p>
-        <p><strong>方向權限決定有冇資格做呢個方向；P × Q只決定有權做之後，值唔值得做同打幾多。</strong></p>
+        <p class="eyebrow">MASTER TRADE DECISION MATRIX V3.3</p>
+        <h2>精簡方向規則版｜核心流程</h2>
+        <p class="large-rule">大局背景 → 主判／次判市場關係 → P位置 → Q Trigger → 大局障礙 → 最終注碼</p>
+        <p><strong>取消獨立Direction Permission Gate；方向規則直接包含喺主判 × 次判市場關係。</strong></p>
       </article>
 
       <article class="card">
-        <h2>Direction Permission｜方向權限 Gate</h2>
-        <ul>
-          <li><strong>正常方向權限：</strong>例如主判健康升＋次判健康升做Long；最高1注。</li>
-          <li><strong>限制方向權限：</strong>同向有弱勢／Transition，或方向衝突但順主判；最高通常0.5注。</li>
-          <li><strong>無方向權限：</strong>例如主判＋次判健康升，普通位置想Short；正常P1／P2＋Q3都係0。</li>
-        </ul>
-        <p><strong>P/Q唔可以創造方向權限。</strong></p>
-      </article>
-
-      <article class="card">
-        <h2>大局P1反轉例外</h2>
-        <p>原本方向權限＝0，但同時符合以下兩項，可開0.25注試單：</p>
+        <h2>四種主判 × 次判市場關係</h2>
         <ol>
-          <li>真正大局P1：W／D重大支持阻力、大局／主判真正主結、大局Range真正邊界等。</li>
-          <li>Q3級右側反轉確認：Sweep → Reclaim → Weak Retest完整成立。</li>
+          <li><strong>雙同向：</strong>只做共同方向。雙健康最高1注；同向有弱勢最高0.5注。反共同方向禁止，即使去到W／D／4H P1都唔直接反向。</li>
+          <li><strong>方向衝突：</strong>順主判優先，最高通常0.5；順次判逆主判只當局部反彈／回調，以高質P1＋Q3為主，最高通常0.25。</li>
+          <li><strong>包含轉換：</strong>可順已確認嗰層方向，P1／P2＋Q3最高0.5；逆已確認方向只等Transition層真正P1＋Q3反向試單，最高0.25。</li>
+          <li><strong>雙轉換／橫行：</strong>只做邊界，中間位不做；P1主要邊界＋Q3最高0.5，普通P1邊界0.25，清晰P2邊界＋Q3為0.25。</li>
         </ol>
-        <p class="large-rule">無權限＋真正大局P1＋Q3右側反轉 → 0.25注</p>
-        <p>P2＋Q3、純Asia／OPR、純Fib、冇右側確認都唔可以用例外。</p>
       </article>
 
       <article class="card">
-        <h2>P位置</h2>
+        <h2>最簡單方向規則</h2>
+        <p class="large-rule">雙同向：只順向，禁止反向。</p>
+        <p class="large-rule">方向衝突：順主判優先；逆主判要求更高位置並降級。</p>
+        <p class="large-rule">包含轉換：順已確認方向可以做；去到Transition層P1先可反向試單。</p>
+        <p class="large-rule">雙轉換：只做邊界，唔做中間。</p>
+      </article>
+
+      <article class="card">
+        <h2>P位置級別</h2>
         <ul>
-          <li><strong>P1：</strong>W／D重大S/R、大局背景／主判真正主結、大型Range邊界、會改變主判Market State嘅主結Break後首次Retest、多個HTF結構高度重疊。</li>
+          <li><strong>P1：</strong>W／D重大支持阻力、大局背景／主判真正主結、主判大型區間邊界、會改變主判Market State嘅重大結構位、多個HTF結構高度重疊。</li>
           <li><strong>P2：</strong>次判主結、主判次結、工作結構Break後首次Retest、重要Swap／Impulse Origin、實際結構＋Mon H/L／Asia／OPR／PDH／PDL。</li>
-          <li><strong>P3：</strong>次判次結、入場TF主結、普通局部結構＋Session Liquidity、普通Fib＋Swap。</li>
-          <li><strong>P4：</strong>Range中間、Chase、純Fib、純Asia／OPR、純2B冇結構、前方即撞重大障礙。</li>
+          <li><strong>P3：</strong>次判次結、入場TF主結、普通局部結構＋Session Liquidity、Fib＋普通Swap、低TF區間邊界。</li>
+          <li><strong>P4：</strong>橫行中間、純Fib、純Asia／OPR、純2B冇結構、追突破、前方立即撞重大支持阻力。</li>
         </ul>
-        <p>P1順風只係Context，唔會將實際P2硬升做P1。</p>
+        <p><strong>P1順風只係Context，唔會將實際P2硬升做P1。</strong></p>
       </article>
 
       <article class="card">
@@ -803,84 +839,98 @@
         <p class="large-rule">Sweep → Reclaim → Weak Retest</p>
         <ul>
           <li><strong>Q3：</strong>有效Sweep＋有效Reclaim＋Retest明顯弱過Reclaim＋合理交易空間。</li>
-          <li><strong>Q2：</strong>核心仍成立，但Retest稍快／稍深、Reclaim普通、Volume普通、Follow-through不足等。</li>
-          <li><strong>Q1：</strong>冇有效Sweep／Reclaim、Retest快深強、Reclaim完全否定、反向Micro Structure明顯建立或R:R不足。</li>
+          <li><strong>Q2：</strong>核心成立，但Retest較快／稍深、Momentum普通、Volume普通、Follow-through不足等。</li>
+          <li><strong>Q1：</strong>冇真正Sweep／Reclaim、Retest快＋深＋強、Reclaim被完全否定、空間不足。</li>
         </ul>
       </article>
 
       <article class="card">
         <h2>Price Action優先過Volume</h2>
         <p class="large-rule">價格推進效率 → 深度 → K線力度 → 時間 → Volume</p>
-        <p>Volume只係加分證據，唔可以override Price Action。Retest Volume細，但價格跌得快、深、連續大實體，仍然係強Retest。</p>
+        <p>Volume只係輔助證據，唔可以override Price Action。</p>
       </article>
 
       <article class="card">
-        <h2>基本P × Q Matrix</h2>
+        <h2>基本注碼Matrix</h2>
         <div class="matrix-table-wrap">
           <table class="matrix-table">
-            <thead><tr><th>方向權限</th><th>P1 Q3</th><th>P2 Q3</th><th>P1/P2 Q2</th><th>P3 Q3</th><th>P3 Q2</th></tr></thead>
+            <thead><tr><th>市場關係／路線</th><th>P1 Q3</th><th>P2 Q3</th><th>P1/P2 Q2</th><th>P3 Q3</th><th>P3 Q2</th></tr></thead>
             <tbody>
-              <tr><td>正常｜Max 1</td><td>1</td><td>1</td><td>0.5</td><td>0.5</td><td>0.25</td></tr>
-              <tr><td>限制｜Max 0.5</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25</td><td>0</td></tr>
-              <tr><td>無權限</td><td>0*</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+              <tr><td>雙健康同向｜順共同方向</td><td>1</td><td>1</td><td>0.5</td><td>0.5</td><td>0.25</td></tr>
+              <tr><td>同向有弱勢｜順共同方向</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25</td><td>0</td></tr>
+              <tr><td>雙同向｜反共同方向</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+              <tr><td>衝突｜順主判</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25／0</td><td>0</td></tr>
+              <tr><td>衝突｜順次判逆主判</td><td>0.25</td><td>通常0</td><td>P1 Q2＝0／0.25</td><td>0</td><td>0</td></tr>
+              <tr><td>包含轉換｜順已確認方向</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25</td><td>0</td></tr>
+              <tr><td>包含轉換｜P1反向試單</td><td>0.25</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+              <tr><td>雙轉換／橫行</td><td>0.25～0.5</td><td>0.25</td><td>0</td><td>0</td><td>0</td></tr>
             </tbody>
           </table>
         </div>
-        <p>*唯一例外：真正大局P1＋Q3右側反轉確認＝0.25注。</p>
+      </article>
+
+      <article class="card">
+        <h2>Asia／OPR 2B角色</h2>
+        <p>2B係Trigger優勢，唔係市場方向優勢。</p>
+        <ul>
+          <li>可以Q2 → Q3。</li>
+          <li>有結構基礎嘅P3 → P2。</li>
+          <li>可以強化P2可信度。</li>
+          <li>唔可以創造反向交易權。</li>
+          <li>唔可以P2 → P1、救P4或推翻大局障礙。</li>
+        </ul>
       </article>
 
       <article class="card">
         <h2>大局障礙修正</h2>
         <ul>
-          <li><strong>障礙仍遠：</strong>完整R:R，按原Matrix。</li>
-          <li><strong>接近但仍有空間：</strong>降一級，1 → 0.5 → 0.25 → 0。</li>
-          <li><strong>已處於障礙區內仍順原方向延伸：</strong>P1 Q3最多0.5；P2 Q3最多0.25；P3／P4為0。</li>
-          <li><strong>空間不足：</strong>0注。</li>
-        </ul>
-      </article>
-
-      <article class="card">
-        <h2>Asia／OPR 2B</h2>
-        <p>2B係執行優勢，唔係方向優勢。</p>
-        <ul>
-          <li>可以Q2 → Q3。</li>
-          <li>有結構基礎嘅P3 → P2。</li>
-          <li>可以強化P2可信度。</li>
-          <li>唔可以創造Direction Permission。</li>
-          <li>唔可以P2 → P1、0注 → 0.5、救P4或推翻大局障礙。</li>
+          <li><strong>障礙仍遠：</strong>到障礙前有完整R:R，按原Matrix。</li>
+          <li><strong>接近但仍有空間：</strong>降一級：1 → 0.5 → 0.25 → 0。</li>
+          <li><strong>已處於大局障礙區內仍順原方向延伸：</strong>P1 Q3最多0.5；P2 Q3最多0.25；P3／P4為0。</li>
+          <li><strong>空間不足：</strong>直接Skip。</li>
         </ul>
       </article>
 
       <article class="card">
         <h2>Limit Entry｜Entry-time Q vs Post-entry Q</h2>
         <ul>
-          <li><strong>深，但仍弱：</strong>結構未失效，可以持有。</li>
+          <li><strong>深，但仍弱：</strong>結構未失效，繼續持有。</li>
           <li><strong>深＋強：</strong>Q3可降Q2；Thesis未Invalid時，返入場／BE區可考慮減半。</li>
-          <li><strong>Thesis正式Invalid：</strong>關鍵失效位被接受突破、原2B完全失敗、反方向新結構＋Follow-through，立即全走，唔等BE。</li>
+          <li><strong>Thesis正式失效：</strong>關鍵invalidation被接受突破、原2B完全失敗、反方向新結構成立 → 即時全走，唔等BE。</li>
         </ul>
       </article>
 
       <article class="card">
         <h2>第二次確認</h2>
-        <p>第一個Limit Entry因Retest變強時：</p>
-        <p class="large-rule">放棄第一次掛盤 → 等返原P1／P2區 → 再等低TF右側確認</p>
-        <p>即係再打一個Sweep Micro High／Low → Reclaim → Weak Retest嘅右側Trigger。</p>
+        <p class="large-rule">放棄第一個Limit Entry → 等返原P1／P2區 → 再打一個右側</p>
+        <p>例如Sweep Micro High／Low → Reclaim → Weak Retest再入場。</p>
       </article>
 
       <article class="card">
-        <h2>最終公式</h2>
-        <p class="large-rule">Market State → Direction Permission → P → Q → 大局障礙 → 最終注碼</p>
-        <p>Direction Permission係Gate；最終注碼永遠取所有限制中最低值。</p>
-      </article>
-
-      <article class="card">
-        <h2>V3.2最核心五句</h2>
+        <h2>五項真正Hard Veto</h2>
         <ol>
-          <li>方向權限係Gate，P/Q唔可以創造方向權限。</li>
-          <li>正常無權限＝0注。</li>
-          <li>唯一例外：真正大局P1＋Q3右側反轉，可以開0.25注試單。</li>
-          <li>大局P1順風只係背景，唔會將P2自動升P1。</li>
-          <li>正面撞大局障礙時，就算順方向P2＋Q3，都可能降到0.25甚至0。</li>
+          <li>P4／中間位／追價</li>
+          <li>冇有效Sweep或Reclaim</li>
+          <li>Retest明顯快＋深＋強，已否定Reclaim</li>
+          <li>第一真實Target前空間不足</li>
+          <li>違反交易時間／總風險上限</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>最終決策流程</h2>
+        <p class="large-rule">大局背景 → 主判 × 次判市場關係 → 可做方向／基本上限 → P → Q → 大局障礙 → 最終注碼</p>
+      </article>
+
+      <article class="card">
+        <h2>V3.3最核心六句</h2>
+        <ol>
+          <li>雙同向只做共同方向，W／D大位都唔直接反向。</li>
+          <li>衝突市場可以兩邊部署，但順主判優先；逆主判要求P1並降級。</li>
+          <li>包含轉換時，可順已確認方向；去到Transition層P1大位先可捕反方向，而且最高通常0.25。</li>
+          <li>雙轉換只做邊界，不做中間。</li>
+          <li>P決定位置資格，Q決定執行質素；Asia／OPR 2B唔可以推翻市場關係。</li>
+          <li>大局障礙只會降級或取消，不會令交易升級。</li>
         </ol>
       </article>
     </section>

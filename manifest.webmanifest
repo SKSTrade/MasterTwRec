@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.17",
+  "name": "Master Trade System V1.19",
   "short_name": "Master Trade",
-  "description": "Master Trade Decision Matrix V3.2 with Direction Permission Gate, P1 reversal exception, journal, statistics, image backup and import restore.",
+  "description": "Master Trade Decision Matrix V3.3 simplified direction rules with market-relationship routing, trading journal, image backup and restore.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
