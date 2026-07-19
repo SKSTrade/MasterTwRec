@@ -1,4 +1,4 @@
-# Master Trade System V1.16
+# Master Trade System V1.17
 
 內置判斷引擎：
 
@@ -984,3 +984,185 @@ Rulebook新增側邊「快速跳轉」：
 桌面版固定顯示喺右側。
 
 較窄畫面／手機版會顯示「章節」浮動按鍵，撳開後再揀目標章節，避免長頁面反覆上下捲動。
+
+
+---
+
+# V1.17｜Master Trade Decision Matrix V3.2｜Direction Permission Gate
+
+現行核心流程：
+
+大局背景 → 主判／次判Market State → Direction Permission → P位置 → Q Trigger → 大局障礙 → 最終注碼
+
+## Direction Permission
+
+方向權限係Gate。
+
+### 正常方向權限
+
+典型：
+
+- 主判健康升＋次判健康升做Long
+- 主判健康跌＋次判健康跌做Short
+
+最高1注。
+
+### 限制方向權限
+
+典型：
+
+- 同向但其中一層弱
+- 主判健康跌＋次判轉換偏跌做Short
+- 主判轉換偏升＋次判健康升做Long
+- 主次方向衝突，但交易方向順主判已確認方向
+
+最高0.5注。
+
+### 無方向權限
+
+例如：
+
+- 主判健康升＋次判健康升，普通位置想Short
+- 只因低TF出Short 2B，但主判方向未支持Short
+- 順次判但逆主判
+
+正常P1／P2＋Q3都係0。
+
+P/Q唔可以創造Direction Permission。
+
+## 唯一例外｜大局P1反轉
+
+原本Direction Permission＝0，但同時符合：
+
+- 真正大局P1
+- Q3右側反轉確認
+
+可以開：
+
+0.25注試單
+
+真正大局P1包括：
+
+- W／D重大支持阻力
+- 大局背景／主判真正主結
+- 大局大型Range真正邊界
+- 其他真正大局級核心位置
+
+P2＋Q3、純Asia／OPR、純Fib、冇右側確認都唔可以使用例外。
+
+## P × Q Matrix
+
+正常方向權限：
+
+- P1 Q3 = 1
+- P2 Q3 = 1
+- P1/P2 Q2 = 0.5
+- P3 Q3 = 0.5
+- P3 Q2 = 0.25
+
+限制方向權限：
+
+- P1 Q3 = 0.5
+- P2 Q3 = 0.5
+- P1/P2 Q2 = 0.25
+- P3 Q3 = 0.25
+- P3 Q2 = 0
+
+無方向權限：
+
+全部0。
+
+唯一例外：
+
+真正大局P1＋Q3右側反轉 = 0.25。
+
+## Q Trigger
+
+V1.17現行Trigger：
+
+Sweep → Reclaim → Weak Retest
+
+Q3：
+
+- 有效Sweep
+- 有效Reclaim
+- Retest明顯弱過Reclaim
+- 完整合理R:R
+
+Q2：
+
+核心仍成立，但有可接受瑕疵。
+
+Q1：
+
+核心失效或R:R不足。
+
+Price Action優先過Volume：
+
+價格推進效率 → 深度 → K線力度 → 時間 → Volume
+
+Volume只係加分，唔可以override Price Action。
+
+## Asia／OPR 2B
+
+2B係執行優勢，唔係方向優勢。
+
+可以：
+
+- 高質2B將Q2 → Q3
+- 有結構基礎時P3 → P2
+- 強化P2可信度
+
+唔可以：
+
+- 創造Direction Permission
+- P2 → P1
+- 將正常0注變0.5
+- 救P4
+- 推翻大局障礙
+
+## 大局障礙
+
+障礙仍遠：
+
+按原Matrix。
+
+接近但仍有合理空間：
+
+1 → 0.5 → 0.25 → 0
+
+已處於大局障礙區內仍順原方向延伸：
+
+- P1 Q3最多0.5
+- P2 Q3最多0.25
+- P3／P4為0
+
+空間不足：
+
+0注。
+
+## Limit Entry
+
+新增紀錄：
+
+- Entry-time Q
+- Post-entry Q
+- Post-entry處理
+
+原則：
+
+- 深但仍弱、結構未失效：Hold
+- 深＋強但Thesis未Invalid：Q3可降Q2，返BE／入場區考慮減半
+- Thesis正式Invalid：即時Exit，唔等BE
+- 第一次Limit Entry因Retest變強：可以放棄掛盤，等原P1／P2再做第二次右側確認
+
+## 資料功能
+
+保留：
+
+- 多張Chart Screenshot
+- CSV匯出／匯入
+- CSV＋照片ZIP完整備份／還原
+- 紀錄ID去重
+- Rulebook側邊快捷導覽
+- 勝率、平均R、RF／TP2統計

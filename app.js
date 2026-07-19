@@ -92,20 +92,20 @@ const STATES = {
 
 const POSITION_INFO = {
   P1: {
-    title: "最高級位置",
-    note: "W／D重大支持阻力、大局主結、主判主結、主判大型Range邊界、會改變主判／次判Market State嘅重要結構Break後首次Retest、次判主結直接重疊主判／大局結構，以及W618／D618＋真實HTF結構重疊。"
+    title: "大局級位置",
+    note: "W／D重大支持阻力、大局背景／主判真正主結、大型Range邊界、會改變主判Market State嘅主結Break後首次Retest，以及多個HTF結構高度重疊。P1先有資格喺無方向權限時考慮大局P1反轉例外，但仍必須Q3右側確認。"
   },
   P2: {
-    title: "重要工作位置",
-    note: "次判主結、主判次結、次判重要Range邊界、有意義Breakout後首次Retest、清晰Swap Zone、清晰Impulse Origin，以及結構＋Asia／OPR／PDH／PDL重疊。"
+    title: "A級工作位置",
+    note: "次判主結、主判次結、工作結構Break後首次Retest、重要Swap／Impulse Origin，以及實際結構＋Mon H/L、Asia H/L、OPR、PDH／PDL重疊。單獨Mon H/L或Liquidity本身唔係P2。"
   },
   P3: {
-    title: "普通但有效位置",
-    note: "次判次結、Trigger TF主結、普通LTF結構、普通LTF Range Edge、0.618＋普通Swap，以及Session Liquidity＋普通Local Structure。"
+    title: "普通局部位置",
+    note: "次判次結、入場TF主結、普通局部結構＋Session Liquidity、普通Fib＋Swap。只適合方向權限清楚時按Matrix小注。"
   },
   P4: {
-    title: "冇交易價值位置",
-    note: "Range中間、純Fib、純Asia／OPR、純2B但冇結構基礎、Chase、上下重要邊界距離相若，或第一真實障礙令R:R不足。P4＝0注。"
+    title: "禁止位置",
+    note: "Range中間、Chase、純Fib、純Asia／OPR、純2B冇結構，或者前方立即撞重大障礙令R:R不足。P4＝0注。"
   }
 };
 
@@ -122,7 +122,6 @@ const BONUS_IDS = [
   "bonusCleanerReclaim",
   "bonusRetestTime",
   "bonusDepth",
-  "bonusImpulseOrigin",
   "bonusLiquidityOverlap",
   "bonusFollowThrough"
 ];
@@ -192,36 +191,47 @@ function applyTimeframePreset(value) {
 }
 
 function marketRelation(mainState, secondaryState) {
-  if (isTransition(mainState) || isTransition(secondaryState)) {
+  if (
+    isTransition(mainState) ||
+    isTransition(secondaryState)
+  ) {
     return "包含轉換";
   }
 
-  const mainBias = stateBias(mainState);
-  const secondaryBias = stateBias(secondaryState);
+  const mainBias =
+    stateBias(mainState);
+  const secondaryBias =
+    stateBias(secondaryState);
 
-  if (mainBias === secondaryBias) {
-    if (isHealthy(mainState) && isHealthy(secondaryState)) {
+  if (
+    mainBias === secondaryBias
+  ) {
+    if (
+      isHealthy(mainState) &&
+      isHealthy(secondaryState)
+    ) {
       return "健康同向";
     }
+
     return "同向有弱勢";
   }
 
-  if (isWeak(mainState) && isWeak(secondaryState)) {
+  if (
+    isWeak(mainState) &&
+    isWeak(secondaryState)
+  ) {
     return "弱勢衝突";
   }
 
   return "方向衝突";
 }
 
-function specialCounterRelationActive() {
-  const backgroundBias =
-    stateBias(
-      $("backgroundState").value
-    );
+function directionPermissionInfo() {
   const mainState =
     $("mainState").value;
   const secondaryState =
     $("secondaryState").value;
+
   const mainBias =
     stateBias(mainState);
   const secondaryBias =
@@ -229,543 +239,311 @@ function specialCounterRelationActive() {
   const currentTradeBias =
     tradeBias();
 
-  return (
-    backgroundBias !== null &&
-    mainBias !== null &&
-    secondaryBias !== null &&
-    !isTransition(mainState) &&
-    !isTransition(secondaryState) &&
+  const relation =
+    marketRelation(
+      mainState,
+      secondaryState
+    );
+
+  const none = (reason) => ({
+    code: "none",
+    label:
+      "無方向權限｜正常0注",
+    cap: 0,
+    relation,
+    reason
+  });
+
+  const limited = (reason) => ({
+    code: "limited",
+    label:
+      "限制方向權限｜Max 0.5注",
+    cap: 0.5,
+    relation,
+    reason
+  });
+
+  if (
+    mainBias === null
+  ) {
+    return none(
+      "主判目前轉換中性，未提供可執行方向。P/Q唔可以自行創造方向權限。"
+    );
+  }
+
+  if (
     mainBias === secondaryBias &&
-    currentTradeBias ===
-      backgroundBias &&
-    currentTradeBias !== mainBias
-  );
-}
-
-function tradeAwareMarketRelation() {
-  if (
-    specialCounterRelationActive()
+    mainBias !== null
   ) {
-    return "特殊逆向｜只順大局、逆主判＋次判";
+    if (
+      currentTradeBias !== mainBias
+    ) {
+      return none(
+        "交易方向逆主判＋次判共同方向；普通P1/P2＋Q3仍然冇權限。"
+      );
+    }
+
+    if (
+      isHealthy(mainState) &&
+      isHealthy(secondaryState)
+    ) {
+      return {
+        code: "normal",
+        label:
+          "正常方向權限｜Max 1注",
+        cap: 1,
+        relation,
+        reason:
+          "主判＋次判健康同向，而且交易方向順共同趨勢。"
+      };
+    }
+
+    return limited(
+      "主判＋次判方向一致，但至少一層屬弱勢／Transition；方向有權做，但最高0.5注。"
+    );
   }
 
-  return marketRelation(
-    $("mainState").value,
-    $("secondaryState").value
-  );
-}
-
-function marketCapForRelation(relation) {
   if (
-    relation ===
-    "特殊逆向｜只順大局、逆主判＋次判"
+    secondaryBias === null
   ) {
-    return 0.25;
+    if (
+      currentTradeBias === mainBias
+    ) {
+      return limited(
+        "次判轉換中性，交易仍順主判方向；只屬限制權限。"
+      );
+    }
+
+    return none(
+      "次判冇方向確認，而交易又唔順主判；目前冇方向權限。"
+    );
   }
 
-  return relation ===
-    "健康同向"
-      ? 1
-      : 0.5;
+  if (
+    mainBias !== secondaryBias
+  ) {
+    if (
+      currentTradeBias === mainBias &&
+      !isTransition(mainState)
+    ) {
+      return limited(
+        "主次方向衝突，但交易方向順主判已確認方向；最高0.5注。"
+      );
+    }
+
+    if (
+      currentTradeBias === mainBias &&
+      isTransition(mainState) &&
+      secondaryBias === mainBias
+    ) {
+      return limited(
+        "主判Transition傾向同次判方向一致；只屬限制權限。"
+      );
+    }
+
+    return none(
+      "交易方向未得到主判方向權限支持。順次判逆主判，或逆兩層方向，正常Gate＝0。"
+    );
+  }
+
+  return none(
+    "目前主次Market State未提供清晰交易方向權限。"
+  );
 }
 
 function backgroundRelationInfo() {
-  const state = $("backgroundState").value;
-  const bias = stateBias(state);
-  const type = STATES[state].type;
+  const state =
+    $("backgroundState").value;
+  const bias =
+    stateBias(state);
+  const type =
+    STATES[state].type;
 
   if (bias === null) {
     return {
       label: "大局中性",
-      note: "大局背景暫時冇明確方向傾向；不會提供加注理由。"
+      note:
+        "大局背景暫時冇明確方向；唔會自行創造Direction Permission。"
     };
   }
 
-  const aligned = bias === tradeBias();
+  const aligned =
+    bias === tradeBias();
   const descriptor =
-    type === "transition" ? "傾向" : "方向";
+    type === "transition"
+      ? "傾向"
+      : "方向";
 
   return {
     label: aligned
       ? `順大局${descriptor}`
       : `逆大局${descriptor}`,
-    note: "V3.5唔會因單純順／逆大局方向直接升級注碼；真正注碼限制由大局障礙位置及交易空間處理。"
+    note:
+      "大局方向只提供背景／Narrative，唔屬於Q Trigger加分。方向權限仍由主判＋次判互動決定。"
   };
 }
 
 function preferredDirectionInfo() {
-  const mainState = $("mainState").value;
-  const secondaryState = $("secondaryState").value;
-  const relation = marketRelation(mainState, secondaryState);
+  const permission =
+    directionPermissionInfo();
 
   if (
-    specialCounterRelationActive()
+    permission.code === "normal"
   ) {
     return {
       label:
-        `特殊逆向 ${direction()}｜只順大局`,
+        `${direction()}｜正常權限`,
       note:
-        "交易方向只順大局背景，但逆主判＋次判兩層現行同向趨勢。只容許大局核心P1＋最終Q3反轉Trigger，最高0.25注；其餘全部Skip。主判或次判Market State一改變到唔再符合條件，就立即退出特殊逆向並重新跑正常Matrix。"
+        permission.reason
     };
   }
 
-  const mainBias = stateBias(mainState);
-  const secondaryBias = stateBias(secondaryState);
-  const mainTransition = isTransition(mainState);
-  const secondaryTransition = isTransition(secondaryState);
-
-  if (relation === "健康同向" || relation === "同向有弱勢") {
+  if (
+    permission.code === "limited"
+  ) {
     return {
-      label: `共同方向 ${biasDirectionLabel(mainBias)}`,
-      note: "主判同次判方向一致；只係市場健康程度決定最高注碼係1注定0.5注。"
-    };
-  }
-
-  if (relation === "方向衝突") {
-    return {
-      label: `順主判 ${biasDirectionLabel(mainBias)} 優先`,
-      note: `次判${biasDirectionLabel(secondaryBias)}只視為局部反彈／回調方向；逆主判交易要用較保守矩陣。`
-    };
-  }
-
-  if (relation === "弱勢衝突") {
-    return {
-      label: `主判位置優先 ${biasDirectionLabel(mainBias)}`,
-      note: "兩邊都弱，容易演變成大區間／轉換。主判重大位置部署優先，中間位不做。"
-    };
-  }
-
-  if (mainTransition && secondaryTransition) {
-    return {
-      label: "區間邊界／等確認",
-      note: "兩個核心層都未正式確認新趨勢；只有已形成橫行而且目前係清晰邊界先考慮交易。"
-    };
-  }
-
-  if (!mainTransition && secondaryTransition) {
-    if (secondaryBias === mainBias) {
-      return {
-        label: `順主判 ${biasDirectionLabel(mainBias)} 優先`,
-        note: "次判轉換傾向同主判一致，只代表準備重新對齊；未正式確認前市場最高仍然0.5注。"
-      };
-    }
-
-    if (secondaryBias === null) {
-      return {
-        label: `順主判 ${biasDirectionLabel(mainBias)} 優先`,
-        note: "次判轉換中性；優先等價格去主判P1／P2位置，再捕主判方向。"
-      };
-    }
-
-    return {
-      label: `順主判 ${biasDirectionLabel(mainBias)} 優先`,
-      note: `次判轉換傾向${biasDirectionLabel(secondaryBias)}只當主判趨勢內局部回調；順次判方向只可做短程trade，而且要有足夠空間。`
-    };
-  }
-
-  if (mainTransition && !secondaryTransition) {
-    if (mainBias === secondaryBias && mainBias !== null) {
-      return {
-        label: `順次判局部 ${biasDirectionLabel(secondaryBias)}`,
-        note: "主判轉換傾向同次判方向一致，但主判未確認；可以跟次判行一段，最高仍然0.5注。"
-      };
-    }
-
-    const mainPotential =
-      mainBias === null
-        ? "主判潛在結構位"
-        : `主判潛在${biasDirectionLabel(mainBias)}結構位`;
-
-    return {
-      label: `順次判局部 ${biasDirectionLabel(secondaryBias)}`,
-      note: `可以跟次判方向打到${mainPotential}前，但唔係無限期跟；到主判潛在支持／阻力後停止新開同方向trade並準備食糊。`
+      label:
+        `${direction()}｜限制權限`,
+      note:
+        permission.reason
     };
   }
 
   return {
-    label: "等確認",
-    note: "目前未能建立清晰優先方向。"
+    label:
+      `${direction()}｜無正常權限`,
+    note:
+      `${permission.reason} 唯一例外係真正大局P1＋Q3右側反轉確認，可開0.25注試單。`
   };
 }
 
 function combinedDeploymentInfo() {
-  const mainState = $("mainState").value;
-  const secondaryState = $("secondaryState").value;
-  const relation = marketRelation(mainState, secondaryState);
+  const permission =
+    directionPermissionInfo();
 
-  const mainBias = stateBias(mainState);
-  const secondaryBias = stateBias(secondaryState);
-  const mainTransition = isTransition(mainState);
-  const secondaryTransition = isTransition(secondaryState);
-
-  const mainDirection = biasDirectionLabel(mainBias);
-  const secondaryDirection = biasDirectionLabel(secondaryBias);
-  const mainEntryArea =
-    mainBias === "up"
-      ? "支持／HL候選"
-      : mainBias === "down"
-        ? "阻力／LH候選"
-        : "主判關鍵邊界";
-  const mainOppositeArea =
-    mainBias === "up"
-      ? "重大阻力"
-      : mainBias === "down"
-        ? "重大支持"
-        : "另一邊界";
-
-  if (relation === "健康同向") {
+  if (
+    permission.code === "normal"
+  ) {
     return {
-      priority: `優先順共同${mainDirection}方向：等價格回調到P1／P2 ${mainEntryArea}、主／次判有效結構回測，再配合Q3部署；避免追延伸段。`,
-      secondary: `逆方向只作${mainOppositeArea}附近短程回調／反轉trade；一般只限高級位置＋完整Trigger，唔當主劇本。`
+      priority:
+        `優先部署${direction()}：Direction Permission正常，等P1／P2＋Q3；P3按Matrix小注，避免Chase。`,
+      secondary:
+        "P/Q只負責位置同Trigger質素；前方大局障礙仍可降級或取消。"
     };
   }
 
-  if (relation === "同向有弱勢") {
+  if (
+    permission.code === "limited"
+  ) {
     return {
-      priority: `優先順共同${mainDirection}方向，但只做P1／P2回調位置，唔追延伸段；Q3為主，市場最高0.5注。`,
-      secondary: `逆方向只喺${mainOppositeArea}或大局障礙附近用高質Trigger捕短程反彈／回調；中間位不做。`
-    };
-  }
-
-  if (relation === "方向衝突") {
-    return {
-      priority: `優先順主判${mainDirection}：等次判${secondaryDirection}走到主判P1／P2 ${mainEntryArea}後，再等次判重新轉向主判方向先部署；最高0.5注。`,
-      secondary: `順次判${secondaryDirection}、逆主判只當局部反彈／回調trade：P1＋Q3最多0.5注，P2＋Q3最多0.25注；P3／P4不做。`
-    };
-  }
-
-  if (relation === "弱勢衝突") {
-    return {
-      priority: `優先以主判位置為核心：價格回到主判P1／P2 ${mainEntryArea}，等次判弱${secondaryDirection}被破壞後再順主判${mainDirection}部署；P3通常不做。`,
-      secondary: `到主判${mainOppositeArea}可以捕次判方向嘅短程反彈／回調；兩層都弱，中間位一律避免。`
-    };
-  }
-
-  if (mainTransition && secondaryTransition) {
-    if ($("bothTransitionRange").value === "yes") {
-      const sameBias =
-        mainBias !== null &&
-        mainBias === secondaryBias;
-
-      return {
-        priority: sameBias
-          ? `兩層都轉換但傾向同為${mainDirection}：只喺已形成橫行嘅P1／P2清晰邊界優先部署${mainDirection}，最高仍然0.5注，唔視為正式趨勢對齊。`
-          : "兩層都轉換：優先只做已形成橫行嘅P1／P2清晰區間邊界；中間位不做。",
-        secondary: "另一邊界可等反向高質Trigger，或者等待有效突破接受＋首次回測後先建立新方向。"
-      };
-    }
-
-    return {
-      priority: "兩層都轉換而未形成可交易橫行：優先等待清晰區間邊界，或者等有效突破接受＋首次回測。",
-      secondary: "暫時冇次要部署；中間位不做，避免將偏升／偏跌誤當成已確認趨勢。"
-    };
-  }
-
-  if (!mainTransition && secondaryTransition) {
-    if (secondaryBias === mainBias) {
-      return {
-        priority: `主判${mainDirection}＋次判轉換傾向同向：優先順主判${mainDirection}做P1／P2＋Q3，最高0.5注；次判未正式確認前不可一注。`,
-        secondary: `逆主判方向只限${mainOppositeArea}附近重大P1位置做短程反轉；一般P2／P3唔當次要主劇本。`
-      };
-    }
-
-    if (secondaryBias === null) {
-      return {
-        priority: `主判${mainDirection}＋次判轉換中性：優先等價格去主判P1／P2 ${mainEntryArea}捕${mainDirection}；P1＋Q3可0.5，P2通常0.25或等。`,
-        secondary: "次判未有方向優勢；次要部署以等待區間邊界／新結構確認為主，而唔係主動逆主判。"
-      };
-    }
-
-    return {
-      priority: `主判${mainDirection}＋次判轉換傾向${secondaryDirection}：仍然優先等主判P1／P2 ${mainEntryArea}捕${mainDirection}，唔將次判傾向當成新趨勢追。`,
-      secondary: `順次判${secondaryDirection}只當主判趨勢內局部回調trade；必須有足夠空間，P1＋Q3最多0.5、P2＋Q3通常0.25，去到主判${mainEntryArea}前食糊。`
-    };
-  }
-
-  if (mainTransition && !secondaryTransition) {
-    if (
-      mainBias !== null &&
-      mainBias === secondaryBias
-    ) {
-      return {
-        priority: `主判轉換傾向${mainDirection}＋次判已確認${secondaryDirection}：優先順次判${secondaryDirection}做P1／P2局部trend trade，最高0.5注，但唔當兩層正式對齊。`,
-        secondary: `到主判潛在結構／大局障礙附近停止追${secondaryDirection}，觀察次判趨勢有冇被破壞，再等主判完成正式確認。`
-      };
-    }
-
-    if (mainBias === null) {
-      return {
-        priority: `主判轉換中性＋次判${secondaryDirection}：可順次判${secondaryDirection}做局部trade，但只打到主判潛在區間邊界／重大障礙前，最高0.5注。`,
-        secondary: "到主判潛在邊界後停止新開同方向倉，等反向Trigger或等主判方向確認。"
-      };
-    }
-
-    const potentialArea =
-      mainBias === "up"
-        ? "潛在HL／支持區"
-        : "潛在LH／阻力區";
-
-    return {
-      priority: `主判轉換傾向${mainDirection}、次判${secondaryDirection}：可以先順次判${secondaryDirection}做局部回調trade，但只打到主判${potentialArea}前；P1／P2＋Q3最高0.5注。`,
-      secondary: `到主判${potentialArea}後停止新開${secondaryDirection}，已有倉準備食糊；開始等次判趨勢被破壞，再部署主判傾向${mainDirection}。`
+      priority:
+        `可部署${direction()}但屬限制權限，市場最高0.5注；再由P × Q決定實際注碼。`,
+      secondary:
+        "P1／P2＋Q3最多0.5；P3只限Q3 0.25；Q2按Matrix降級。"
     };
   }
 
   return {
-    priority: "優先等待主判 × 次判關係變得清晰。",
-    secondary: "暫時唔設定次要部署。"
+    priority:
+      `${direction()}目前無Direction Permission：正常Matrix一律0注。`,
+    secondary:
+      "只可等真正大局P1＋Q3右側反轉確認，先啟用0.25注大局P1反轉例外。"
   };
 }
 
-function countChecked(ids) {
-  return ids.filter((id) => checked(id)).length;
-}
 
-function triggerModelLabel(model) {
-  return model === "B"
-    ? "Model B｜Breakout／Retest Continuation"
-    : "Model A｜Liquidity Reversal";
+function triggerModelLabel() {
+  return "Q Trigger｜Sweep → Reclaim → Weak Retest";
 }
 
 function evaluateBaseTrigger() {
-  const model =
-    $("triggerModel").value;
   const failures = [];
   const coreFailures = [];
   const imperfections = [];
   const positives = [];
-  const bonusCount =
-    countChecked(BONUS_IDS);
+
+  const validSweep =
+    checked("validSweep");
+  const validReclaim =
+    checked("validReclaim");
+  const reclaimQuality =
+    $("reclaimQuality").value;
+  const retestQuality =
+    $("retestQuality").value;
   const tradeSpace =
     $("tradeSpace").value;
-  const bonusDirectRepair =
-    checked("bonusDirectRepair");
-  const bonusNoDoubleCount =
-    checked("bonusNoDoubleCount");
+  const bonusCount =
+    countChecked(BONUS_IDS);
 
-  const result = {
-    model,
-    modelLabel:
-      triggerModelLabel(model),
-    quality: "Q1",
-    preBonusQuality: "Q1",
-    bonusUpgraded: false,
-    failures,
-    coreFailures,
-    imperfections,
-    positives,
-    bonusCount,
-    bonusDirectRepair,
-    bonusNoDoubleCount,
-    tradeSpace,
-    validSweep: false,
-    validReclaim: false,
-    reclaimQuality: null,
-    retestQuality: null,
-    breakoutMeaningful: false,
-    breakoutAcceptance: null,
-    breakoutMomentum: null,
-    breakoutRetestQuality: null,
-    breakoutRetestSupport: null
-  };
-
-  if (model === "A") {
-    const validSweep =
-      checked("validSweep");
-    const validReclaim =
-      checked("validReclaim");
-    const reclaimQuality =
-      $("reclaimQuality").value;
-    const retestQuality =
-      $("retestQuality").value;
-
-    Object.assign(result, {
-      validSweep,
-      validReclaim,
-      reclaimQuality,
-      retestQuality
-    });
-
-    if (!validSweep) {
-      coreFailures.push(
-        "Model A冇真正有意義Sweep。"
-      );
-    } else {
-      positives.push(
-        "Model A有效Sweep成立。"
-      );
-    }
-
-    if (!validReclaim) {
-      coreFailures.push(
-        "Model A冇真正有效Reclaim。"
-      );
-    } else {
-      positives.push(
-        "Model A有效Reclaim成立。"
-      );
-    }
-
-    if (
-      reclaimQuality === "negated"
-    ) {
-      coreFailures.push(
-        "Reclaim立即失敗／被完全吞噬。"
-      );
-    } else if (
-      reclaimQuality === "ordinary"
-    ) {
-      imperfections.push(
-        "Reclaim力度普通，但核心仍成立。"
-      );
-    } else {
-      positives.push(
-        "Reclaim乾淨／明確。"
-      );
-    }
-
-    if (
-      retestQuality === "invalid"
-    ) {
-      coreFailures.push(
-        "Retest快／深／強到否定Reclaim。"
-      );
-    } else if (
-      retestQuality === "imperfect"
-    ) {
-      imperfections.push(
-        "Retest有1項未致命瑕疵，但未否定Reclaim。"
-      );
-    } else {
-      positives.push(
-        "Retest屬Weak／Controlled Retest。"
-      );
-    }
+  if (!validSweep) {
+    coreFailures.push(
+      "冇有效Sweep。"
+    );
   } else {
-    const breakoutMeaningful =
-      checked("breakoutMeaningful");
-    const breakoutAcceptance =
-      $("breakoutAcceptance").value;
-    const breakoutMomentum =
-      $("breakoutMomentum").value;
-    const breakoutRetestQuality =
-      $("breakoutRetestQuality").value;
-    const breakoutRetestSupport =
-      $("breakoutRetestSupport").value;
-
-    Object.assign(result, {
-      breakoutMeaningful,
-      breakoutAcceptance,
-      breakoutMomentum,
-      breakoutRetestQuality,
-      breakoutRetestSupport
-    });
-
-    if (!breakoutMeaningful) {
-      coreFailures.push(
-        "Model B Breakout位置冇重要性；純Micro High／Low不足以構成正式Model B。"
-      );
-    } else {
-      positives.push(
-        "Breakout發生喺有意義結構／Level。"
-      );
-    }
-
-    if (
-      breakoutAcceptance ===
-      "invalid"
-    ) {
-      coreFailures.push(
-        "冇真正Acceptance／False Breakout／即時返回原區。"
-      );
-    } else if (
-      breakoutAcceptance ===
-      "ordinary"
-    ) {
-      imperfections.push(
-        "Acceptance仍成立，但質素／Follow-through一般。"
-      );
-    } else {
-      positives.push(
-        "Acceptance清楚，Level外有效企穩。"
-      );
-    }
-
-    if (
-      breakoutMomentum === "invalid"
-    ) {
-      coreFailures.push(
-        "Breakout原推動已失效／即刻被抵消。"
-      );
-    } else if (
-      breakoutMomentum ===
-      "ordinary"
-    ) {
-      imperfections.push(
-        "Breakout Momentum普通，但核心Breakout仍成立。"
-      );
-    } else {
-      positives.push(
-        "Breakout有明顯Push。"
-      );
-    }
-
-    if (
-      breakoutRetestQuality ===
-      "invalid"
-    ) {
-      coreFailures.push(
-        "Retest快／深／強到否定Breakout。"
-      );
-    } else if (
-      breakoutRetestQuality ===
-      "imperfect"
-    ) {
-      imperfections.push(
-        "Retest有1項未致命瑕疵，但未吞噬Breakout。"
-      );
-    } else {
-      positives.push(
-        "Retest屬Weak／Controlled Retest。"
-      );
-    }
-
-    if (
-      breakoutRetestSupport ===
-      "none"
-    ) {
-      coreFailures.push(
-        "Retest冇有效結構支持。"
-      );
-    } else if (
-      breakoutRetestSupport ===
-      "ordinary"
-    ) {
-      imperfections.push(
-        "Retest結構支持普通，但仍有效。"
-      );
-    } else {
-      positives.push(
-        "Retest有清晰結構支持／重疊。"
-      );
-    }
+    positives.push(
+      "有效Sweep成立。"
+    );
   }
 
-  failures.push(
-    ...coreFailures
-  );
+  if (!validReclaim) {
+    coreFailures.push(
+      "冇真正有效Reclaim。"
+    );
+  } else {
+    positives.push(
+      "有效Reclaim成立。"
+    );
+  }
 
   if (
-    tradeSpace === "insufficient"
+    reclaimQuality === "negated"
+  ) {
+    coreFailures.push(
+      "Reclaim完全被吞噬／否定。"
+    );
+  } else if (
+    reclaimQuality === "ordinary"
+  ) {
+    imperfections.push(
+      "Reclaim力度普通，但核心論點仍然存在。"
+    );
+  } else {
+    positives.push(
+      "Reclaim乾淨／明確。"
+    );
+  }
+
+  if (
+    retestQuality === "invalid"
+  ) {
+    coreFailures.push(
+      "Retest快、深、強，已否定Reclaim。"
+    );
+  } else if (
+    retestQuality ===
+      "imperfect"
+  ) {
+    imperfections.push(
+      "Retest有瑕疵，但未正式否定Reclaim。"
+    );
+  } else {
+    positives.push(
+      "Retest明顯弱過Reclaim。"
+    );
+  }
+
+  if (
+    tradeSpace ===
+    "insufficient"
   ) {
     failures.push(
-      "第一個真實Target令R:R不足。"
+      "第一個真實Target前冇合理R:R。"
     );
   } else if (
     tradeSpace === "short"
   ) {
     imperfections.push(
-      "到第一真實Target空間只屬最低可接受，未算完整。"
+      "交易空間只達最低可接受R:R，未算完整。"
     );
   } else {
     positives.push(
@@ -781,80 +559,63 @@ function evaluateBaseTrigger() {
     );
   }
 
-  if (
-    failures.length > 0
-  ) {
-    result.quality = "Q1";
-    result.preBonusQuality = "Q1";
-  } else if (
-    imperfections.length === 0
-  ) {
-    result.quality = "Q3";
-    result.preBonusQuality = "Q3";
-  } else {
-    result.quality = "Q2";
-    result.preBonusQuality = "Q2";
-  }
+  failures.push(
+    ...coreFailures
+  );
 
-  const upgradeEligible =
-    result.preBonusQuality === "Q2" &&
-    imperfections.length === 1 &&
-    bonusCount >= 2 &&
-    bonusDirectRepair &&
-    bonusNoDoubleCount;
-
-  if (upgradeEligible) {
-    result.quality = "Q3";
-    result.bonusUpgraded = true;
-    positives.push(
-      "Q2只有1項未致命瑕疵，而且有至少2項獨立加分、其中1項直接補強瑕疵並確認冇Double Count：Q2 → Q3。"
-    );
-  } else if (
-    result.preBonusQuality === "Q2" &&
-    bonusCount >= 2
-  ) {
-    if (
-      imperfections.length !== 1
-    ) {
-      positives.push(
-        "有至少2項加分，但原Trigger唔係只有1項瑕疵，所以冇Q2→Q3升級資格。"
-      );
-    } else if (!bonusDirectRepair) {
-      positives.push(
-        "有至少2項加分，但未確認有證據直接補強原本瑕疵，所以維持Q2。"
-      );
-    } else if (!bonusNoDoubleCount) {
-      positives.push(
-        "升級條件接近成立，但未確認冇Double Count，所以維持Q2。"
-      );
-    }
-  }
+  let quality = "Q1";
 
   if (
-    result.preBonusQuality === "Q1" &&
-    bonusCount > 0
+    failures.length === 0
   ) {
+    quality =
+      reclaimQuality === "strong" &&
+      retestQuality === "weak" &&
+      tradeSpace === "full"
+        ? "Q3"
+        : "Q2";
+  }
+
+  if (bonusCount > 0) {
     positives.push(
-      "Q1代表核心失效；任何數量加分都唔可以救返舊Trigger。"
-    );
-  } else if (
-    bonusCount > 0 &&
-    !result.bonusUpgraded
-  ) {
-    positives.push(
-      `記錄到${bonusCount}項獨立Trigger加分證據。`
+      `有${bonusCount}項Trigger加分證據；只作輔助，唔會override Price Action。`
     );
   }
 
-  result.modelCoreValid =
-    coreFailures.length === 0;
-
-  return result;
+  return {
+    model: "A",
+    modelLabel:
+      triggerModelLabel(),
+    quality,
+    preBonusQuality:
+      quality,
+    bonusUpgraded: false,
+    failures,
+    coreFailures,
+    imperfections,
+    positives,
+    bonusCount,
+    bonusDirectRepair: false,
+    bonusNoDoubleCount: false,
+    tradeSpace,
+    validSweep,
+    validReclaim,
+    reclaimQuality,
+    retestQuality,
+    breakoutMeaningful: false,
+    breakoutAcceptance: null,
+    breakoutMomentum: null,
+    breakoutRetestQuality: null,
+    breakoutRetestSupport: null,
+    modelCoreValid:
+      coreFailures.length === 0
+  };
 }
 
 function evaluateAsia2B(baseTrigger) {
   const type =
     $("asia2BType").value;
+
   const active =
     type !== "none";
 
@@ -886,6 +647,7 @@ function evaluateAsia2B(baseTrigger) {
 
   const basePosition =
     $("positionLevel").value;
+
   const structureOverlap =
     checked(
       "asia2BStructureOverlap"
@@ -893,10 +655,12 @@ function evaluateAsia2B(baseTrigger) {
 
   let effectivePosition =
     basePosition;
-  const effectiveQuality =
+
+  let effectiveQuality =
     baseTrigger.quality;
-  let positionPromoted =
-    false;
+
+  let positionPromoted = false;
+  let triggerPromoted = false;
 
   const reasons = [];
   const warnings = [];
@@ -923,7 +687,7 @@ function evaluateAsia2B(baseTrigger) {
         baseTrigger.quality,
       effectiveQuality,
       positionPromoted,
-      triggerPromoted: false,
+      triggerPromoted,
       reasons,
       warnings
     };
@@ -931,53 +695,61 @@ function evaluateAsia2B(baseTrigger) {
 
   if (!directionMatches) {
     warnings.push(
-      `${label}同實際交易方向唔一致，所以唔提供位置升格。`
+      `${label}同實際交易方向唔一致，所以唔提供P／Q升級。`
     );
   } else if (!highQuality) {
     warnings.push(
-      `${label}只符合${criteriaCount}/6項高質條件；最少要5/6先達高質標準。`
+      `${label}只符合${criteriaCount}/6項高質條件；最少5/6先有升級資格。`
     );
   }
 
-  if (
-    highQuality &&
-    basePosition === "P3" &&
-    structureOverlap
-  ) {
-    effectivePosition =
-      "P2";
-    positionPromoted =
-      true;
+  if (highQuality) {
+    if (
+      basePosition === "P3" &&
+      structureOverlap
+    ) {
+      effectivePosition =
+        "P2";
+      positionPromoted = true;
 
-    reasons.push(
-      `高質${label}加原有結構基礎，位置由P3升至P2。`
-    );
-  } else if (
-    highQuality &&
-    basePosition === "P3" &&
-    !structureOverlap
-  ) {
-    warnings.push(
-      `${label}冇原有結構基礎，P3不可升P2；2B可以強化位置，但唔可以創造位置。`
-    );
-  } else if (
-    highQuality &&
-    basePosition === "P2"
-  ) {
-    warnings.push(
-      `${label}不可將P2升做P1；位置維持P2。`
-    );
-  } else if (
-    highQuality &&
-    basePosition === "P4"
-  ) {
-    warnings.push(
-      `${label}不可拯救P4中間位；位置維持P4。`
-    );
+      reasons.push(
+        `高質${label}＋原有結構基礎：P3 → P2。`
+      );
+    } else if (
+      basePosition === "P3" &&
+      !structureOverlap
+    ) {
+      warnings.push(
+        `${label}冇原有結構基礎，唔可以由P3創造P2。`
+      );
+    } else if (
+      basePosition === "P2"
+    ) {
+      reasons.push(
+        `高質${label}強化P2可信度，但唔會P2 → P1。`
+      );
+    } else if (
+      basePosition === "P4"
+    ) {
+      warnings.push(
+        `${label}唔可以拯救P4。`
+      );
+    }
+
+    if (
+      baseTrigger.quality === "Q2"
+    ) {
+      effectiveQuality = "Q3";
+      triggerPromoted = true;
+
+      reasons.push(
+        `高質${label}：Q2 → Q3。`
+      );
+    }
   }
 
   reasons.push(
-    "V3.5入面OPR／Asia 2B只強化位置／執行優勢，不會改變Trigger Model評級，亦不會提高市場注碼上限。"
+    "Asia／OPR 2B只係執行優勢：唔可以創造Direction Permission、突破方向權限上限或推翻大局障礙。"
   );
 
   return {
@@ -994,18 +766,89 @@ function evaluateAsia2B(baseTrigger) {
       baseTrigger.quality,
     effectiveQuality,
     positionPromoted,
-    triggerPromoted: false,
+    triggerPromoted,
     reasons,
     warnings
   };
 }
 
-function matrixCell(position, quality, p3Testable, mode) {
-  if (quality === "Q1" || position === "P4") return 0;
+function matrixCell(
+  permissionCode,
+  position,
+  quality
+) {
+  if (
+    quality === "Q1" ||
+    position === "P4"
+  ) {
+    return 0;
+  }
 
-  if (mode === "specialCounter") {
+  if (
+    permissionCode === "normal"
+  ) {
     if (
-      position === "P1" &&
+      (
+        position === "P1" ||
+        position === "P2"
+      ) &&
+      quality === "Q3"
+    ) {
+      return 1;
+    }
+
+    if (
+      (
+        position === "P1" ||
+        position === "P2"
+      ) &&
+      quality === "Q2"
+    ) {
+      return 0.5;
+    }
+
+    if (
+      position === "P3" &&
+      quality === "Q3"
+    ) {
+      return 0.5;
+    }
+
+    if (
+      position === "P3" &&
+      quality === "Q2"
+    ) {
+      return 0.25;
+    }
+
+    return 0;
+  }
+
+  if (
+    permissionCode === "limited"
+  ) {
+    if (
+      (
+        position === "P1" ||
+        position === "P2"
+      ) &&
+      quality === "Q3"
+    ) {
+      return 0.5;
+    }
+
+    if (
+      (
+        position === "P1" ||
+        position === "P2"
+      ) &&
+      quality === "Q2"
+    ) {
+      return 0.25;
+    }
+
+    if (
+      position === "P3" &&
       quality === "Q3"
     ) {
       return 0.25;
@@ -1014,186 +857,78 @@ function matrixCell(position, quality, p3Testable, mode) {
     return 0;
   }
 
-  if (mode === "healthyAligned") {
-    if ((position === "P1" || position === "P2") && quality === "Q3") return 1;
-    if ((position === "P1" || position === "P2") && quality === "Q2") return 0.5;
-    if (position === "P3" && quality === "Q3") return 0.5;
-    if (position === "P3" && quality === "Q2") return p3Testable ? 0.25 : 0;
-    return 0;
-  }
-
-  if (
-    mode === "weakOrTransition" ||
-    mode === "conflictWithMain"
-  ) {
-    if ((position === "P1" || position === "P2") && quality === "Q3") return 0.5;
-    if ((position === "P1" || position === "P2") && quality === "Q2") return 0.25;
-    if (position === "P3" && quality === "Q3") return p3Testable ? 0.25 : 0;
-    return 0;
-  }
-
-  if (mode === "weakConflictMain") {
-    if ((position === "P1" || position === "P2") && quality === "Q3") return 0.5;
-    if ((position === "P1" || position === "P2") && quality === "Q2") return 0.25;
-    return 0;
-  }
-
-  if (
-    mode === "conflictWithSecondary" ||
-    mode === "localCounter"
-  ) {
-    if (position === "P1" && quality === "Q3") return 0.5;
-    if (position === "P1" && quality === "Q2") return 0.25;
-    if (position === "P2" && quality === "Q3") return 0.25;
-    return 0;
-  }
-
-  if (mode === "strongCounter") {
-    if (position === "P1" && quality === "Q3") return 0.5;
-    if (position === "P1" && quality === "Q2") return 0.25;
-    return 0;
-  }
-
-  if (mode === "bothTransitionRange") {
-    if (position === "P1" && quality === "Q3") return 0.5;
-    if (position === "P1" && quality === "Q2") return 0.25;
-    if (position === "P2" && quality === "Q3") return 0.25;
-    if (position === "P3" && quality === "Q3") return p3Testable ? 0.25 : 0;
-    return 0;
-  }
-
   return 0;
 }
 
-function evaluateMatrix(effectivePosition, effectiveQuality) {
-  const mainState = $("mainState").value;
-  const secondaryState = $("secondaryState").value;
-  const relation =
-    tradeAwareMarketRelation();
-  const mainBias = stateBias(mainState);
-  const secondaryBias = stateBias(secondaryState);
-  const currentTradeBias = tradeBias();
-  const mainTransition = isTransition(mainState);
-  const secondaryTransition = isTransition(secondaryState);
-  const p3Testable = checked("p3Testable");
+function evaluateMatrix(
+  effectivePosition,
+  effectiveQuality
+) {
+  const permission =
+    directionPermissionInfo();
 
-  let mode = "none";
-  let route = "未有可交易方向權限";
+  let size =
+    matrixCell(
+      permission.code,
+      effectivePosition,
+      effectiveQuality
+    );
+
+  let exceptionApplied = false;
+
+  const p1ExceptionEligible =
+    permission.code === "none" &&
+    effectivePosition === "P1" &&
+    effectiveQuality === "Q3" &&
+    checked(
+      "bigPictureP1ReversalException"
+    );
 
   if (
-    relation ===
-    "特殊逆向｜只順大局、逆主判＋次判"
+    p1ExceptionEligible
   ) {
-    mode = "specialCounter";
-    route =
-      "特殊逆向｜只順大局、逆主判＋次判｜只做P1＋Q3，最高0.25注";
-  } else if (relation === "健康同向") {
-    if (currentTradeBias === mainBias) {
-      mode = "healthyAligned";
-      route = "健康同向｜順共同趨勢";
-    } else {
-      mode = "strongCounter";
-      route = "健康同向｜逆兩層健康共同趨勢，只限P1反轉";
-    }
-  } else if (relation === "同向有弱勢") {
-    if (currentTradeBias === mainBias) {
-      mode = "weakOrTransition";
-      route = "同向有弱勢｜順共同方向";
-    } else {
-      mode = "strongCounter";
-      route = "同向有弱勢｜逆共同方向，只限P1";
-    }
-  } else if (relation === "方向衝突") {
-    if (currentTradeBias === mainBias) {
-      mode = "conflictWithMain";
-      route = "方向衝突｜順主判方向";
-    } else if (currentTradeBias === secondaryBias) {
-      mode = "conflictWithSecondary";
-      route = "方向衝突｜順次判局部方向、逆主判";
-    }
-  } else if (relation === "弱勢衝突") {
-    if (currentTradeBias === mainBias) {
-      mode = "weakConflictMain";
-      route = "弱勢衝突｜順主判方向，但P3不做";
-    } else if (currentTradeBias === secondaryBias) {
-      mode = "conflictWithSecondary";
-      route = "弱勢衝突｜順次判局部方向、逆主判";
-    }
-  } else if (relation === "包含轉換") {
-    if (mainTransition && secondaryTransition) {
-      if ($("bothTransitionRange").value === "yes") {
-        mode = "bothTransitionRange";
-        route = "兩層都轉換｜已形成橫行清晰邊界";
-      } else {
-        mode = "none";
-        route = "兩層都轉換｜未形成可交易橫行邊界";
-      }
-    } else if (!mainTransition && secondaryTransition) {
-      if (currentTradeBias === mainBias) {
-        mode = "weakOrTransition";
-        route = "包含轉換｜順已確認主判方向";
-      } else if (
-        secondaryBias !== null &&
-        currentTradeBias === secondaryBias
-      ) {
-        mode = "localCounter";
-        route = "包含轉換｜順次判轉換局部方向、逆主判";
-      }
-    } else if (mainTransition && !secondaryTransition) {
-      if (currentTradeBias === secondaryBias) {
-        mode = "weakOrTransition";
-        route = "包含轉換｜順次判已確認局部方向";
-      } else if (
-        mainBias !== null &&
-        currentTradeBias === mainBias
-      ) {
-        mode = "localCounter";
-        route = "包含轉換｜順主判轉換傾向、逆次判已確認方向";
-      }
-    }
+    size = 0.25;
+    exceptionApplied = true;
   }
 
-  let size = matrixCell(
-    effectivePosition,
-    effectiveQuality,
-    p3Testable,
-    mode
-  );
-
-  const currentCombination =
+  const combination =
     `${effectivePosition}＋${effectiveQuality}`;
 
-  let cellExplanation =
-    `${currentCombination}喺「${route}」矩陣下最高許可${SIZE_LABELS[size]}。`;
+  let cellExplanation;
 
-  if (
-    mode === "specialCounter" &&
-    $(
-      "backgroundDirectOverlap"
-    ).value !== "yes"
-  ) {
-    size = 0;
+  if (exceptionApplied) {
     cellExplanation =
-      `${currentCombination}雖然係特殊逆向候選，但目前未確認Entry直接位於大局核心P1位置，所以0注。`;
-  }
-
-  if (
-    effectivePosition === "P3" &&
-    !p3Testable &&
-    (
-      mode === "healthyAligned" ||
-      mode === "weakOrTransition" ||
-      mode === "conflictWithMain" ||
-      mode === "bothTransitionRange"
-    )
+      `${combination}原本因無Direction Permission＝0；已確認真正大局P1＋Q3右側反轉，啟用唯一例外＝0.25注。`;
+  } else if (
+    permission.code === "none"
   ) {
-    cellExplanation += " 呢格屬0.25／0酌情位；未勾選「P3可作小注測試」，所以採用0注。";
+    cellExplanation =
+      `${combination}雖然P／Q可能合格，但Direction Permission Gate＝0，所以正常Matrix仍然0注。`;
+  } else {
+    cellExplanation =
+      `${permission.label}；${combination}按P × Q Matrix最高許可${SIZE_LABELS[size]}。`;
   }
 
   return {
-    relation,
-    mode,
-    route,
+    relation:
+      permission.relation,
+    permissionCode:
+      permission.code,
+    permissionLabel:
+      exceptionApplied
+        ? "無方向權限｜已啟用大局P1反轉例外"
+        : permission.label,
+    permissionReason:
+      permission.reason,
+    permissionCap:
+      exceptionApplied
+        ? 0.25
+        : permission.cap,
+    exceptionApplied,
+    mode:
+      permission.code,
+    route:
+      permission.label,
     size,
     cellExplanation
   };
@@ -1264,7 +999,7 @@ function evaluateHardVeto(
     effectivePosition === "P4"
   ) {
     vetoes.push(
-      "P4中間位／無交易位置。"
+      "P4禁止位置。"
     );
   }
 
@@ -1272,7 +1007,7 @@ function evaluateHardVeto(
     checked("chasedBreakout")
   ) {
     vetoes.push(
-      "入場屬追價。"
+      "實際入場屬Chase。"
     );
   }
 
@@ -1280,7 +1015,15 @@ function evaluateHardVeto(
     !baseTrigger.modelCoreValid
   ) {
     vetoes.push(
-      `${baseTrigger.modelLabel}核心邏輯失效；必須完整符合Model A或Model B其中一套Trigger Model。`
+      "Q Trigger核心失效：缺少有效Sweep／Reclaim，或者Retest已否定Reclaim。"
+    );
+  }
+
+  if (
+    baseTrigger.quality === "Q1"
+  ) {
+    vetoes.push(
+      "Q1＝Trigger核心失效／交易空間不足。"
     );
   }
 
@@ -1289,7 +1032,7 @@ function evaluateHardVeto(
     "insufficient"
   ) {
     vetoes.push(
-      "第一個真實目標前冇最低可接受R:R。"
+      "第一個真實Target前冇合理R:R。"
     );
   }
 
@@ -1302,7 +1045,7 @@ function evaluateHardVeto(
     )
   ) {
     vetoes.push(
-      "違反交易時間或總風險上限。"
+      "違反交易時間或總風險限制。"
     );
   }
 
@@ -1313,12 +1056,10 @@ function evaluateDecision(
   baseTrigger,
   asia2B
 ) {
-  const relation =
-    tradeAwareMarketRelation();
-
-  const marketCap =
-    marketCapForRelation(
-      relation
+  const matrix =
+    evaluateMatrix(
+      asia2B.effectivePosition,
+      asia2B.effectiveQuality
     );
 
   const preferred =
@@ -1327,60 +1068,12 @@ function evaluateDecision(
   const background =
     backgroundRelationInfo();
 
-  const matrix =
-    evaluateMatrix(
-      asia2B.effectivePosition,
-      asia2B.effectiveQuality
-    );
-
-  const matrixLimitedSize =
-    Math.min(
-      marketCap,
-      matrix.size
-    );
-
   let obstacle =
     applyObstacle(
-      matrixLimitedSize,
+      matrix.size,
       asia2B.effectivePosition,
       asia2B.effectiveQuality
     );
-
-  const mainState =
-    $("mainState").value;
-  const secondaryState =
-    $("secondaryState").value;
-
-  const mainTransitionLocalTrade =
-    isTransition(mainState) &&
-    !isTransition(
-      secondaryState
-    ) &&
-    stateBias(mainState) !==
-      null &&
-    stateBias(mainState) !==
-      stateBias(
-        secondaryState
-      ) &&
-    tradeBias() ===
-      stateBias(
-        secondaryState
-      );
-
-  if (
-    mainTransitionLocalTrade &&
-    $("obstacleState").value ===
-      "inside"
-  ) {
-    obstacle = {
-      state: "inside",
-      adjustedSize: 0,
-      explanation:
-        "主判處於相反傾向Transition，而目前順次判做局部回調trade；價格已進入主判潛在支持／阻力，停止開新局部方向倉，修正至0注。",
-      management:
-        "已有倉準備管理／食糊；等待新Trigger，而唔係繼續追局部方向。"
-    };
-  }
 
   const hardVetoes =
     evaluateHardVeto(
@@ -1390,11 +1083,11 @@ function evaluateDecision(
 
   const reasons = [
     ...asia2B.reasons,
-    `① Market State：${relation}，市場最高注碼＝${SIZE_LABELS[marketCap]}。`,
-    `② 交易方向權限：${matrix.route}。`,
-    `③ P位置：${asia2B.effectivePosition}；Trigger＝${baseTrigger.modelLabel}／${asia2B.effectiveQuality}。`,
-    `④ P × Q Matrix：${matrix.cellExplanation}`,
-    `⑤ 市場上限同Matrix取較低值＝${SIZE_LABELS[matrixLimitedSize]}。`,
+    `① Market State：${matrix.relation}。`,
+    `② Direction Permission：${matrix.permissionLabel}。${matrix.permissionReason}`,
+    `③ P位置：${asia2B.effectivePosition}。`,
+    `④ Q Trigger：基礎${baseTrigger.quality}；2B後最終${asia2B.effectiveQuality}。`,
+    `⑤ P × Q：${matrix.cellExplanation}`,
     `⑥ 大局障礙：${obstacle.explanation}`
   ];
 
@@ -1405,28 +1098,20 @@ function evaluateDecision(
   ];
 
   if (
-    relation ===
-    "特殊逆向｜只順大局、逆主判＋次判"
+    matrix.permissionCode === "none" &&
+    !matrix.exceptionApplied
   ) {
-    reasons.push(
-      "特殊逆向規則：大局方向只提供反轉背景；P1大局核心位置只提供試反轉資格；最終Q3只提供Trigger確認。三者唔會互相跨欄加分。"
-    );
-
     warnings.push(
-      "特殊逆向只做P1＋Q3，最高0.25注；P1＋Q2、P2、P3、P4、Q1全部0注。"
+      "Direction Permission係Gate：目前無權限，P1／P2＋Q3都唔可以自行創造交易資格。"
     );
+  }
 
+  if (
+    matrix.exceptionApplied
+  ) {
     warnings.push(
-      "一旦主判或次判其中一層Market State有效改變，令目前關係唔再係逆主判＋次判兩層現行同向趨勢，特殊逆向立即終止；新Setup按最新Market State重新跑正常Matrix。"
+      "已啟用大局P1反轉例外：只開0.25注試單權限。P1位置只提供反轉資格，Q3右側先提供入場確認。"
     );
-
-    if (
-      baseTrigger.model !== "A"
-    ) {
-      warnings.push(
-        "特殊逆向反轉Trigger優先Model A｜Sweep → Reclaim → Weak Retest；大局方向或P1位置唔可以用嚟補強Model B嘅Q級。"
-      );
-    }
   }
 
   if (
@@ -1440,39 +1125,17 @@ function evaluateDecision(
     )
   ) {
     warnings.push(
-      "目前Entry仍直接處於大局／主判重大結構區；按V3.5應重新檢查實際位置是否屬P1。P評實際Entry位置，唔係行情故事。"
+      "目前Entry仍直接處於大局重大結構區；請重新檢查實際位置是否應列P1。"
     );
   }
 
   if (
-    $("backgroundDirectOverlap")
-      .value === "no" &&
-    asia2B.basePosition ===
-      "P2" &&
     $("p1BackgroundTailwind")
-      .value === "yes"
+      .value === "yes" &&
+    asia2B.basePosition === "P2"
   ) {
     warnings.push(
-      "呢筆可記做P2＋P1背景順風；P1只係背景，唔會將Entry位置升成P1。"
-    );
-  }
-
-  if (
-    baseTrigger.preBonusQuality ===
-      "Q2" &&
-    baseTrigger.imperfections.length >
-      1
-  ) {
-    warnings.push(
-      "Trigger核心仍生存，但有多過1項瑕疵；按V3.5冇Q2→Q3加分升級資格。"
-    );
-  }
-
-  if (
-    baseTrigger.bonusUpgraded
-  ) {
-    warnings.push(
-      "今次Q2→Q3升級只因已同時符合：單一未致命瑕疵、至少2項獨立加分、其中1項直接補強瑕疵，以及冇Double Count。"
+      "呢筆係P2＋P1背景順風；P1 Context唔會將實際P2升P1。"
     );
   }
 
@@ -1482,7 +1145,7 @@ function evaluateDecision(
     )
   ) {
     warnings.push(
-      "紀律標籤：曾因主觀方向偏見想放寬Trigger；最終仍只可以跟V3.5規則。"
+      "紀律標籤：曾因主觀方向偏見想放寬Trigger；Direction Permission同Q要求都唔可以因此放寬。"
     );
   }
 
@@ -1492,7 +1155,7 @@ function evaluateDecision(
     )
   ) {
     warnings.push(
-      "紀律標籤：曾因情緒／信心想加注；最終注碼唔可以突破Matrix。"
+      "紀律標籤：曾因情緒／信心想加注；最終注碼仍取所有限制中最低值。"
     );
   }
 
@@ -1509,12 +1172,17 @@ function evaluateDecision(
     );
   } else {
     reasons.push(
-      `⑦ 冇Hard Veto，最終注碼＝${SIZE_LABELS[finalSize]}。`
+      `⑦ 最終注碼＝Direction Permission、P × Q、大局障礙所有限制中最低值＝${SIZE_LABELS[finalSize]}。`
     );
   }
 
   return {
-    relation,
+    relation:
+      matrix.relation,
+    directionPermission:
+      matrix.permissionLabel,
+    permissionCode:
+      matrix.permissionCode,
     preferredDirection:
       preferred.label,
     priorityNote:
@@ -1523,17 +1191,18 @@ function evaluateDecision(
       background.label,
     backgroundRelationNote:
       background.note,
-    marketCap,
+    marketCap:
+      matrix.permissionCap,
     matrixMode:
       matrix.mode,
     matrixRoute:
       matrix.route,
     rawMatrixSize:
-      matrixLimitedSize,
+      matrix.size,
     matrixSize:
-      matrixLimitedSize,
+      matrix.size,
     positionQualitySize:
-      matrixLimitedSize,
+      matrix.size,
     obstacleState:
       obstacle.state,
     obstacleSize:
@@ -1541,6 +1210,8 @@ function evaluateDecision(
     obstacleManagement:
       obstacle.management,
     finalSize,
+    p1ReversalException:
+      matrix.exceptionApplied,
     reasons,
     warnings,
     hardVetoes
@@ -1573,21 +1244,19 @@ function renderBaseTrigger(trigger) {
   $("bonusCount").textContent =
     `${trigger.bonusCount}／${BONUS_IDS.length}`;
 
-  $("triggerModelResult").textContent =
-    trigger.modelLabel;
-
   $("preBonusTriggerGrade").textContent =
-    trigger.preBonusQuality;
+    trigger.quality;
 
-  const grade = $("baseTriggerGrade");
+  const grade =
+    $("baseTriggerGrade");
+
   grade.textContent =
     trigger.quality === "Q3"
-      ? trigger.bonusUpgraded
-        ? "Q3｜由Q2按加分規則升級"
-        : "Q3｜核心完整"
+      ? "Q3｜完整"
       : trigger.quality === "Q2"
-        ? "Q2｜核心成立但有瑕疵"
-        : "Q1｜核心失效";
+        ? "Q2｜可交易但有瑕疵"
+        : "Q1｜Trigger失效";
+
   grade.className =
     `grade ${trigger.quality.toLowerCase()}`;
 
@@ -1611,14 +1280,32 @@ function renderBaseTrigger(trigger) {
 }
 
 function renderAsia2B(result) {
-  $("asia2BChecklist").classList.toggle(
-    "hidden",
-    !result.active
-  );
+  $("asia2BChecklist")
+    .classList.toggle(
+      "hidden",
+      !result.active
+    );
+
+  const grade =
+    $("baseTriggerGrade");
 
   if (!result.active) {
-    $("asia2BQuality").textContent = "未啟用";
-    $("asia2BPositionEffect").textContent = "無";
+    $("asia2BQuality").textContent =
+      "未啟用";
+    $("asia2BPositionEffect").textContent =
+      "無";
+    $("asia2BTriggerEffect").textContent =
+      "無";
+
+    grade.textContent =
+      currentBaseTrigger.quality === "Q3"
+        ? "Q3｜完整"
+        : currentBaseTrigger.quality === "Q2"
+          ? "Q2｜可交易但有瑕疵"
+          : "Q1｜Trigger失效";
+
+    grade.className =
+      `grade ${currentBaseTrigger.quality.toLowerCase()}`;
     return;
   }
 
@@ -1632,6 +1319,22 @@ function renderAsia2B(result) {
       ? `${result.basePosition} → ${result.effectivePosition}`
       : `維持${result.basePosition}`;
 
+  $("asia2BTriggerEffect").textContent =
+    result.triggerPromoted
+      ? `${result.baseQuality} → ${result.effectiveQuality}`
+      : `維持${result.baseQuality}`;
+
+  grade.textContent =
+    result.effectiveQuality === "Q3"
+      ? result.triggerPromoted
+        ? "Q3｜高質2B由Q2升級"
+        : "Q3｜完整"
+      : result.effectiveQuality === "Q2"
+        ? "Q2｜可交易但有瑕疵"
+        : "Q1｜Trigger失效";
+
+  grade.className =
+    `grade ${result.effectiveQuality.toLowerCase()}`;
 }
 
 function obstacleDisplayLabel(state) {
@@ -1666,6 +1369,8 @@ function renderDecision(decision) {
 
   $("marketRelation").textContent =
     decision.relation;
+  $("directionPermission").textContent =
+    decision.directionPermission;
   $("preferredDirection").textContent =
     decision.preferredDirection;
   $("marketCap").textContent =
@@ -1697,8 +1402,8 @@ function renderDecision(decision) {
     $("p1BackgroundTailwind").value === "yes"
       ? "有｜P1背景順風"
       : "冇";
-  $("resultTriggerModel").textContent =
-    currentBaseTrigger.modelLabel;
+  $("resultDirectionPermission").textContent =
+    decision.directionPermission;
   $("resultEffectiveTrigger").textContent =
     currentAsia2B.effectiveQuality;
   $("resultAsia2B").textContent =
@@ -1796,45 +1501,28 @@ function updateInterface() {
     combinedDeployment.priority;
   $("combinedSecondaryDeployment").textContent =
     combinedDeployment.secondary;
-
-  const bothTransition =
-    isTransition(mainState) &&
-    isTransition(secondaryState);
-
-  $("bothTransitionRangeRow").classList.toggle(
-    "hidden",
-    !bothTransition
-  );
-
-  if (!bothTransition) {
-    $("bothTransitionRange").value = "no";
-  }
-
-  const selectedTriggerModel =
-    $("triggerModel").value;
-
-  $("triggerModelAPanel").classList.toggle(
-    "hidden",
-    selectedTriggerModel !== "A"
-  );
-
-  $("triggerModelBPanel").classList.toggle(
-    "hidden",
-    selectedTriggerModel !== "B"
-  );
-
-  const info = POSITION_INFO[position];
+const info = POSITION_INFO[position];
   $("positionTitle").textContent =
     `${position}｜${info.title}`;
   $("positionNote").textContent =
     info.note;
 
-  $("p3TestableRow").classList.toggle(
-    "hidden",
-    position !== "P3"
-  );
-  if (position !== "P3") {
-    $("p3Testable").checked = false;
+  const permission =
+    directionPermissionInfo();
+
+  const showP1Exception =
+    position === "P1" &&
+    permission.code === "none";
+
+  $("bigPictureP1ExceptionRow")
+    .classList.toggle(
+      "hidden",
+      !showP1Exception
+    );
+
+  if (!showP1Exception) {
+    $("bigPictureP1ReversalException")
+      .checked = false;
   }
 
   updateObstacleNote();
@@ -1875,44 +1563,21 @@ function optionalNumberFromInput(id) {
 }
 
 function triggerChecklistLines() {
-  const lines = [
-    `Trigger Model：${currentBaseTrigger.modelLabel}`
-  ];
-
-  if (
-    currentBaseTrigger.model === "A"
-  ) {
-    lines.push(
-      `有效Sweep：${yesNo(currentBaseTrigger.validSweep)}`,
-      `有效Reclaim：${yesNo(currentBaseTrigger.validReclaim)}`,
-      `Reclaim質素：${$("reclaimQuality").selectedOptions[0].textContent}`,
-      `Retest質素：${$("retestQuality").selectedOptions[0].textContent}`
-    );
-  } else {
-    lines.push(
-      `Breakout位置有意義：${yesNo(currentBaseTrigger.breakoutMeaningful)}`,
-      `Acceptance：${$("breakoutAcceptance").selectedOptions[0].textContent}`,
-      `Breakout動能：${$("breakoutMomentum").selectedOptions[0].textContent}`,
-      `Breakout Retest質素：${$("breakoutRetestQuality").selectedOptions[0].textContent}`,
-      `Retest結構承接：${$("breakoutRetestSupport").selectedOptions[0].textContent}`
-    );
-  }
-
-  lines.push(
+  return [
+    `有效Sweep：${yesNo(currentBaseTrigger.validSweep)}`,
+    `有效Reclaim：${yesNo(currentBaseTrigger.validReclaim)}`,
+    `Reclaim質素：${$("reclaimQuality").selectedOptions[0].textContent}`,
+    `Retest質素：${$("retestQuality").selectedOptions[0].textContent}`,
     `交易空間：${$("tradeSpace").selectedOptions[0].textContent}`,
-    `獨立Trigger加分證據：${currentBaseTrigger.bonusCount}/${BONUS_IDS.length}`,
-    `加分前Trigger：${currentBaseTrigger.preBonusQuality}`,
-    `至少1項直接補強瑕疵：${yesNo(currentBaseTrigger.bonusDirectRepair)}`,
-    `確認冇Double Count：${yesNo(currentBaseTrigger.bonusNoDoubleCount)}`,
-    `Q2→Q3升級：${yesNo(currentBaseTrigger.bonusUpgraded)}`,
-    `最終Trigger質素：${currentAsia2B.effectiveQuality}`
-  );
-
-  return lines;
+    `Trigger加分證據：${currentBaseTrigger.bonusCount}/${BONUS_IDS.length}`,
+    `基礎Q：${currentBaseTrigger.quality}`,
+    `2B後最終Q：${currentAsia2B.effectiveQuality}`
+  ];
 }
 
 function checklistSummary() {
-  const timeframes = timeframeValues();
+  const timeframes =
+    timeframeValues();
 
   return [
     `交易日期：${$("tradeDate").value}`,
@@ -1922,15 +1587,16 @@ function checklistSummary() {
     `入場觸發層：${timeframes.entry}`,
     `交易方向：${direction()}`,
     `主次關係：${currentDecision.relation}`,
+    `Direction Permission：${currentDecision.directionPermission}`,
     `交易優先方向：${currentDecision.preferredDirection}`,
     `優先部署：${combinedDeploymentInfo().priority}`,
     `次要部署：${combinedDeploymentInfo().secondary}`,
     `大局位置實際重疊：${$("backgroundDirectOverlap").value === "yes" ? "有" : "冇"}`,
     `P1背景順風：${$("p1BackgroundTailwind").value === "yes" ? "有" : "冇"}`,
+    `大局P1反轉例外資格：${yesNo(checked("bigPictureP1ReversalException"))}`,
     "",
     `原始位置：${currentAsia2B.basePosition}`,
-    `最終P位置：${currentAsia2B.effectivePosition}`,
-    `P3可小注測試：${yesNo(checked("p3Testable"))}`,
+    `2B後位置：${currentAsia2B.effectivePosition}`,
     "",
     ...triggerChecklistLines(),
     "",
@@ -1941,7 +1607,7 @@ function checklistSummary() {
     `2B結構基礎：${yesNo(currentAsia2B.structureOverlap)}`,
     "",
     `大局障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
-    `市場注碼上限：${SIZE_LABELS[currentDecision.marketCap]}`,
+    `方向權限上限：${SIZE_LABELS[currentDecision.marketCap]}`,
     `P × Q Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
     `大局修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
     `最終注碼：${SIZE_LABELS[currentDecision.finalSize]}`,
@@ -1950,7 +1616,11 @@ function checklistSummary() {
     `違反交易時間：${yesNo(checked("violatesTradingTime"))}`,
     `總風險超標：${yesNo(checked("riskLimitExceeded"))}`,
     `方向偏見想放寬Trigger：${yesNo(checked("loosenedTriggerBecauseBias"))}`,
-    `情緒想加注：${yesNo(checked("emotionalSizing"))}`
+    `情緒想加注：${yesNo(checked("emotionalSizing"))}`,
+    "",
+    `Entry-time Q：${$("entryTimeQ").value === "Auto" ? currentAsia2B.effectiveQuality : $("entryTimeQ").value}`,
+    `Post-entry Q：${$("postEntryQ").value}`,
+    `Post-entry處理：${$("postEntryAction").value}`
   ].join("\n");
 }
 
@@ -2401,9 +2071,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.16",
+      "PracticeJournal-V1.17",
     engineVersion:
-      "MasterTradeDecisionMatrix-V3.5",
+      "MasterTradeDecisionMatrix-V3.2-DirectionPermission",
 
     recordMode:
       recordMode(),
@@ -2425,12 +2095,14 @@ async function saveDecision(event) {
     secondaryState:
       $("secondaryState").value,
     bothTransitionRange:
-      $("bothTransitionRange").value,
+      "no",
 
     direction:
       direction(),
     relation:
       currentDecision.relation,
+    directionPermission:
+      currentDecision.directionPermission,
     preferredDirection:
       currentDecision.preferredDirection,
     priorityDeployment:
@@ -2444,6 +2116,10 @@ async function saveDecision(event) {
       $("backgroundDirectOverlap").value,
     p1BackgroundTailwind:
       $("p1BackgroundTailwind").value,
+    bigPictureP1ReversalException:
+      checked("bigPictureP1ReversalException"),
+    p1ReversalExceptionApplied:
+      currentDecision.p1ReversalException,
 
     basePosition:
       currentAsia2B.basePosition,
@@ -2452,7 +2128,7 @@ async function saveDecision(event) {
     p2EdgePosition:
       false,
     p3Testable:
-      checked("p3Testable"),
+      false,
 
     triggerModel:
       currentBaseTrigger.model,
@@ -2540,6 +2216,14 @@ async function saveDecision(event) {
 
     entryStatus:
       $("entryStatus").value,
+    entryTimeQ:
+      $("entryTimeQ").value === "Auto"
+        ? currentAsia2B.effectiveQuality
+        : $("entryTimeQ").value,
+    postEntryQ:
+      $("postEntryQ").value,
+    postEntryAction:
+      $("postEntryAction").value,
     tpPlan:
       $("tpPlan").value,
     profitR:
@@ -2588,13 +2272,16 @@ async function saveDecision(event) {
 
   clearPendingImage();
   $("profitR").value = "";
+  $("entryTimeQ").value = "Auto";
+  $("postEntryQ").value = "N/A";
+  $("postEntryAction").value = "N/A";
   $("reachedRF").value = "No";
   $("reachedTP2").value = "No";
   $("note").value = "";
 
   renderHistory();
   showToast(
-    "已儲存V3.5練習／實戰紀錄"
+    "已儲存Direction Permission V3.2練習／實戰紀錄"
   );
 }
 
@@ -2809,21 +2496,29 @@ function renderHistory() {
       const engineTag =
         record.engineVersion
           ? `<span class="history-tag">${escapeHtml(
-              record.engineVersion.replace(
-                "MasterTradeDecisionMatrix-",
-                "Matrix "
+              record.engineVersion.includes(
+                "V3.2-DirectionPermission"
               )
+                ? "Matrix V3.2"
+                : record.engineVersion.replace(
+                    "MasterTradeDecisionMatrix-",
+                    "Matrix "
+                  )
             )}</span>`
           : "";
 
       const triggerModelTag =
-        record.triggerModelLabel
-          ? `<span class="history-tag">${escapeHtml(
-              record.triggerModel === "B"
-                ? "Model B"
-                : "Model A"
-            )}</span>`
-          : "";
+        record.engineVersion?.includes(
+          "DirectionPermission"
+        )
+          ? '<span class="history-tag">Direction Permission</span>'
+          : record.triggerModelLabel
+            ? `<span class="history-tag">${escapeHtml(
+                record.triggerModel === "B"
+                  ? "Model B"
+                  : "Model A"
+              )}</span>`
+            : "";
 
       const mainState =
         record.mainState ||
@@ -3088,6 +2783,11 @@ async function openRecord(recordId) {
       record.relation || ""
     )}
     <br>
+    <strong>Direction Permission：</strong>
+    ${escapeHtml(
+      record.directionPermission || "舊版未記錄"
+    )}
+    <br>
     <strong>交易優先方向：</strong>
     ${escapeHtml(
       record.preferredDirection || ""
@@ -3101,23 +2801,32 @@ async function openRecord(recordId) {
     <strong>P1背景：</strong>
     ${record.p1BackgroundTailwind === "yes" ? "有" : "冇"}
     <br>
+    <strong>大局P1反轉例外：</strong>
+    ${record.p1ReversalExceptionApplied ? "已啟用" : "冇"}
+    <br>
     <strong>原始位置：</strong>
     ${escapeHtml(basePosition)}
     <br>
     <strong>最終P位置：</strong>
     ${escapeHtml(effectivePosition)}
     <br>
-    <strong>Trigger Model：</strong>
-    ${escapeHtml(
-      record.triggerModelLabel ||
-      "舊版｜Liquidity Reversal"
-    )}
+    <strong>Q Trigger：</strong>
+    Sweep → Reclaim → Weak Retest
     <br>
     <strong>Trigger質素：</strong>
     ${escapeHtml(effectiveTrigger)}
     <br>
     <strong>OPR／亞洲盤2B：</strong>
     ${escapeHtml(twoBText)}
+    <br>
+    <strong>Entry-time Q：</strong>
+    ${escapeHtml(record.entryTimeQ || "未記錄")}
+    <br>
+    <strong>Post-entry Q：</strong>
+    ${escapeHtml(record.postEntryQ || "N/A")}
+    <br>
+    <strong>Post-entry處理：</strong>
+    ${escapeHtml(record.postEntryAction || "N/A")}
     <br>
     <strong>圖片數量：</strong>
     ${escapeHtml(
@@ -3152,6 +2861,15 @@ async function openRecord(recordId) {
   $("editEntryStatus").value =
     record.entryStatus ||
     "Entry";
+  $("editEntryTimeQ").value =
+    record.entryTimeQ ||
+    "N/A";
+  $("editPostEntryQ").value =
+    record.postEntryQ ||
+    "N/A";
+  $("editPostEntryAction").value =
+    record.postEntryAction ||
+    "N/A";
   $("editTpPlan").value =
     record.tpPlan ||
     "1:2食哂";
@@ -3345,6 +3063,12 @@ async function saveRecordEdit() {
     $("editRecordMode").value;
   records[index].entryStatus =
     $("editEntryStatus").value;
+  records[index].entryTimeQ =
+    $("editEntryTimeQ").value;
+  records[index].postEntryQ =
+    $("editPostEntryQ").value;
+  records[index].postEntryAction =
+    $("editPostEntryAction").value;
   records[index].tpPlan =
     $("editTpPlan").value;
   records[index].profitR =
@@ -3496,12 +3220,14 @@ function buildCsv(records) {
     "入場觸發TF",
     "交易方向",
     "主次關係",
+    "Direction Permission",
     "交易優先方向",
     "優先部署",
     "次要部署",
     "大局方向關係",
     "大局位置實際重疊",
     "P1背景",
+    "大局P1反轉例外",
     "原始位置",
     "最終P位置",
     "P2邊緣",
@@ -3535,6 +3261,9 @@ function buildCsv(records) {
     "大局修正",
     "最終注碼",
     "入市結果",
+    "Entry-time Q",
+    "Post-entry Q",
+    "Post-entry處理",
     "TP計劃",
     "獲利R",
     "去到RF",
@@ -3565,6 +3294,7 @@ function buildCsv(records) {
       record.entryTimeframe || "",
       record.direction || "",
       record.relation || "",
+      record.directionPermission || "",
       record.preferredDirection || "",
       record.priorityDeployment || "",
       record.secondaryDeployment || "",
@@ -3575,6 +3305,9 @@ function buildCsv(records) {
       record.p1BackgroundTailwind === "yes"
         ? "有"
         : "冇",
+      record.p1ReversalExceptionApplied
+        ? "Yes"
+        : "No",
       record.basePosition ||
         record.position ||
         "",
@@ -3672,6 +3405,9 @@ function buildCsv(records) {
         "",
       record.finalSize ?? "",
       record.entryStatus || "",
+      record.entryTimeQ || "",
+      record.postEntryQ || "",
+      record.postEntryAction || "",
       record.tpPlan || "",
       Number.isFinite(
         record.profitR
@@ -3754,7 +3490,7 @@ function exportCsv() {
 
   downloadBlob(
     blob,
-    `MasterTrade-V3_5-Journal-${new Date()
+    `MasterTrade-V3_2-Journal-${new Date()
       .toISOString()
       .slice(0, 10)}.csv`
   );
@@ -4318,7 +4054,7 @@ async function exportBackupZip() {
 
     downloadBlob(
       zipBlob,
-      `MasterTrade-V3_5-Backup-${new Date()
+      `MasterTrade-V3_2-Backup-${new Date()
         .toISOString()
         .slice(0, 10)}.zip`
     );
@@ -4648,7 +4384,7 @@ function recordFromCsvRow(row) {
         row,
         "Matrix版本"
       ) ||
-      "MasterTradeDecisionMatrix-V3.5",
+      "MasterTradeDecisionMatrix-V3.2-DirectionPermission",
     recordMode:
       firstCsvValue(
         row,
@@ -4705,6 +4441,11 @@ function recordFromCsvRow(row) {
         row,
         "主次關係"
       ),
+    directionPermission:
+      firstCsvValue(
+        row,
+        "Direction Permission"
+      ),
     preferredDirection:
       firstCsvValue(
         row,
@@ -4743,6 +4484,13 @@ function recordFromCsvRow(row) {
       )
         ? "yes"
         : "no",
+    p1ReversalExceptionApplied:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "大局P1反轉例外"
+        )
+      ),
     basePosition:
       firstCsvValue(
         row,
@@ -4965,6 +4713,24 @@ function recordFromCsvRow(row) {
         "入市結果"
       ) ||
       "Skip",
+    entryTimeQ:
+      firstCsvValue(
+        row,
+        "Entry-time Q"
+      ) ||
+      "",
+    postEntryQ:
+      firstCsvValue(
+        row,
+        "Post-entry Q"
+      ) ||
+      "N/A",
+    postEntryAction:
+      firstCsvValue(
+        row,
+        "Post-entry處理"
+      ) ||
+      "N/A",
     tpPlan:
       firstCsvValue(
         row,
@@ -5639,190 +5405,64 @@ function scrollToRulebookSection(
 
 
 
-function liveRelationLabel(value) {
+function livePermissionLabel(value) {
   const labels = {
-    healthyAligned:
-      "健康同向",
-    weakTransition:
-      "同向有弱勢／包含Transition",
-    conflictMain:
-      "方向衝突｜順主判",
-    conflictCounter:
-      "方向衝突｜順次判、逆主判",
-    specialCounter:
-      "特殊逆向｜只順大局、逆主判＋次判"
+    normal:
+      "正常方向權限｜Max 1注",
+    limited:
+      "限制方向權限｜Max 0.5注",
+    none:
+      "無方向權限｜正常0注"
   };
 
   return labels[value] || value;
 }
 
-function liveRelationCap(value) {
-  if (
-    value === "healthyAligned"
-  ) {
+function livePermissionCap(value) {
+  if (value === "normal") {
     return 1;
   }
 
-  if (
-    value === "specialCounter"
-  ) {
-    return 0.25;
-  }
-
-  return 0.5;
-}
-
-function liveMatrixCell(
-  relation,
-  position,
-  quality,
-  p3Testable
-) {
-  if (
-    quality === "Q1" ||
-    position === "P4"
-  ) {
-    return 0;
-  }
-
-  if (
-    relation ===
-    "specialCounter"
-  ) {
-    if (
-      position === "P1" &&
-      quality === "Q3"
-    ) {
-      return 0.25;
-    }
-
-    return 0;
-  }
-
-  if (
-    relation ===
-    "healthyAligned"
-  ) {
-    if (
-      (
-        position === "P1" ||
-        position === "P2"
-      ) &&
-      quality === "Q3"
-    ) {
-      return 1;
-    }
-
-    if (
-      (
-        position === "P1" ||
-        position === "P2"
-      ) &&
-      quality === "Q2"
-    ) {
-      return 0.5;
-    }
-
-    if (
-      position === "P3" &&
-      quality === "Q3"
-    ) {
-      return 0.5;
-    }
-
-    if (
-      position === "P3" &&
-      quality === "Q2"
-    ) {
-      return p3Testable
-        ? 0.25
-        : 0;
-    }
-
-    return 0;
-  }
-
-  if (
-    relation ===
-      "weakTransition" ||
-    relation ===
-      "conflictMain"
-  ) {
-    if (
-      (
-        position === "P1" ||
-        position === "P2"
-      ) &&
-      quality === "Q3"
-    ) {
-      return 0.5;
-    }
-
-    if (
-      (
-        position === "P1" ||
-        position === "P2"
-      ) &&
-      quality === "Q2"
-    ) {
-      return 0.25;
-    }
-
-    if (
-      position === "P3" &&
-      quality === "Q3"
-    ) {
-      return p3Testable
-        ? 0.25
-        : 0;
-    }
-
-    return 0;
-  }
-
-  if (
-    relation ===
-    "conflictCounter"
-  ) {
-    if (
-      position === "P1" &&
-      quality === "Q3"
-    ) {
-      return 0.5;
-    }
-
-    if (
-      position === "P1" &&
-      quality === "Q2"
-    ) {
-      return 0.25;
-    }
-
-    if (
-      position === "P2" &&
-      quality === "Q3"
-    ) {
-      return 0.25;
-    }
-
-    return 0;
+  if (value === "limited") {
+    return 0.5;
   }
 
   return 0;
 }
 
+function liveMatrixCell(
+  permission,
+  position,
+  quality
+) {
+  return matrixCell(
+    permission,
+    position,
+    quality
+  );
+}
+
 function recalculateLiveDecision() {
-  const relation =
-    $("liveRelation").value;
-  const marketCap =
-    liveRelationCap(relation);
+  const permission =
+    $("livePermission").value;
+
+  const permissionCap =
+    livePermissionCap(
+      permission
+    );
 
   const basePosition =
     $("livePosition").value;
+
   const highQuality2B =
-    checked("liveHighQuality2B");
+    checked(
+      "liveHighQuality2B"
+    );
+
   const structureBase =
-    checked("live2BStructureBase");
+    checked(
+      "live2BStructureBase"
+    );
 
   let effectivePosition =
     basePosition;
@@ -5836,95 +5476,54 @@ function recalculateLiveDecision() {
       "P2";
   }
 
-  $("liveSpecialCorePanel")
-    .classList.toggle(
-      "hidden",
-      relation !== "specialCounter"
-    );
-
-  if (
-    relation !== "specialCounter"
-  ) {
-    $("liveSpecialP1Core")
-      .checked = false;
-  }
-
-  $("liveP3TestableRow")
-    .classList.toggle(
-      "hidden",
-      effectivePosition !== "P3"
-    );
-
-  if (
-    effectivePosition !== "P3"
-  ) {
-    $("liveP3Testable")
-      .checked = false;
-  }
-
-  const triggerModel =
-    $("liveTriggerModel").value;
-  const selectedQuality =
+  let effectiveQuality =
     $("liveTriggerQuality").value;
 
-  $("liveModelBPanel")
-    .classList.toggle(
-      "hidden",
-      triggerModel !== "B"
-    );
-
-  $("liveQ2UpgradePanel")
-    .classList.toggle(
-      "hidden",
-      selectedQuality !== "Q2"
-    );
-
-  let effectiveQuality =
-    selectedQuality;
-
-  const bonusCount =
-    Number(
-      $("liveBonusCount").value
-    );
-
-  const q2Upgrade =
-    selectedQuality === "Q2" &&
-    bonusCount >= 2 &&
-    checked(
-      "liveBonusDirectRepair"
-    ) &&
-    checked(
-      "liveNoDoubleCount"
-    );
-
-  if (q2Upgrade) {
+  if (
+    highQuality2B &&
+    effectiveQuality === "Q2"
+  ) {
     effectiveQuality =
       "Q3";
   }
 
-  const specialCoreQualified =
-    relation !== "specialCounter" ||
-    (
-      effectivePosition === "P1" &&
-      checked(
-        "liveSpecialP1Core"
-      )
+  $("liveP1ExceptionPanel")
+    .classList.toggle(
+      "hidden",
+      permission !== "none"
     );
 
+  if (
+    permission !== "none"
+  ) {
+    $("liveBigPictureP1Exception")
+      .checked = false;
+  }
+
+  const exceptionApplied =
+    permission === "none" &&
+    effectivePosition === "P1" &&
+    effectiveQuality === "Q3" &&
+    checked(
+      "liveBigPictureP1Exception"
+    );
+
+  const effectivePermissionCap =
+    exceptionApplied
+      ? 0.25
+      : permissionCap;
+
   const matrixSize =
-    specialCoreQualified
-      ? Math.min(
-          marketCap,
+    exceptionApplied
+      ? 0.25
+      : Math.min(
+          effectivePermissionCap,
           liveMatrixCell(
-            relation,
+            permission,
             effectivePosition,
-            effectiveQuality,
-            checked(
-              "liveP3Testable"
-            )
+            effectiveQuality
           )
-        )
-      : 0;
+        );
 
   const obstacle =
     $("liveObstacle").value;
@@ -5938,8 +5537,18 @@ function recalculateLiveDecision() {
         matrixSize
       );
   } else if (
-    obstacle ===
-    "insufficient"
+    obstacle === "inside"
+  ) {
+    obstacleSize =
+      Math.min(
+        matrixSize,
+        insideObstacleCap(
+          effectivePosition,
+          effectiveQuality
+        )
+      );
+  } else if (
+    obstacle === "insufficient"
   ) {
     obstacleSize = 0;
   }
@@ -5947,19 +5556,10 @@ function recalculateLiveDecision() {
   const vetoes = [];
 
   if (
-    relation === "specialCounter" &&
-    !specialCoreQualified
-  ) {
-    vetoes.push(
-      "特殊逆向必須係大局核心P1位置；未確認大局核心P1資格。"
-    );
-  }
-
-  if (
     effectivePosition === "P4"
   ) {
     vetoes.push(
-      "P4＝直接Skip。"
+      "P4＝0注。"
     );
   }
 
@@ -5967,24 +5567,12 @@ function recalculateLiveDecision() {
     effectiveQuality === "Q1"
   ) {
     vetoes.push(
-      "Q1＝Trigger核心失效。"
+      "Q1＝Trigger失效。"
     );
   }
 
   if (
-    triggerModel === "B" &&
-    !checked(
-      "liveBreakoutMeaningful"
-    )
-  ) {
-    vetoes.push(
-      "Model B Breakout位置唔夠重要／只係純Micro Breakout。"
-    );
-  }
-
-  if (
-    obstacle ===
-    "insufficient"
+    obstacle === "insufficient"
   ) {
     vetoes.push(
       "第一真實Target前R:R不足。"
@@ -6015,19 +5603,25 @@ function recalculateLiveDecision() {
       : obstacleSize;
 
   $("liveMarketCap").textContent =
-    SIZE_LABELS[marketCap];
+    SIZE_LABELS[
+      effectivePermissionCap
+    ];
 
   $("liveRelationNote").textContent =
-    relation === "specialCounter"
-      ? "特殊逆向只容許P1＋最終Q3，最高0.25注；P1 Q2、P2、P3、P4、Q1全部Skip。主判或次判Market State一有效改變到唔再符合「逆兩層同向趨勢」，即退出特殊逆向並重新按正常Matrix。"
-      : "";
+    permission === "none"
+      ? "Direction Permission Gate＝0。正常P1／P2＋Q3都係0；只有真正大局P1＋Q3右側反轉確認，先可啟用0.25注例外。"
+      : permission === "limited"
+        ? "限制方向權限：市場最高0.5注，再由P × Q決定實際注碼。"
+        : "正常方向權限：最高1注，但真正1注仍要求P1／P2＋Q3，而且冇大局障礙。";
 
   $("liveEffectivePosition").textContent =
     effectivePosition;
   $("liveEffectiveQ").textContent =
     effectiveQuality;
   $("liveResultCap").textContent =
-    SIZE_LABELS[marketCap];
+    SIZE_LABELS[
+      effectivePermissionCap
+    ];
   $("liveMatrixSize").textContent =
     SIZE_LABELS[matrixSize];
   $("liveObstacleSize").textContent =
@@ -6036,37 +5630,28 @@ function recalculateLiveDecision() {
     SIZE_LABELS[finalSize];
 
   const notes = [
-    `市場關係：${liveRelationLabel(relation)}，Max ${SIZE_LABELS[marketCap]}。`,
+    `Direction Permission：${livePermissionLabel(permission)}。`,
     basePosition !==
       effectivePosition
-      ? `位置：${basePosition}＋高質Asia／OPR 2B＋原有結構基礎 → ${effectivePosition}。`
+      ? `位置：P3＋高質Asia／OPR 2B＋原有結構 → P2。`
       : `位置：${effectivePosition}。`,
-    q2Upgrade
-      ? "Trigger：Q2符合2項以上獨立加分＋直接補強瑕疵＋冇Double Count，升為Q3。"
-      : `Trigger：${triggerModel === "A" ? "Model A" : "Model B"}／${effectiveQuality}。`,
+    highQuality2B &&
+      $("liveTriggerQuality").value === "Q2"
+      ? "Trigger：高質Asia／OPR 2B將Q2升至Q3；2B唔會創造方向權限。"
+      : `Trigger：${effectiveQuality}。`,
+    exceptionApplied
+      ? "大局P1反轉例外已啟用：原本0權限，因真正大局P1＋Q3右側確認，開0.25注試單權限。"
+      : permission === "none"
+        ? "無方向權限而且未符合大局P1反轉例外：正常0注。"
+        : "Direction Permission Gate已通過。",
     obstacle === "near"
-      ? "大局：有障礙但R:R仍合理，注碼降一級並考慮TP提前。"
-      : obstacle ===
-          "insufficient"
-        ? "大局：R:R不足，Skip。"
-        : "大局：冇重大障礙，按原Matrix。"
+      ? "大局障礙接近但仍有空間：注碼降一級。"
+      : obstacle === "inside"
+        ? "已處於大局障礙區內仍順原方向延伸：P1 Q3最多0.5、P2 Q3最多0.25，其餘0。"
+        : obstacle === "insufficient"
+          ? "大局障礙前空間不足：0注。"
+          : "大局障礙仍遠：按原Matrix。"
   ];
-
-  if (
-    relation === "specialCounter"
-  ) {
-    notes.push(
-      "特殊逆向：大局只提供方向背景，P1只提供反轉位置資格，Q3只提供入場確認；三者各自負責一件事，唔可以跨欄重複加分。"
-    );
-
-    if (
-      triggerModel !== "A"
-    ) {
-      notes.push(
-        "特殊逆向Trigger優先使用Model A｜Sweep → Reclaim → Weak Retest；Model B唔會因為順大局而自動獲得Q加分。"
-      );
-    }
-  }
 
   if (
     basePosition === "P3" &&
@@ -6074,21 +5659,7 @@ function recalculateLiveDecision() {
     !structureBase
   ) {
     notes.push(
-      "高質Asia／OPR 2B冇原有結構基礎，所以唔可以創造P2。"
-    );
-  }
-
-  if (
-    selectedQuality === "Q1" &&
-    (
-      bonusCount >= 2 ||
-      checked(
-        "liveBonusDirectRepair"
-      )
-    )
-  ) {
-    notes.push(
-      "Q1永遠唔可以靠加分升級；之後有新結構只可以當新Trigger重新評。"
+      "高質2B冇原有結構基礎，所以唔可以P3 → P2。"
     );
   }
 

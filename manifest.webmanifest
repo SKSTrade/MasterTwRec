@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.16",
+  "name": "Master Trade System V1.17",
   "short_name": "Master Trade",
-  "description": "Master Trade Rulebook V3.5 and Live Decision Matrix V3.5 with journal CSV/ZIP restore, photo backup import and Rulebook quick navigation.",
+  "description": "Master Trade Decision Matrix V3.2 with Direction Permission Gate, P1 reversal exception, journal, statistics, image backup and import restore.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
