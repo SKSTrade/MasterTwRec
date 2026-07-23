@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-19-matrix-v3-3-simplified-direction";
+const CACHE_NAME = "master-trade-system-v1-20-matrix-v3-4-setup-type";
 const ASSETS = [
   "./",
   "./index.html",
