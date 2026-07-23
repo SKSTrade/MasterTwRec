@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.20",
+  "name": "Master Trade System V1.21",
   "short_name": "Master Trade",
-  "description": "Master Trade Decision Matrix V3.4 with Setup Type A/B/C, simplified direction rules, range-position adjustment, trading journal, image backup and restore.",
+  "description": "Master Trade Decision Matrix V3.4 with Setup Type A/B/C, simplified inverse-main P2 tailwind rule, range-position adjustment, trading journal, image backup and restore.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

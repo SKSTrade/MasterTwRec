@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-20-matrix-v3-4-setup-type";
+const CACHE_NAME = "master-trade-system-v1-21-matrix-v3-4-counter-p2-rule";
 const ASSETS = [
   "./",
   "./index.html",

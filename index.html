@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">Decision Matrix V3.4｜Setup Type＋精簡方向規則版</p>
     </div>
-    <span class="version-badge">V1.20</span>
+    <span class="version-badge">V1.21</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -51,7 +51,7 @@
               <option value="conflictMain">D｜方向衝突｜順主判、逆次判｜Max 0.5注</option>
               <option value="conflictSecondary">E｜方向衝突｜順次判、逆主判｜Max 0.25注</option>
               <option value="transitionConfirmed">F｜包含轉換｜順已確認方向｜Max 0.5注</option>
-              <option value="transitionReverse">G｜包含轉換｜P1反向試單｜Max 0.25注</option>
+              <option value="transitionReverse">G｜包含轉換｜反向部署｜Max 0.25注</option>
               <option value="bothTransition">H｜雙轉換／橫行｜只做邊界｜Max 0.5注</option>
             </select>
           </label>
@@ -118,10 +118,10 @@
               逆主判P2特殊資格
               <select id="liveCounterP2Basis">
                 <option value="none">冇｜P2正常0注</option>
-                <option value="healthyTailwind">主判健康＋仍有效P1順風</option>
-                <option value="weakBreakRetest">主判弱勢＋主判次結有效突破＋首次Retest</option>
+                <option value="secondaryNotAligned">次判已不再同主判同向＋P1順風仍有效</option>
               </select>
             </label>
+            <p class="state-note">唔需要主判次結先被突破。P1順風只開P2＋Q3嘅0.25資格，唔會將P2升P1。</p>
           </div>
 
           <div id="liveTransitionLayerP1Row" class="conditional-panel hidden">
@@ -499,11 +499,6 @@
             <span><strong>衝突順主判｜P3屬可接受小注測試位</strong><small>只影響P3＋Q3嘅0.25／0選擇；預設保守為0。</small></span>
           </label>
 
-          <label id="counterP2WeakBreakRetestRow" class="toggle-row hidden">
-            <input id="counterP2WeakBreakRetest" type="checkbox">
-            <span><strong>逆主判P2特殊資格｜主判已弱＋主判次結有效突破＋首次Retest</strong><small>配合P2＋Q3先可0.25；只適用順次判、逆弱主判。</small></span>
-          </label>
-
           <p id="counterP2EligibilityNote" class="state-note hidden"></p>
 
           <label id="bothTransitionMajorP1Row" class="toggle-row hidden">
@@ -864,8 +859,8 @@
         <ul>
           <li><strong>雙同向：</strong>只做共同方向。雙健康最高1；同向有弱勢最高0.5；反向固定0。</li>
           <li><strong>方向衝突：</strong>順主判優先，P1／高質P2＋Q3最高0.5；順次判逆主判P1＋Q3正常最高0.25。</li>
-          <li><strong>逆主判P2：</strong>正常0；只有「主判健康＋仍有效P1順風」或「主判已弱＋主判次結有效突破＋首次Retest」配P2＋Q3先可0.25。</li>
-          <li><strong>包含轉換：</strong>順已確認方向P1／P2＋Q3最高0.5；反向只限Transition層真正P1＋Q3，最高0.25。</li>
+          <li><strong>逆主判P2：</strong>正常0；只要主判仍係趨勢、次判已不再同主判同向，而且P1順風仍有效，P2＋Q3可最高0.25。唔需要主判次結先被突破。</li>
+          <li><strong>包含轉換：</strong>順已確認方向P1／P2＋Q3最高0.5；反向正常以Transition層真正P1＋Q3為主。若主判仍係趨勢、次判已不再同主判同向＋有效P1順風，P2＋Q3亦可0.25。</li>
           <li><strong>雙轉換／橫行：</strong>只做邊界，中間0。</li>
         </ul>
       </article>

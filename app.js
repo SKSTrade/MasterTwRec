@@ -311,9 +311,9 @@ function computeMarketRoute(
 
     return result(
       "transitionReverse",
-      `包含轉換｜${transitionLayer}P1反向試單`,
+      `包含轉換｜${transitionLayer}反向部署`,
       0.25,
-      `今次交易逆${confirmedLayer}${biasDirectionLabel(confirmedBias)}當前方向；只容許去到Transition層真正P1大位再配Q3反向試單，最高0.25注。`
+      `今次交易逆${confirmedLayer}${biasDirectionLabel(confirmedBias)}當前方向；正常以Transition層真正P1＋Q3為主。若主判仍係趨勢、次判已不再同主判同向，而且P1順風仍有效，P2＋Q3亦可最高0.25。`
     );
   }
 
@@ -491,7 +491,7 @@ function preferredDirectionInfo() {
       label:
         `順已確認${biasDirectionLabel(confirmedBias)}優先`,
       note:
-        "包含Transition時先順已確認嗰層方向；逆當前已確認方向只等Transition層真正P1＋Q3反向試單。"
+        "包含Transition時先順已確認嗰層方向；反向正常以Transition層真正P1＋Q3為主，但若主判仍係趨勢、次判已不再同主判同向＋有效P1順風，P2＋Q3亦可0.25。"
     };
   }
 
@@ -585,9 +585,9 @@ function combinedDeploymentInfo() {
   ) {
     return {
       priority:
-        "包含轉換反向試單：只做Transition層真正P1＋Q3，最高0.25注。",
+        "包含轉換反向：正常以Transition層真正P1＋Q3為主，最高0.25注。",
       secondary:
-        "P2以下或者Q2唔做；呢個係包含轉換市場入面嘅正常P1反向劇本，唔需要額外例外規則。"
+        "如果主判仍係趨勢、次判已不再同主判同向，而且P1順風仍有效，P2＋Q3亦可0.25；P1順風唔會將P2升P1。"
     };
   }
 
@@ -1140,6 +1140,14 @@ function matrixCell(
       return 0.25;
     }
 
+    if (
+      position === "P2" &&
+      quality === "Q3" &&
+      options.counterP2Eligible
+    ) {
+      return 0.25;
+    }
+
     return 0;
   }
 
@@ -1173,20 +1181,42 @@ function matrixCell(
 function counterP2EligibilityInfo(
   positionOverride = null
 ) {
-  const route =
-    marketRouteInfo();
-
   const mainState =
     $("mainState").value;
+  const secondaryState =
+    $("secondaryState").value;
+
+  const mainBias =
+    stateBias(mainState);
+  const secondaryBias =
+    stateBias(secondaryState);
 
   const position =
     positionOverride ||
     $("positionLevel").value;
 
+  const currentTradeBias =
+    tradeBias();
+
+  const mainIsConfirmedTrend =
+    !isTransition(mainState) &&
+    mainBias !== null;
+
+  const tradeIsAgainstMain =
+    mainBias !== null &&
+    currentTradeBias !== mainBias;
+
+  const secondaryNoLongerAligned =
+    secondaryBias !== mainBias;
+
+  const validP1Tailwind =
+    $("p1BackgroundTailwind").value ===
+    "valid";
+
   if (
-    route.code !==
-      "conflictSecondary" ||
-    position !== "P2"
+    position !== "P2" ||
+    !mainIsConfirmedTrend ||
+    !tradeIsAgainstMain
   ) {
     return {
       eligible: false,
@@ -1196,34 +1226,28 @@ function counterP2EligibilityInfo(
   }
 
   if (
-    isHealthy(mainState) &&
-    $("p1BackgroundTailwind").value ===
-      "valid"
+    secondaryNoLongerAligned &&
+    validP1Tailwind
   ) {
     return {
       eligible: true,
       reason:
-        "主判健康＋仍有效P1順風＋P2＋Q3：逆主判P2可0.25。"
+        "次判已不再同主判同向＋P1順風仍有效＋P2＋Q3：逆主判P2最高0.25。"
     };
   }
 
-  if (
-    isWeak(mainState) &&
-    checked(
-      "counterP2WeakBreakRetest"
-    )
-  ) {
+  if (!secondaryNoLongerAligned) {
     return {
-      eligible: true,
+      eligible: false,
       reason:
-        "主判已弱＋主判次結有效突破＋首次Retest P2＋Q3：逆主判P2可0.25。"
+        "次判仍然同主判同向；雙同向／同方向背景唔會因P1順風而開逆主判P2權限。"
     };
   }
 
   return {
     eligible: false,
     reason:
-      "逆主判P2正常0注；只限「主判健康＋有效P1順風」或「主判已弱＋主判次結突破＋首次Retest」。"
+      "次判已不再同主判同向，但P1順風唔係「仍有效」；逆主判P2正常0注。"
   };
 }
 
@@ -1311,6 +1335,17 @@ function evaluateMatrix(
   } else if (
     route.code ===
       "transitionReverse" &&
+    effectivePosition === "P2"
+  ) {
+    cellExplanation =
+      counterP2EligibilityInfo(
+        effectivePosition
+      ).eligible
+        ? `包含轉換嘅逆主判P2符合「次判已不再同主判同向＋有效P1順風」；${combination}最高0.25注。`
+        : `包含轉換反向嘅P2正常0注；目前未符合「次判已不再同主判同向＋有效P1順風」特殊資格。`;
+  } else if (
+    route.code ===
+      "transitionReverse" &&
     !(
       effectivePosition === "P1" &&
       effectiveQuality === "Q3" &&
@@ -1320,7 +1355,7 @@ function evaluateMatrix(
     )
   ) {
     cellExplanation =
-      `包含轉換反向試單只做Transition層真正P1＋Q3；目前${combination}未完整符合，所以0注。`;
+      `包含轉換反向：正常只做Transition層真正P1＋Q3；P2只有符合「次判已不再同主判同向＋有效P1順風」先可0.25。`;
   } else if (
     route.code ===
       "bothTransition" &&
@@ -1604,7 +1639,7 @@ function evaluateDecision(
       counterP2EligibilityInfo();
 
     warnings.push(
-      `順次判、逆主判：P1＋Q3正常最高0.25；P2只限兩種特殊資格。${counterInfo.reason}`
+      `順次判、逆主判：P1＋Q3正常最高0.25；P2只有「次判已不再同主判同向＋有效P1順風」先可0.25。${counterInfo.reason}`
     );
   }
 
@@ -1613,7 +1648,7 @@ function evaluateDecision(
     "transitionReverse"
   ) {
     warnings.push(
-      "包含轉換反向只限Transition層真正P1＋Q3，最高0.25。"
+      "包含轉換反向正常以Transition層真正P1＋Q3為主；若主判仍係趨勢、次判已不再同主判同向＋有效P1順風，P2＋Q3亦可最高0.25。"
     );
   }
 
@@ -2007,7 +2042,7 @@ function updateP1TailwindNote() {
 
   if (value === "valid") {
     $("p1TailwindNote").textContent =
-      "P1順風仍有效：只計P1直接引發第一段反轉＋第一次回調Setup。佢唔改P級，但可成為「主判健康、順次判逆主判」P2＋Q3嘅0.25特殊資格。";
+      "P1順風仍有效：只計P1直接引發第一段反轉＋第一次回調Setup。佢唔改P級；只要主判仍係趨勢、次判已不再同主判同向，逆主判P2＋Q3可最高0.25。";
     return;
   }
 
@@ -2137,10 +2172,19 @@ function updateInterface() {
       .checked = false;
   }
 
+  const counterP2Info =
+    counterP2EligibilityInfo(
+      position
+    );
+
+  const mainBias =
+    stateBias(mainState);
+
   const showCounterP2 =
-    route.code ===
-      "conflictSecondary" &&
-    position === "P2";
+    position === "P2" &&
+    !isTransition(mainState) &&
+    mainBias !== null &&
+    tradeBias() !== mainBias;
 
   $("counterP2EligibilityNote")
     .classList.toggle(
@@ -2151,22 +2195,7 @@ function updateInterface() {
   if (showCounterP2) {
     $("counterP2EligibilityNote")
       .textContent =
-        counterP2EligibilityInfo().reason;
-  }
-
-  const showWeakCounterP2 =
-    showCounterP2 &&
-    isWeak(mainState);
-
-  $("counterP2WeakBreakRetestRow")
-    .classList.toggle(
-      "hidden",
-      !showWeakCounterP2
-    );
-
-  if (!showWeakCounterP2) {
-    $("counterP2WeakBreakRetest")
-      .checked = false;
+        counterP2Info.reason;
   }
 
   const showBothTransitionP1 =
@@ -2268,7 +2297,7 @@ function checklistSummary() {
     `P1順風：${tailwind === "valid" ? "有｜仍有效" : tailwind === "expired" ? "曾有｜已失效" : "冇"}`,
     `包含轉換反向P1屬Transition層大位：${yesNo(checked("transitionLayerP1"))}`,
     `衝突順主判P3可小注：${yesNo(checked("p3ConflictTestable"))}`,
-    `逆主判P2特殊資格：${counterP2EligibilityInfo().eligible ? "有" : "冇"}｜${counterP2EligibilityInfo().reason}`,
+    `逆主判P2特殊資格：${counterP2EligibilityInfo(currentAsia2B.effectivePosition).eligible ? "有" : "冇"}｜${counterP2EligibilityInfo(currentAsia2B.effectivePosition).reason}`,
     `雙轉換P1主要邊界：${yesNo(checked("bothTransitionMajorP1"))}`,
     "",
     `原始位置：${currentAsia2B.basePosition}`,
@@ -2743,7 +2772,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.20",
+      "PracticeJournal-V1.21",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.4-SetupType",
 
@@ -2802,9 +2831,9 @@ async function saveDecision(event) {
     p3Testable:
       checked("p3ConflictTestable"),
     counterP2Eligible:
-      counterP2EligibilityInfo().eligible,
-    counterP2WeakBreakRetest:
-      checked("counterP2WeakBreakRetest"),
+      counterP2EligibilityInfo(
+        currentAsia2B.effectivePosition
+      ).eligible,
     bothTransitionMajorP1:
       checked("bothTransitionMajorP1"),
 
@@ -3972,7 +4001,6 @@ function buildCsv(records) {
     "包含轉換反向P1屬Transition層大位",
     "衝突順主判P3可小注",
     "逆主判P2特殊資格",
-    "主判弱勢次結突破首次Retest",
     "雙轉換P1主要邊界",
     "Setup Type選擇",
     "有效Setup Type",
@@ -4062,9 +4090,6 @@ function buildCsv(records) {
         ? "Yes"
         : "No",
       record.counterP2Eligible
-        ? "Yes"
-        : "No",
-      record.counterP2WeakBreakRetest
         ? "Yes"
         : "No",
       record.bothTransitionMajorP1
@@ -6250,7 +6275,7 @@ function liveRouteLabel(value) {
     transitionConfirmed:
       "包含轉換｜順已確認方向",
     transitionReverse:
-      "包含轉換｜P1反向試單",
+      "包含轉換｜反向部署",
     bothTransition:
       "雙轉換／橫行｜只做邊界"
   };
@@ -6368,8 +6393,12 @@ function recalculateLiveDecision() {
   }
 
   const showCounterP2 =
-    routeCode ===
-      "conflictSecondary" &&
+    (
+      routeCode ===
+        "conflictSecondary" ||
+      routeCode ===
+        "transitionReverse"
+    ) &&
     effectivePosition === "P2";
 
   $("liveCounterP2BasisRow")
@@ -6401,8 +6430,10 @@ function recalculateLiveDecision() {
 
   const counterP2Eligible =
     showCounterP2 &&
-    $("liveCounterP2Basis").value !==
-      "none";
+    $("liveP1Tailwind").value ===
+      "valid" &&
+    $("liveCounterP2Basis").value ===
+      "secondaryNotAligned";
 
   let matrixSize =
     Math.min(
@@ -6562,11 +6593,11 @@ function recalculateLiveDecision() {
     conflictMain:
       "方向衝突順主判優先；P1／高質P2＋Q3最高0.5。",
     conflictSecondary:
-      "順次判、逆主判：P1＋Q3正常0.25；P2只限兩種特殊資格。",
+      "順次判、逆主判：P1＋Q3正常0.25；P2＋Q3只有次判已不再同主判同向＋有效P1順風先可0.25。",
     transitionConfirmed:
       "包含轉換可順已確認方向；P1／P2＋Q3最高0.5。",
     transitionReverse:
-      "包含轉換反向只做Transition層真正P1＋Q3，最高0.25。",
+      "包含轉換反向正常以Transition層真正P1＋Q3為主；若主判仍係趨勢、次判已不再同主判同向＋有效P1順風，P2＋Q3亦可0.25。",
     bothTransition:
       "雙轉換／橫行只做邊界；中間位不做。"
   };
@@ -6595,8 +6626,8 @@ function recalculateLiveDecision() {
       : "",
     showCounterP2
       ? counterP2Eligible
-        ? "逆主判P2特殊資格已確認：最高0.25。"
-        : "逆主判P2未有特殊資格：正常0。"
+        ? "逆主判P2特殊資格已確認：次判已不再同主判同向＋P1順風仍有效，P2＋Q3最高0.25。"
+        : "逆主判P2正常0；要同時確認次判已不再同主判同向，而且P1順風仍有效。"
       : "",
     rangeState === "outside"
       ? "次判轉換中性：唔喺相應頂／底25%，降一級。"
