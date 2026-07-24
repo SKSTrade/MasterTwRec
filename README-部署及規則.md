@@ -1,4 +1,4 @@
-# Master Trade System V1.21
+# Master Trade System V1.22
 
 現行判斷引擎：
 
@@ -7,6 +7,31 @@
 核心流程：
 
 > 大局背景 → 主判 × 次判市場關係 → Setup Type → P位置 → Q質素 → Range 25%修正 → P1順風／大局障礙 → 最終注碼
+
+## V1.22｜Type A Q2→Q3一致性修正
+
+修正Type A評分同Q欄可能出現互相矛盾嘅情況。
+
+例如：
+
+- Type A勾選「Retest明顯較慢、較弱」
+- 但Q欄仍保留預設「Retest有瑕疵」
+
+舊版會將Q2原因判作Retest瑕疵，因此唔會升Q3。
+
+V1.22改為：
+
+- 勾選Type A「Sweep乾淨」→ 同步有效Sweep
+- 勾選Type A「Reclaim破微結構」→ 同步有效Reclaim
+- 勾選Type A「Retest明顯較弱」→ 同步Q欄Retest＝Weak
+- Q欄改成相反判斷 → 取消對應Type A條件
+- Q待遇欄會直接顯示未升Q3嘅原因
+
+Type A Q2→Q3仍然只限：
+
+> 基礎Q2唯一問題係Sweep／Reclaim質素處於邊緣＋Retest弱＋完整R:R＋Setup核心有效
+
+Retest瑕疵、空間一般／不足、多項瑕疵或Setup被否定，仍然維持Q2／Q1。
 
 ## V1.21方向權重修正
 
@@ -216,6 +241,6 @@ Volume唔再獨立加分。
 - DB：`masterTradePracticeJournalImages`
 - Store：`chartImages`
 
-同一網站Origin更新時，V1.21沿用原有Storage Key，設計上舊紀錄及圖片繼續保留。
+同一網站Origin更新時，V1.22沿用原有Storage Key，設計上舊紀錄及圖片繼續保留。
 
 清除瀏覽器／Safari網站資料仍可能刪除本機資料，重要紀錄應定期匯出完整ZIP。

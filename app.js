@@ -782,7 +782,45 @@ function evaluateBaseTrigger() {
     reclaimQuality === "ordinary" &&
     retestQuality === "weak" &&
     tradeSpace === "full" &&
-    failures.length === 0;
+    failures.length === 0 &&
+    imperfections.length === 1;
+
+  let typeAUpgradeReason =
+    "目前唔屬於Type A Q2→Q3修正情況。";
+
+  if (quality === "Q2") {
+    if (
+      !validSweep ||
+      !validReclaim ||
+      failures.length > 0
+    ) {
+      typeAUpgradeReason =
+        "Setup核心確認未完整，Type A唔可以救返。";
+    } else if (
+      retestQuality !== "weak"
+    ) {
+      typeAUpgradeReason =
+        "Q2包含Retest瑕疵；Type A只可以修正Sweep／Reclaim質素邊緣。";
+    } else if (
+      tradeSpace !== "full"
+    ) {
+      typeAUpgradeReason =
+        "交易空間未達完整合理R:R；Type A唔可以用嚟修正空間。";
+    } else if (
+      reclaimQuality !== "ordinary"
+    ) {
+      typeAUpgradeReason =
+        "Q2原因唔係單純Sweep／Reclaim質素邊緣。";
+    } else if (
+      imperfections.length !== 1
+    ) {
+      typeAUpgradeReason =
+        "Q2有多過一項瑕疵，唔符合只修正單一Sweep／Reclaim邊緣。";
+    } else {
+      typeAUpgradeReason =
+        "基礎Q2唯一問題係Sweep／Reclaim質素邊緣，符合Type A升Q3資格。";
+    }
+  }
 
   return {
     model:
@@ -811,6 +849,7 @@ function evaluateBaseTrigger() {
     noSweepRejection,
     noSweepMicroBreak,
     typeAUpgradeable,
+    typeAUpgradeReason,
     modelCoreValid:
       coreFailures.length === 0
   };
@@ -910,7 +949,7 @@ function evaluateAsia2B(baseTrigger) {
       baseTrigger.quality === "Q2"
     ) {
       warnings.push(
-        "Type A唔會拯救Retest過快／過深／過強、空間不足或Setup被否定；今次Q維持Q2。"
+        `今次Q維持Q2：${baseTrigger.typeAUpgradeReason}`
       );
     }
   }
@@ -1879,8 +1918,11 @@ function renderAsia2B(result) {
   $("asia2BTriggerEffect")
     .textContent =
       result.triggerPromoted
-        ? `${result.baseQuality} → ${result.effectiveQuality}`
-        : `維持${result.baseQuality}`;
+        ? `${result.baseQuality} → ${result.effectiveQuality}｜只修正Sweep／Reclaim邊緣`
+        : result.effectiveSetupType === "A" &&
+          result.baseQuality === "Q2"
+          ? `維持Q2｜${currentBaseTrigger.typeAUpgradeReason}`
+          : `維持${result.baseQuality}`;
 
   const grade =
     $("baseTriggerGrade");
@@ -2772,7 +2814,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.21",
+      "PracticeJournal-V1.22",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.4-SetupType",
 
@@ -6773,6 +6815,65 @@ function populateSelects() {
   });
 }
 
+function syncTypeACriteriaFromChecklist(eventTargetId = "") {
+  if (
+    $("setupType").value !== "A"
+  ) {
+    return;
+  }
+
+  if (
+    checked("asia2BCleanSweep")
+  ) {
+    $("validSweep").checked = true;
+  }
+
+  if (
+    checked("asia2BReclaimBreak")
+  ) {
+    $("validReclaim").checked = true;
+  }
+
+  if (
+    checked("asia2BWeakRetest")
+  ) {
+    $("retestQuality").value =
+      "weak";
+  }
+}
+
+function syncTypeACriteriaFromQ(eventTargetId = "") {
+  if (
+    $("setupType").value !== "A"
+  ) {
+    return;
+  }
+
+  if (!checked("validSweep")) {
+    $("asia2BCleanSweep").checked =
+      false;
+  }
+
+  if (!checked("validReclaim")) {
+    $("asia2BReclaimBreak").checked =
+      false;
+  }
+
+  if (
+    $("retestQuality").value !==
+    "weak"
+  ) {
+    $("asia2BWeakRetest").checked =
+      false;
+  } else if (
+    eventTargetId ===
+    "retestQuality"
+  ) {
+    $("asia2BWeakRetest").checked =
+      true;
+  }
+}
+
 function setupEvents() {
   $("liveDecisionForm")
     .addEventListener(
@@ -6811,6 +6912,32 @@ function setupEvents() {
             "custom";
         }
         recalculate();
+      }
+    );
+  });
+
+  [
+    "asia2BCleanSweep",
+    "asia2BReclaimBreak",
+    "asia2BWeakRetest"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "change",
+      () => {
+        syncTypeACriteriaFromChecklist(id);
+      }
+    );
+  });
+
+  [
+    "validSweep",
+    "validReclaim",
+    "retestQuality"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "change",
+      () => {
+        syncTypeACriteriaFromQ(id);
       }
     );
   });

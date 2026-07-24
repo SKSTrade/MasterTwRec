@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.21",
+  "name": "Master Trade System V1.22",
   "short_name": "Master Trade",
-  "description": "Master Trade Decision Matrix V3.4 with Setup Type A/B/C, simplified inverse-main P2 tailwind rule, range-position adjustment, trading journal, image backup and restore.",
+  "description": "Master Trade Decision Matrix V3.4 with Setup Type A/B/C, synchronized Type A and Q evidence, explicit Q2-to-Q3 upgrade reasons, trading journal, image backup and restore.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
