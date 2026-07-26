@@ -1,4 +1,4 @@
-# Master Trade System V1.22
+# Master Trade System V1.23
 
 現行判斷引擎：
 
@@ -7,6 +7,19 @@
 核心流程：
 
 > 大局背景 → 主判 × 次判市場關係 → Setup Type → P位置 → Q質素 → Range 25%修正 → P1順風／大局障礙 → 最終注碼
+
+## V1.23｜Retest to Default
+
+Rulebook嘅Q質素區新增：
+
+> Retest to Default｜回復預設
+
+按下後：
+
+- Retest質素重設為「有瑕疵但核心仍成立｜稍快／稍深／稍強」
+- Type A嘅「Retest明顯較弱」同步取消
+- 其他Setup Type、P位置、Sweep、Reclaim、R:R及交易資料保持不變
+- 即時重新計算基礎Q、Type A修正後Q及最終注碼
 
 ## V1.22｜Type A Q2→Q3一致性修正
 
@@ -241,6 +254,6 @@ Volume唔再獨立加分。
 - DB：`masterTradePracticeJournalImages`
 - Store：`chartImages`
 
-同一網站Origin更新時，V1.22沿用原有Storage Key，設計上舊紀錄及圖片繼續保留。
+同一網站Origin更新時，V1.23沿用原有Storage Key，設計上舊紀錄及圖片繼續保留。
 
 清除瀏覽器／Safari網站資料仍可能刪除本機資料，重要紀錄應定期匯出完整ZIP。

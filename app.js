@@ -2814,7 +2814,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.22",
+      "PracticeJournal-V1.23",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.4-SetupType",
 
@@ -6874,6 +6874,16 @@ function syncTypeACriteriaFromQ(eventTargetId = "") {
   }
 }
 
+function resetRetestToDefault() {
+  $("retestQuality").value =
+    "imperfect";
+
+  $("asia2BWeakRetest").checked =
+    false;
+
+  recalculate();
+}
+
 function setupEvents() {
   $("liveDecisionForm")
     .addEventListener(
@@ -6941,6 +6951,12 @@ function setupEvents() {
       }
     );
   });
+
+  $("resetRetestDefault")
+    .addEventListener(
+      "click",
+      resetRetestToDefault
+    );
 
   $("decisionForm")
     .addEventListener(
