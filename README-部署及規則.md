@@ -1,4 +1,4 @@
-# Master Trade System V1.23
+# Master Trade System V1.24
 
 現行判斷引擎：
 
@@ -8,18 +8,29 @@
 
 > 大局背景 → 主判 × 次判市場關係 → Setup Type → P位置 → Q質素 → Range 25%修正 → P1順風／大局障礙 → 最終注碼
 
-## V1.23｜Retest to Default
+## V1.24｜左下角 Reset All
 
-Rulebook嘅Q質素區新增：
+頁面左下角新增固定按鍵：
 
-> Retest to Default｜回復預設
+> ↺ Default
 
-按下後：
+按一下會：
 
-- Retest質素重設為「有瑕疵但核心仍成立｜稍快／稍深／稍強」
-- Type A嘅「Retest明顯較弱」同步取消
-- 其他Setup Type、P位置、Sweep、Reclaim、R:R及交易資料保持不變
-- 即時重新計算基礎Q、Type A修正後Q及最終注碼
+- 保留目前「交易日期」
+- Rulebook所有輸入、選擇、Checkbox、文字欄回復預設
+- Live Decision所有選項回復預設
+- 時間框架回復FX／Gold：D／4H／1H／15M
+- 市場狀態回復App初始值
+- 清除尚未儲存嘅Chart Screenshot預覽
+- 即時重新計算判斷結果
+
+唔會：
+
+- 刪除紀錄庫內已儲存紀錄
+- 改變或刪除交易日期
+- 影響完整備份／已儲存圖片
+
+原本V1.23嘅「Retest to Default」按鍵已移除。
 
 ## V1.22｜Type A Q2→Q3一致性修正
 
@@ -254,6 +265,6 @@ Volume唔再獨立加分。
 - DB：`masterTradePracticeJournalImages`
 - Store：`chartImages`
 
-同一網站Origin更新時，V1.23沿用原有Storage Key，設計上舊紀錄及圖片繼續保留。
+同一網站Origin更新時，V1.24沿用原有Storage Key，設計上舊紀錄及圖片繼續保留。
 
 清除瀏覽器／Safari網站資料仍可能刪除本機資料，重要紀錄應定期匯出完整ZIP。

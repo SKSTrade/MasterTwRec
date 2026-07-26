@@ -1213,3 +1213,38 @@ dialog::backdrop {
     justify-content: center;
   }
 }
+
+
+.reset-all-defaults {
+  position: fixed;
+  left: 16px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 91;
+  min-height: 46px;
+  padding: 0 15px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 850;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reset-all-defaults:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 420px) {
+  .reset-all-defaults {
+    left: 12px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    min-height: 44px;
+    padding-inline: 13px;
+    font-size: 0.78rem;
+  }
+}

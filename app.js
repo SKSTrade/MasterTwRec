@@ -2814,7 +2814,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.23",
+      "PracticeJournal-V1.24",
     engineVersion:
       "MasterTradeDecisionMatrix-V3.4-SetupType",
 
@@ -6874,14 +6874,35 @@ function syncTypeACriteriaFromQ(eventTargetId = "") {
   }
 }
 
-function resetRetestToDefault() {
-  $("retestQuality").value =
-    "imperfect";
+function resetAllToDefaultsExceptDate() {
+  const preservedTradeDate =
+    $("tradeDate").value;
 
-  $("asia2BWeakRetest").checked =
-    false;
+  $("decisionForm").reset();
+  $("liveDecisionForm").reset();
 
+  $("tradeDate").value =
+    preservedTradeDate;
+
+  $("timeframePreset").value =
+    "fx";
+  applyTimeframePreset("fx");
+
+  $("backgroundState").value =
+    "轉換中－中性";
+  $("mainState").value =
+    "健康跌勢";
+  $("secondaryState").value =
+    "轉換中－偏跌";
+
+  clearPendingImage();
+
+  recalculateLiveDecision();
   recalculate();
+
+  showToast(
+    "已全部回復預設；交易日期保持不變"
+  );
 }
 
 function setupEvents() {
@@ -6952,11 +6973,6 @@ function setupEvents() {
     );
   });
 
-  $("resetRetestDefault")
-    .addEventListener(
-      "click",
-      resetRetestToDefault
-    );
 
   $("decisionForm")
     .addEventListener(
@@ -7181,6 +7197,12 @@ function setupEvents() {
     .addEventListener(
       "close",
       clearRecordImageDisplay
+    );
+
+  $("resetAllDefaults")
+    .addEventListener(
+      "click",
+      resetAllToDefaultsExceptDate
     );
 
   $("backToTop")

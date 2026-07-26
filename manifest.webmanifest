@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.23",
+  "name": "Master Trade System V1.24",
   "short_name": "Master Trade",
-  "description": "Master Trade Decision Matrix V3.4 with Setup Type A/B/C, Type A and Q synchronization, Retest-to-Default reset, trading journal, image backup and restore.",
+  "description": "Master Trade Decision Matrix V3.4 with Setup Type A/B/C, global bottom-left reset preserving trade date, trading journal, image backup and restore.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
