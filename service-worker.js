@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-26-eu-opening-obstacle-management";
+const CACHE_NAME = "master-trade-system-v1-26-1-simplified-ui";
 const ASSETS = [
   "./",
   "./index.html",

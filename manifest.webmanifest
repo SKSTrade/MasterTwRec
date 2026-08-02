@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.26",
+  "name": "Master Trade System V1.26.1",
   "short_name": "Master Trade",
-  "description": "All-market Master Trade Matrix with UK100/GER40 EU-D post-open confirmation, Opening Drive validity, tiered obstacle management, journal and image backup.",
+  "description": "All-market Master Trade Matrix with a simplified EU-D and obstacle interface, journal and image backup.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.26</span>
+    <span class="version-badge">V1.26.1</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -578,7 +578,7 @@
               <label class="toggle-row"><input id="postOpenAfterOpen" type="checkbox"><span>確認發生喺正式現貨開市後</span></label>
               <label class="toggle-row"><input id="postOpenDriveConfirmed" type="checkbox"><span>Opening Drive方向清楚，冇立即被否定</span></label>
               <label class="toggle-row"><input id="postOpenPreOpenEntry" type="checkbox"><span>曾喺開市前直接以Asia 2B入場｜勾選即失效</span></label>
-              <p class="state-note">EU-D唔要求完整修復POR，入場可以仍喺POR內；但Asia Sweep本身冇P2-effective待遇，P完全由真實結構決定。</p>
+              <p class="state-note">Asia Sweep只係背景；正式開市後破結構＋第一次弱Retest先入場。</p>
             </div>
 
             <div id="openingDriveValidityPanel" class="conditional-panel hidden">
@@ -590,7 +590,7 @@
                   <option value="expired">已完成新結構循環／新Range／重新Acceptance｜過期</option>
                 </select>
               </label>
-              <p class="state-note">第一次Retest唔等於第一次精準掂線；如果已完成HL＋HH／LH＋LL、形成新Range、突破位被反覆測試或出現新Session Opening Drive，舊Setup過期。</p>
+              <p class="state-note">完成新結構循環、形成新Range或重新Acceptance返POR＝Setup過期。</p>
             </div>
 
             <div id="p1NoSweepPanel" class="conditional-panel hidden">
@@ -727,57 +727,27 @@
           </div>
         </article>
 
-        <article id="rbTradeSpace" class="card rulebook-anchor">
-          <h2>第一真實障礙距離與管理模式</h2>
-
-          <label>
-            第一真實障礙距離（R）
-            <input id="firstObstacleR" type="number" min="0" step="0.1" value="2" inputmode="decimal">
-          </label>
-
+        <div id="rbTradeSpace" class="hidden" hidden aria-hidden="true">
+          <input id="firstObstacleR" type="hidden" value="2">
           <input id="tradeSpace" type="hidden" value="full">
           <input id="obstacleState" type="hidden" value="standard">
-
-          <label>
-            障礙類型
-            <select id="obstacleKind">
-              <option value="soft" selected>軟障礙｜日內高低／Opening H/L／普通Swing／局部Range</option>
-              <option value="hard">硬障礙｜Daily／4H P1／1H大型Range／主判主結／多重HTF重疊</option>
-            </select>
-          </label>
-
-          <div id="rfManagedPanel" class="conditional-panel hidden">
-            <label class="toggle-row"><input id="obstacleSpaceBeyond" type="checkbox"><span>障礙後仍有清楚空間去2R</span></label>
-            <label class="toggle-row"><input id="obstacleRFPlan" type="checkbox"><span>事前寫明：到障礙推RF，再博2R</span></label>
+          <select id="obstacleKind"><option value="soft" selected></option></select>
+          <div id="rfManagedPanel" class="hidden">
+            <input id="obstacleSpaceBeyond" type="checkbox" hidden>
+            <input id="obstacleRFPlan" type="checkbox" hidden>
           </div>
-
-          <div id="partialObstaclePanel" class="conditional-panel hidden">
-            <label class="toggle-row"><input id="obstaclePartialPlan" type="checkbox"><span>30%–50%喺障礙食糊，餘倉推RF，再博2R</span></label>
-            <label class="toggle-row"><input id="obstacleClearTransition" type="checkbox"><span>明確結構轉換Context成立</span></label>
+          <div id="partialObstaclePanel" class="hidden">
+            <input id="obstaclePartialPlan" type="checkbox" hidden>
+            <input id="obstacleClearTransition" type="checkbox" hidden>
           </div>
-
-          <div id="hardObstacleTreatmentPanel" class="conditional-panel hidden">
-            <label>
-              硬障礙處理
-              <select id="hardObstacleTreatment">
-                <option value="downgrade" selected>注碼下降一級</option>
-                <option value="partial">障礙前部分食糊｜不額外降注</option>
-                <option value="skip">突破障礙係交易必要條件｜直接Skip</option>
-              </select>
-            </label>
+          <div id="hardObstacleTreatmentPanel" class="hidden">
+            <select id="hardObstacleTreatment"><option value="downgrade" selected></option></select>
           </div>
-
-          <label class="toggle-row">
-            <input id="insideMajorObstacle" type="checkbox">
-            <span>已經身處重大障礙區內，仍做Continuation</span>
-          </label>
-
-          <div class="result-lines compact">
-            <div><span>自動障礙分級</span><strong id="obstacleBandLabel">≥2R｜標準模式</strong></div>
-            <div><span>管理模式</span><strong id="obstacleManagementLabel">固定2R TP</strong></div>
-          </div>
-          <p id="obstacleNote" class="muted"></p>
-        </article>
+          <input id="insideMajorObstacle" type="checkbox" hidden>
+          <span id="obstacleBandLabel"></span>
+          <span id="obstacleManagementLabel"></span>
+          <p id="obstacleNote"></p>
+        </div>
 
         <article class="card">
           <h2>Q自動評級</h2>
@@ -804,12 +774,8 @@
         </article>
 
         <article id="rbObstacle" class="card obstacle-card rulebook-anchor">
-          <h2>障礙／R:R正式分級</h2>
-          <div class="principle-box">
-            <strong>第一障礙不足1R先係Hard Veto</strong>
-            <span>≥2R正常；1.5–2R可用RF-managed；1–1.5R只限P1＋Q3頂級Setup並部分食糊；&lt;1R固定0注。</span>
-          </div>
-          <p class="state-note">硬障礙要額外揀：降一級、部分食糊，或者如果必須突破先成立就直接Skip。軟障礙先可以用標準RF-managed模式。</p>
+          <h2>障礙速查</h2>
+          <p class="large-rule">≥2R正常｜1.5–2R推RF｜1–1.5R只限P1＋Q3｜&lt;1R不做</p>
         </article>
 
         <article class="card">
@@ -881,91 +847,21 @@
         <article id="rbJournal" class="card journal-card rulebook-anchor">
           <h2>練習／實戰結果紀錄</h2>
 
-          <div id="euOpeningBacktestPanel" class="conditional-panel hidden">
-            <h3>UK100／GER40 Opening Story紀錄</h3>
-            <label>
-              同一Opening Story ID
-              <input id="openingStoryId" type="text" placeholder="例如 GER40-2026-08-02-EU-01">
-            </label>
-
-            <div id="euDRequiredFields" class="conditional-panel hidden">
-              <div class="yes-no-grid">
-                <label>
-                  Asia Sweep方向
-                  <select id="euAsiaSweepDirection">
-                    <option value="">請選擇</option>
-                    <option value="AsiaLow">Sweep Asia L｜偏Long</option>
-                    <option value="AsiaHigh">Sweep Asia H｜偏Short</option>
-                  </select>
-                </label>
-                <label>
-                  Asia Sweep時間
-                  <input id="euAsiaSweepTime" type="time">
-                </label>
-              </div>
-
-              <label>
-                Sweep發生於POR邊個階段
-                <select id="euPorSweepStage">
-                  <option value="">請選擇</option>
-                  <option value="early">POR前段</option>
-                  <option value="middle">POR中段</option>
-                  <option value="late">POR後段／接近開市</option>
-                </select>
-              </label>
-
-              <label>
-                正式開市後Opening Drive方向
-                <select id="euOpeningDriveDirection">
-                  <option value="">請選擇</option>
-                  <option value="up">Opening Buy Drive</option>
-                  <option value="down">Opening Sell Drive</option>
-                </select>
-              </label>
-
-              <label class="toggle-row"><input id="euBrokeMicroStructure" type="checkbox"><span>有破入場層微結構／工作結構</span></label>
-              <label class="toggle-row"><input id="euBrokeMainStructure" type="checkbox"><span>有破15M／1H主結</span></label>
-              <label class="toggle-row"><input id="euNewStructureCycle" type="checkbox"><span>入場前已完成新HL＋HH／LH＋LL循環｜勾選代表舊Opening Setup過期</span></label>
-
-              <div class="yes-no-grid">
-                <label>
-                  Opening Drive至Retest相隔分鐘
-                  <input id="euOpeningRetestMinutes" type="number" min="0" step="1" inputmode="numeric">
-                </label>
-                <label>
-                  Retest深度
-                  <select id="euRetestDepth">
-                    <option value="">請選擇</option>
-                    <option value="shallow">淺</option>
-                    <option value="normal">合理</option>
-                    <option value="deep">深</option>
-                  </select>
-                </label>
-              </div>
-
-              <label>
-                Retest推進效率
-                <select id="euRetestEfficiency">
-                  <option value="">請選擇</option>
-                  <option value="low">低｜重疊多／推進慢</option>
-                  <option value="medium">中｜有瑕疵</option>
-                  <option value="high">高｜V形／快速／強</option>
-                </select>
-              </label>
+          <div id="euOpeningBacktestPanel" class="hidden" hidden aria-hidden="true">
+            <input id="openingStoryId" type="hidden" value="">
+            <div id="euDRequiredFields" class="hidden">
+              <select id="euAsiaSweepDirection"><option value="" selected></option></select>
+              <input id="euAsiaSweepTime" type="hidden" value="">
+              <select id="euPorSweepStage"><option value="" selected></option></select>
+              <select id="euOpeningDriveDirection"><option value="" selected></option></select>
+              <input id="euBrokeMicroStructure" type="checkbox" hidden>
+              <input id="euBrokeMainStructure" type="checkbox" hidden>
+              <input id="euNewStructureCycle" type="checkbox" hidden>
+              <input id="euOpeningRetestMinutes" type="hidden" value="">
+              <select id="euRetestDepth"><option value="" selected></option></select>
+              <select id="euRetestEfficiency"><option value="" selected></option></select>
             </div>
-
-            <label>
-              障礙管理結果
-              <select id="obstacleOutcome">
-                <option value="N/A" selected>N/A｜未完成／不適用</option>
-                <option value="2R">到2R</option>
-                <option value="RF">到障礙推RF後出場</option>
-                <option value="Reversal">障礙後反轉</option>
-                <option value="PartialThen2R">部分食糊後到2R</option>
-                <option value="PartialThenRF">部分食糊後RF</option>
-              </select>
-            </label>
-            <p class="state-note">EU-D以上欄位必須填。EU-D之後再形成EU-B，可以分開記錄，但兩單要共用同一Opening Story ID，實盤總風險唔會重新歸零。</p>
+            <select id="obstacleOutcome"><option value="N/A" selected></option></select>
           </div>
 
           <label>
@@ -1146,18 +1042,10 @@
 
     <section id="rules" class="tab-panel">
       <article class="card">
-        <p class="eyebrow">V1.26｜EU OPENING MATRIX</p>
-        <h2>UK100／GER40四種正式打法</h2>
-        <p><strong>EU-A：</strong>開市後POR H／L 2B；高質原始P3可P2-effective。</p>
-        <p><strong>EU-B：</strong>Asia Sweep＋POR Full Repair；突破另一POR邊界、Acceptance、同一Opening Drive第一次Retest，原生P2。</p>
-        <p><strong>EU-C：</strong>Pure POR Full Repair；冇Asia Sweep但完整修復及突破另一邊界，原生P2。</p>
-        <p><strong>EU-D：</strong>Asia Sweep＋Post-open Confirmation；唔要求完整修復POR，可喺POR內入場，但要正式開市後Opening Drive破微結構／真實結構，再等第一次弱Retest。Asia Sweep本身冇P升級。</p>
-        <div class="principle-box">
-          <strong>仍然禁止</strong>
-          <span>POR期間Sweep Asia H／L之後，正式開市前單靠Asia 2B直接入場。</span>
-        </div>
-        <h3>障礙分級</h3>
-        <p>≥2R：標準2R；1.5–2R：合資格P／Q＋軟障礙＋RF計劃；1–1.5R：只限P1＋Q3頂級Setup並部分食糊；&lt;1R：Hard Veto。</p>
+        <p class="eyebrow">EU OPENING速查</p>
+        <h2>UK100／GER40</h2>
+        <p><strong>EU-A</strong> POR 2B｜<strong>EU-B</strong> Asia Sweep＋Full Repair｜<strong>EU-C</strong> Pure Full Repair｜<strong>EU-D</strong> Asia Sweep＋開市後破結構。</p>
+        <p class="muted">開市前Asia 2B唔入場；EU-D嘅Asia Sweep唔會升P。</p>
       </article>
 
       <article class="card">
@@ -1165,12 +1053,6 @@
         <h2>HSI／UK100／GER40／外匯／黃金整合版</h2>
         <p class="large-rule">方向權限 → 市場關係及上限 → P位置 → Setup → Q質素 → 第一真實障礙及R:R → 最終注碼</p>
         <p>最終注碼由方向／市場關係上限、P×Q許可、Range修正及大局障礙限制取最低。Setup唔會創造方向權限。</p>
-      </article>
-
-      <article class="card">
-        <h2>今次刪除／保留</h2>
-        <p><strong>已刪除：</strong>UK100／GER40「Asia 2B during POR」作為獨立Setup。</p>
-        <p><strong>保留／新增：</strong>HSI OPR 2B、FX／XAU Asia／OPR 2B、EU-A正式開市後POR 2B、EU-B Asia Sweep＋Full Repair、EU-C Pure Full Repair，以及EU-D Asia Sweep＋Post-open Confirmation。</p>
       </article>
 
       <article class="card">

@@ -122,7 +122,7 @@ const MARKET_CONFIG = {
       "trend_pullback",
       "custom"
     ],
-    timeRule: "EU（UTC+8圖表）：夏令POR 14:00–15:00／正式開市15:00；冬令POR 15:00–16:00／正式開市16:00。Asia Range全年維持原定UTC+8時間。Asia 2B during POR唔可開市前入場。"
+    timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
   },
   GER40: {
     label: "GER40",
@@ -136,7 +136,7 @@ const MARKET_CONFIG = {
       "trend_pullback",
       "custom"
     ],
-    timeRule: "EU（UTC+8圖表）：夏令POR 14:00–15:00／正式開市15:00；冬令POR 15:00–16:00／正式開市16:00。Asia Range全年維持原定UTC+8時間。Asia 2B during POR唔可開市前入場。"
+    timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
   },
   FX: {
     label: "外匯",
@@ -222,7 +222,7 @@ const SETUP_DEFINITIONS = {
     label: "EU-D｜Asia Sweep＋Post-open Confirmation",
     type: "C",
     variant: "postOpenConfirmation",
-    note: "POR期間Asia Sweep只提供背景；正式開市後要有同方向Opening Drive、有效破微結構／工作結構，並等同一Opening Drive第一次弱Retest。唔要求完整修復POR；P由實際結構決定，冇自動P升級。"
+    note: "Asia Sweep只係背景；正式開市後破結構＋第一次弱Retest先入場。Asia Sweep唔升P。"
   },
   fx_session_2b: {
     marketGroup: "FX",
@@ -1322,7 +1322,7 @@ function evaluateBaseTrigger() {
         );
       } else {
         addCoreFailure(
-          "EU-D缺少開市後微結構／工作結構突破。"
+          "EU-D未破微結構／工作結構。"
         );
       }
     } else {
@@ -1337,7 +1337,7 @@ function evaluateBaseTrigger() {
       openingDriveStatus === "expired"
     ) {
       addCoreFailure(
-        "舊Opening Drive已過期：已完成新結構循環／新Range／重新Acceptance或出現新Session故事。"
+        "Opening Drive已過期。"
       );
     } else if (
       openingDriveStatus === "delayed"
@@ -1429,7 +1429,7 @@ function evaluateBaseTrigger() {
 
     if (!postOpenAfterOpen) {
       addCoreFailure(
-        "EU-D確認唔係發生喺正式現貨開市後。"
+        "EU-D必須等正式開市後確認。"
       );
     } else {
       addPositive(
@@ -1439,7 +1439,7 @@ function evaluateBaseTrigger() {
 
     if (!postOpenDriveConfirmed) {
       addCoreFailure(
-        "開市後Opening Drive方向未確認／已立即被否定。"
+        "Opening Drive未確認。"
       );
     } else {
       addPositive(
@@ -1449,7 +1449,7 @@ function evaluateBaseTrigger() {
 
     if (postOpenPreOpenEntry) {
       addCoreFailure(
-        "Asia 2B during POR開市前直接入場已被刪除。"
+        "開市前Asia 2B不做。"
       );
     }
 
@@ -1835,7 +1835,7 @@ function evaluateAsia2B(baseTrigger) {
       variant === "postOpenConfirmation"
     ) {
       reasons.push(
-        "EU-D：Asia Sweep只提供背景，冇P升級；P由實際入場結構決定，可由P3至P1。"
+        "EU-D：Asia Sweep唔升P，按實際結構評級。"
       );
     } else {
       reasons.push(
@@ -4073,10 +4073,6 @@ function triggerChecklistLines() {
     `第一次Retest：${yesNo(currentBaseTrigger.firstRetest)}`,
     `微結構／控制權轉移：${yesNo(currentBaseTrigger.microStructureShift)}`,
     `Retest質素：${$("retestQuality").selectedOptions[0].textContent}`,
-    `Opening Drive有效期：${currentBaseTrigger.openingDriveStatus || "N/A"}`,
-    `第一障礙距離：${firstObstacleRValue().toFixed(2)}R`,
-    `障礙類型：${$("obstacleKind").selectedOptions[0].textContent}`,
-    `管理模式：${obstacleBandLabel(currentDecision.obstacleState)}`,
     `基礎Q：${currentBaseTrigger.quality}`,
     `Setup修正後Q：${currentAsia2B.effectiveQuality}`
   ];
@@ -4127,9 +4123,7 @@ function checklistSummary() {
     "",
     `次判Range修正：${currentDecision.rangeState}`,
     `Range修正後：${SIZE_LABELS[currentDecision.rangeSize]}`,
-    `第一障礙：${currentDecision.firstObstacleR.toFixed(2)}R｜${obstacleDisplayLabel(currentDecision.obstacleState)}｜${currentDecision.obstacleKind}`,
-    `障礙管理：${currentDecision.obstacleManagement}`,
-    `Opening Story ID：${$("openingStoryId").value.trim() || "N/A"}`,
+    `障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
     `P×Q／方向Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
     `障礙修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
     `最終注碼：${SIZE_LABELS[currentDecision.finalSize]}`,
@@ -4580,38 +4574,6 @@ async function saveDecision(event) {
     return;
   }
 
-  if (
-    setupTemplateCode(false) ===
-      "eu_asia_post_open"
-  ) {
-    const requiredEUFields = [
-      ["openingStoryId", "請填同一Opening Story ID"],
-      ["euAsiaSweepDirection", "請選擇Asia Sweep方向"],
-      ["euAsiaSweepTime", "請填Asia Sweep時間"],
-      ["euPorSweepStage", "請選擇POR Sweep階段"],
-      ["euOpeningDriveDirection", "請選擇Opening Drive方向"],
-      ["euOpeningRetestMinutes", "請填Opening Drive至Retest相隔時間"],
-      ["euRetestDepth", "請選擇Retest深度"],
-      ["euRetestEfficiency", "請選擇Retest推進效率"]
-    ];
-
-    for (
-      const [
-        id,
-        message
-      ] of requiredEUFields
-    ) {
-      if (
-        String($(id).value || "")
-          .trim() === ""
-      ) {
-        showToast(message);
-        $(id).focus();
-        return;
-      }
-    }
-  }
-
   const timeframes =
     timeframeValues();
   const recordId =
@@ -4625,9 +4587,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26",
+      "PracticeJournal-V1.26.1",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1.1-EUOpening",
+      "MasterTradeMatrix-AllMarkets-V1.1.1-SimplifiedUI",
 
     recordMode:
       recordMode(),
