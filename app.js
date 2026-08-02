@@ -118,10 +118,11 @@ const MARKET_CONFIG = {
       "eu_por_2b",
       "eu_asia_full_repair",
       "eu_pure_full_repair",
+      "eu_asia_post_open",
       "trend_pullback",
       "custom"
     ],
-    timeRule: "EU POR（UTC+8圖表）：夏令14:00–15:00；冬令15:00–16:00。只喺正式現貨開市後執行POR Setup。"
+    timeRule: "EU（UTC+8圖表）：夏令POR 14:00–15:00／正式開市15:00；冬令POR 15:00–16:00／正式開市16:00。Asia Range全年維持原定UTC+8時間。Asia 2B during POR唔可開市前入場。"
   },
   GER40: {
     label: "GER40",
@@ -131,10 +132,11 @@ const MARKET_CONFIG = {
       "eu_por_2b",
       "eu_asia_full_repair",
       "eu_pure_full_repair",
+      "eu_asia_post_open",
       "trend_pullback",
       "custom"
     ],
-    timeRule: "EU POR（UTC+8圖表）：夏令14:00–15:00；冬令15:00–16:00。只喺正式現貨開市後執行POR Setup。"
+    timeRule: "EU（UTC+8圖表）：夏令POR 14:00–15:00／正式開市15:00；冬令POR 15:00–16:00／正式開市16:00。Asia Range全年維持原定UTC+8時間。Asia 2B during POR唔可開市前入場。"
   },
   FX: {
     label: "外匯",
@@ -214,6 +216,13 @@ const SETUP_DEFINITIONS = {
     variant: "fullRepairPure",
     nativeP2: true,
     note: "冇Asia Sweep；正式開市後完整修復POR、突破外側邊界、Acceptance及第一次弱Retest。原生P2。"
+  },
+  eu_asia_post_open: {
+    marketGroup: "EU",
+    label: "EU-D｜Asia Sweep＋Post-open Confirmation",
+    type: "C",
+    variant: "postOpenConfirmation",
+    note: "POR期間Asia Sweep只提供背景；正式開市後要有同方向Opening Drive、有效破微結構／工作結構，並等同一Opening Drive第一次弱Retest。唔要求完整修復POR；P由實際結構決定，冇自動P升級。"
   },
   fx_session_2b: {
     marketGroup: "FX",
@@ -1163,6 +1172,18 @@ function evaluateBaseTrigger() {
       "fullRepairAcceptedBackInside"
     );
 
+  const postOpenAsiaSweep =
+    checked("postOpenAsiaSweep");
+  const postOpenAfterOpen =
+    checked("postOpenAfterOpen");
+  const postOpenDriveConfirmed =
+    checked("postOpenDriveConfirmed");
+  const postOpenPreOpenEntry =
+    checked("postOpenPreOpenEntry");
+
+  const openingDriveStatus =
+    $("openingDriveStatus").value;
+
   const noSweepRejection =
     checked("noSweepRejection");
   const strongTrendContext =
@@ -1237,34 +1258,42 @@ function evaluateBaseTrigger() {
     }
   };
 
-  const evaluateBreakoutCore = () => {
+  const evaluateBreakoutCore = ({
+    acceptanceRequired = true
+  } = {}) => {
     if (!validBreakout) {
       addCoreFailure(
-        "冇有效Breakout。"
+        "冇有效Breakout／結構突破。"
       );
     } else {
       addPositive(
-        "有效Breakout成立。"
+        "有效Breakout／結構突破成立。"
       );
     }
 
-    if (!validAcceptance) {
-      addCoreFailure(
-        "Breakout後冇有效Acceptance。"
-      );
-    } else {
+    if (acceptanceRequired) {
+      if (!validAcceptance) {
+        addCoreFailure(
+          "Breakout後冇有效Acceptance。"
+        );
+      } else {
+        addPositive(
+          "Breakout後Acceptance成立。"
+        );
+      }
+    } else if (validAcceptance) {
       addPositive(
-        "Breakout後Acceptance成立。"
+        "開市後推進有額外Acceptance支持。"
       );
     }
 
     if (!firstRetest) {
       addCoreFailure(
-        "唔係第一次Retest／首次回測條件未成立。"
+        "唔係同一Opening Drive第一次實質Retest。"
       );
     } else {
       addPositive(
-        "第一次Retest成立。"
+        "同一Opening Drive第一次實質Retest成立。"
       );
     }
 
@@ -1272,7 +1301,7 @@ function evaluateBaseTrigger() {
       breakoutQuality === "negated"
     ) {
       addCoreFailure(
-        "Breakout後重新Acceptance返原Range／突破被否定。"
+        "Opening Drive被吞噬／重新Acceptance返原Range。"
       );
     } else if (
       breakoutQuality === "ordinary"
@@ -1287,12 +1316,38 @@ function evaluateBaseTrigger() {
     }
 
     if (!microStructureShift) {
-      addImperfection(
-        "控制權轉移／微結構確認未完整。"
-      );
+      if (acceptanceRequired) {
+        addImperfection(
+          "控制權轉移／微結構確認未完整。"
+        );
+      } else {
+        addCoreFailure(
+          "EU-D缺少開市後微結構／工作結構突破。"
+        );
+      }
     } else {
       addPositive(
         "控制權轉移／微結構確認成立。"
+      );
+    }
+  };
+
+  const evaluateOpeningDriveValidity = () => {
+    if (
+      openingDriveStatus === "expired"
+    ) {
+      addCoreFailure(
+        "舊Opening Drive已過期：已完成新結構循環／新Range／重新Acceptance或出現新Session故事。"
+      );
+    } else if (
+      openingDriveStatus === "delayed"
+    ) {
+      addPositive(
+        "延遲Setup仍屬原Opening Story；Entry-time Q必須按成交落法重新評估。"
+      );
+    } else {
+      addPositive(
+        "同一Opening Drive仍新鮮。"
       );
     }
   };
@@ -1357,6 +1412,51 @@ function evaluateBaseTrigger() {
         "價格已喺POR內重新形成Acceptance，Full Repair失效。"
       );
     }
+
+    evaluateOpeningDriveValidity();
+  } else if (
+    variant === "postOpenConfirmation"
+  ) {
+    if (!postOpenAsiaSweep) {
+      addCoreFailure(
+        "EU-D缺少POR期間Asia H／L Sweep背景。"
+      );
+    } else {
+      addPositive(
+        "POR期間Asia Sweep背景成立。"
+      );
+    }
+
+    if (!postOpenAfterOpen) {
+      addCoreFailure(
+        "EU-D確認唔係發生喺正式現貨開市後。"
+      );
+    } else {
+      addPositive(
+        "正式現貨開市後確認成立。"
+      );
+    }
+
+    if (!postOpenDriveConfirmed) {
+      addCoreFailure(
+        "開市後Opening Drive方向未確認／已立即被否定。"
+      );
+    } else {
+      addPositive(
+        "開市後Opening Drive方向清楚。"
+      );
+    }
+
+    if (postOpenPreOpenEntry) {
+      addCoreFailure(
+        "Asia 2B during POR開市前直接入場已被刪除。"
+      );
+    }
+
+    evaluateBreakoutCore({
+      acceptanceRequired: false
+    });
+    evaluateOpeningDriveValidity();
   } else if (
     variant === "p1NoSweep"
   ) {
@@ -1445,17 +1545,17 @@ function evaluateBaseTrigger() {
     tradeSpace === "insufficient"
   ) {
     failures.push(
-      "第一個真實障礙前冇最低可接受R:R。"
+      "第一真實障礙不足1R。"
     );
   } else if (
-    tradeSpace === "short"
+    tradeSpace === "managed"
   ) {
     addPositive(
-      "第一真實障礙前仍達最低可接受R:R；注碼由Obstacle階段降一級，唔重複降低Q。"
+      "第一障礙介乎1R至2R；由Obstacle階段判斷RF-managed／部分食糊資格，唔自動降低Q。"
     );
   } else {
     addPositive(
-      "第一真實障礙前有完整合理R:R。"
+      "第一真實障礙至少2R。"
     );
   }
 
@@ -1526,7 +1626,7 @@ function evaluateBaseTrigger() {
       tradeSpace === "insufficient"
     ) {
       typeAUpgradeReason =
-        "第一障礙前R:R不足；Type A唔可以救。";
+        "第一障礙不足1R；Type A唔可以救。";
     } else if (
       reclaimQuality !== "ordinary"
     ) {
@@ -1578,6 +1678,11 @@ function evaluateBaseTrigger() {
     fullRepairAsiaSweep,
     fullRepairEntryOutside,
     fullRepairAcceptedBackInside,
+    postOpenAsiaSweep,
+    postOpenAfterOpen,
+    postOpenDriveConfirmed,
+    postOpenPreOpenEntry,
+    openingDriveStatus,
     noSweepRejection,
     noSweepMicroBreak:
       microStructureShift,
@@ -1725,6 +1830,12 @@ function evaluateAsia2B(baseTrigger) {
     ) {
       reasons.push(
         "Breakout／Full Repair Setup：有效Breakout＋Acceptance＋第一次Retest可構成原生P2；唔係Type A升級。"
+      );
+    } else if (
+      variant === "postOpenConfirmation"
+    ) {
+      reasons.push(
+        "EU-D：Asia Sweep只提供背景，冇P升級；P由實際入場結構決定，可由P3至P1。"
       );
     } else {
       reasons.push(
@@ -2512,52 +2623,351 @@ function applyRangePosition(size) {
   };
 }
 
-function applyObstacle(matrixSize, position, quality) {
-  const state = $("obstacleState").value;
+function firstObstacleRValue() {
+  const value =
+    Number(
+      $("firstObstacleR").value
+    );
 
-  if (state === "far") {
-    return {
-      state,
-      adjustedSize: matrixSize,
-      explanation: `Target Obstacle：到障礙前已有完整最低R:R，Entry注碼維持${SIZE_LABELS[matrixSize]}。`,
-      management: "障礙只影響TP位置、runner同是否預期突破；唔自動降低Entry注碼。"
-    };
+  if (
+    !Number.isFinite(value) ||
+    value < 0
+  ) {
+    return 0;
   }
 
-  if (state === "near") {
-    const adjusted = downgradeOneLevel(matrixSize);
-    return {
-      state,
-      adjustedSize: adjusted,
-      explanation: `Entry Obstacle明顯壓縮空間但仍可交易，注碼降一級：${SIZE_LABELS[matrixSize]} → ${SIZE_LABELS[adjusted]}。`,
-      management: "TP放障礙前；少留或不留runner。"
-    };
+  return value;
+}
+
+function obstacleBandFromR(
+  firstObstacleR,
+  insideMajorObstacle = false
+) {
+  if (insideMajorObstacle) {
+    return "inside";
   }
 
-  if (state === "insufficient") {
-    return {
-      state,
-      adjustedSize: 0,
-      explanation: "到大局障礙空間不足，直接0注。",
-      management: "不開新倉。"
-    };
+  if (firstObstacleR < 1) {
+    return "veto";
   }
 
-  const obstacleCap = insideObstacleCap(position, quality);
-  const adjusted = Math.min(matrixSize, obstacleCap);
+  if (firstObstacleR < 1.5) {
+    return "partial";
+  }
 
-  return {
-    state,
-    adjustedSize: adjusted,
-    explanation: `已處於大局障礙區內仍順原方向延伸：${position}＋${quality}嘅障礙區上限係${SIZE_LABELS[obstacleCap]}；由${SIZE_LABELS[matrixSize]}修正至${SIZE_LABELS[adjusted]}。`,
-    management: "只做高質Q3；P1最多0.5、P2最多0.25、P3／P4不做。"
+  if (firstObstacleR < 2) {
+    return "rfManaged";
+  }
+
+  return "standard";
+}
+
+function obstacleBandLabel(state) {
+  const labels = {
+    standard:
+      "≥2R｜標準模式",
+    rfManaged:
+      "1.5R–2R｜RF-managed",
+    partial:
+      "1R–1.5R｜頂級Setup部分食糊",
+    veto:
+      "<1R｜Hard Veto",
+    inside:
+      "重大障礙區內｜Continuation上限"
   };
+
+  return labels[state] || state;
+}
+
+function obstacleManagementLabel(state) {
+  const labels = {
+    standard:
+      "固定2R TP",
+    rfManaged:
+      "到障礙推RF，再博2R",
+    partial:
+      "30%–50%障礙前食糊，餘倉推RF",
+    veto:
+      "不開新倉",
+    inside:
+      "套重大障礙區Continuation上限"
+  };
+
+  return labels[state] || state;
+}
+
+function applyObstacle(
+  matrixSize,
+  position,
+  quality
+) {
+  const firstObstacleR =
+    firstObstacleRValue();
+
+  const inside =
+    checked(
+      "insideMajorObstacle"
+    );
+
+  const state =
+    obstacleBandFromR(
+      firstObstacleR,
+      inside
+    );
+
+  const kind =
+    $("obstacleKind").value;
+
+  const hardTreatment =
+    $("hardObstacleTreatment")
+      .value;
+
+  const routeCode =
+    marketRouteInfo().code;
+
+  const result = (
+    adjustedSize,
+    explanation,
+    management,
+    {
+      eligible = true,
+      hardVeto = false,
+      reason = ""
+    } = {}
+  ) => ({
+    state,
+    firstObstacleR,
+    kind,
+    hardTreatment,
+    adjustedSize,
+    explanation,
+    management,
+    managementMode:
+      state,
+    eligible,
+    hardVeto,
+    reason
+  });
+
+  if (state === "inside") {
+    const obstacleCap =
+      insideObstacleCap(
+        position,
+        quality
+      );
+
+    const adjusted =
+      Math.min(
+        matrixSize,
+        obstacleCap
+      );
+
+    return result(
+      adjusted,
+      `已身處重大障礙區內做Continuation：${position}＋${quality}上限${SIZE_LABELS[obstacleCap]}；由${SIZE_LABELS[matrixSize]}修正至${SIZE_LABELS[adjusted]}。`,
+      "只做高質Continuation；P1 Q3最多0.5、P2 Q3最多0.25、P3／P4不做。"
+    );
+  }
+
+  if (state === "veto") {
+    return result(
+      0,
+      `第一真實障礙只有${firstObstacleR.toFixed(2)}R，低於1R。`,
+      "Hard Veto：不開新倉。",
+      {
+        eligible: false,
+        hardVeto: true,
+        reason:
+          "第一真實障礙不足1R。"
+      }
+    );
+  }
+
+  if (state === "standard") {
+    return result(
+      matrixSize,
+      `第一真實障礙為${firstObstacleR.toFixed(2)}R，至少2R；維持${SIZE_LABELS[matrixSize]}。`,
+      "標準模式：固定2R TP，唔因障礙降注。"
+    );
+  }
+
+  if (state === "rfManaged") {
+    const pqEligible =
+      (
+        (
+          position === "P1" ||
+          position === "P2"
+        ) &&
+        quality === "Q3"
+      ) ||
+      (
+        position === "P1" &&
+        quality === "Q2"
+      );
+
+    const spaceBeyond =
+      checked(
+        "obstacleSpaceBeyond"
+      );
+
+    const rfPlan =
+      checked(
+        "obstacleRFPlan"
+      );
+
+    const partialPlan =
+      checked(
+        "obstaclePartialPlan"
+      );
+
+    if (!pqEligible) {
+      return result(
+        0,
+        `${firstObstacleR.toFixed(2)}R屬RF-managed區，但位置／Q未達P1／P2 Q3或P1 Q2。`,
+        "資格不足，唔開新倉。",
+        {
+          eligible: false,
+          hardVeto: true,
+          reason:
+            "1.5R–2R管理模式嘅P／Q資格不足。"
+        }
+      );
+    }
+
+    if (kind === "soft") {
+      if (
+        !spaceBeyond ||
+        !rfPlan
+      ) {
+        return result(
+          0,
+          `${firstObstacleR.toFixed(2)}R屬軟障礙RF-managed區，但未確認障礙後2R空間及推RF計劃。`,
+          "管理條件未完整，唔開新倉。",
+          {
+            eligible: false,
+            hardVeto: true,
+            reason:
+              "RF-managed模式未預先確認2R空間／推RF計劃。"
+          }
+        );
+      }
+
+      return result(
+        matrixSize,
+        `${firstObstacleR.toFixed(2)}R軟障礙符合RF-managed條件；注碼維持${SIZE_LABELS[matrixSize]}。`,
+        "到障礙推RF，再繼續博2R；必須獨立標記回測。"
+      );
+    }
+
+    if (hardTreatment === "skip") {
+      return result(
+        0,
+        `${firstObstacleR.toFixed(2)}R為硬障礙，而且突破障礙係交易必要條件。`,
+        "直接Skip。",
+        {
+          eligible: false,
+          hardVeto: true,
+          reason:
+            "硬障礙必須突破先成立。"
+        }
+      );
+    }
+
+    if (
+      hardTreatment === "partial"
+    ) {
+      if (!partialPlan) {
+        return result(
+          0,
+          "硬障礙選擇部分食糊，但未確認部分食糊計劃。",
+          "管理條件未完整，唔開新倉。",
+          {
+            eligible: false,
+            hardVeto: true,
+            reason:
+              "硬障礙部分食糊計劃未完整。"
+          }
+        );
+      }
+
+      return result(
+        matrixSize,
+        `${firstObstacleR.toFixed(2)}R為硬障礙；按部分食糊方案，注碼維持${SIZE_LABELS[matrixSize]}。`,
+        "障礙前部分食糊，餘倉推RF；唔假設必然突破硬障礙。"
+      );
+    }
+
+    if (
+      !spaceBeyond ||
+      !rfPlan
+    ) {
+      return result(
+        0,
+        "硬障礙選擇降注，但未確認障礙後2R空間及推RF計劃。",
+        "管理條件未完整，唔開新倉。",
+        {
+          eligible: false,
+          hardVeto: true,
+          reason:
+            "硬障礙降注＋RF管理條件未完整。"
+        }
+      );
+    }
+
+    const adjusted =
+      downgradeOneLevel(
+        matrixSize
+      );
+
+    return result(
+      adjusted,
+      `${firstObstacleR.toFixed(2)}R為硬障礙；注碼降一級：${SIZE_LABELS[matrixSize]} → ${SIZE_LABELS[adjusted]}。`,
+      "降注後到障礙推RF，再評估是否延伸至2R。"
+    );
+  }
+
+  const topContext =
+    routeCode ===
+      "healthyAligned" ||
+    checked(
+      "obstacleClearTransition"
+    );
+
+  const eligible =
+    position === "P1" &&
+    quality === "Q3" &&
+    kind === "soft" &&
+    topContext &&
+    checked(
+      "obstaclePartialPlan"
+    );
+
+  if (!eligible) {
+    return result(
+      0,
+      `${firstObstacleR.toFixed(2)}R只容許P1＋Q3、健康同向／明確結構轉換、軟障礙及已寫明部分食糊方案。`,
+      "頂級Setup資格未完整，唔開新倉。",
+      {
+        eligible: false,
+        hardVeto: true,
+        reason:
+          "1R–1.5R模式未符合頂級Setup全部條件。"
+      }
+    );
+  }
+
+  return result(
+    matrixSize,
+    `${firstObstacleR.toFixed(2)}R屬1R–1.5R軟障礙頂級Setup；注碼維持${SIZE_LABELS[matrixSize]}，但必須部分食糊。`,
+    "30%–50%喺障礙食糊，餘倉推RF，再博2R。"
+  );
 }
 
 function evaluateHardVeto(
   effectivePosition,
   baseTrigger,
-  setupResult
+  setupResult,
+  obstacle
 ) {
   const vetoes = [];
 
@@ -2588,11 +2998,11 @@ function evaluateHardVeto(
   }
 
   if (
-    baseTrigger.tradeSpace ===
-    "insufficient"
+    obstacle?.hardVeto
   ) {
     vetoes.push(
-      "第一個真實障礙前冇最低可接受R:R。"
+      obstacle.reason ||
+      "第一真實障礙管理條件未符合。"
     );
   }
 
@@ -2658,7 +3068,8 @@ function evaluateDecision(
     evaluateHardVeto(
       setupResult.effectivePosition,
       baseTrigger,
-      setupResult
+      setupResult,
+      obstacle
     );
 
   const reasons = [
@@ -2754,7 +3165,7 @@ function evaluateDecision(
     marketCode(false) === "GER40"
   ) {
     warnings.push(
-      "UK100／GER40：Asia 2B during POR已刪除；POR期間Sweep Asia後要等正式開市Full Repair先屬EU-B。"
+      "UK100／GER40：Asia 2B during POR已刪除；POR期間Sweep Asia後只可等正式開市後形成EU-B Full Repair或EU-D Post-open Confirmation。"
     );
   }
 
@@ -2838,10 +3249,20 @@ function evaluateDecision(
       range.adjustedSize,
     obstacleState:
       obstacle.state,
+    firstObstacleR:
+      obstacle.firstObstacleR,
+    obstacleKind:
+      obstacle.kind,
+    hardObstacleTreatment:
+      obstacle.hardTreatment,
     obstacleSize:
       obstacle.adjustedSize,
     obstacleManagement:
       obstacle.management,
+    obstacleManagementMode:
+      obstacle.managementMode,
+    obstacleEligible:
+      obstacle.eligible,
     finalSize,
     reasons,
     warnings,
@@ -2980,10 +3401,14 @@ function renderAsia2B(result) {
 
 function obstacleDisplayLabel(state) {
   const labels = {
-    far: "無／仍遠｜按原矩陣",
-    near: "接近｜降一級",
-    insufficient: "空間不足｜0注",
-    inside: "障礙區內延伸｜套專用上限"
+    standard: "≥2R｜標準2R模式",
+    rfManaged: "1.5R–2R｜RF-managed",
+    partial: "1R–1.5R｜部分食糊模式",
+    veto: "<1R｜Hard Veto",
+    inside: "重大障礙區內｜Continuation上限",
+    far: "舊版｜完整R:R",
+    near: "舊版｜接近障礙",
+    insufficient: "舊版｜空間不足"
   };
   return labels[state] || state;
 }
@@ -3089,7 +3514,7 @@ function renderDecision(decision) {
       decision.rangeSize
     ];
   $("resultObstacleSize").textContent =
-    `${obstacleDisplayLabel(
+    `${decision.firstObstacleR.toFixed(2)}R｜${obstacleDisplayLabel(
       decision.obstacleState
     )} → ${SIZE_LABELS[
       decision.obstacleSize
@@ -3125,13 +3550,106 @@ function renderDecision(decision) {
   );
 }
 
+function syncObstacleModelInputs() {
+  const firstObstacleR =
+    firstObstacleRValue();
+
+  const state =
+    obstacleBandFromR(
+      firstObstacleR,
+      checked(
+        "insideMajorObstacle"
+      )
+    );
+
+  $("obstacleState").value =
+    state;
+
+  $("tradeSpace").value =
+    state === "veto"
+      ? "insufficient"
+      : state === "standard"
+        ? "full"
+        : "managed";
+
+  const rfVisible =
+    state === "rfManaged";
+
+  const partialVisible =
+    state === "partial" ||
+    (
+      state === "rfManaged" &&
+      $("obstacleKind").value ===
+        "hard" &&
+      $("hardObstacleTreatment")
+        .value === "partial"
+    );
+
+  const hardVisible =
+    state !== "standard" &&
+    state !== "veto" &&
+    state !== "inside" &&
+    $("obstacleKind").value ===
+      "hard";
+
+  $("rfManagedPanel")
+    .classList.toggle(
+      "hidden",
+      !rfVisible
+    );
+
+  $("partialObstaclePanel")
+    .classList.toggle(
+      "hidden",
+      !partialVisible
+    );
+
+  $("hardObstacleTreatmentPanel")
+    .classList.toggle(
+      "hidden",
+      !hardVisible
+    );
+
+  $("obstacleBandLabel")
+    .textContent =
+      obstacleBandLabel(state);
+
+  $("obstacleManagementLabel")
+    .textContent =
+      obstacleManagementLabel(state);
+
+  updateObstacleNote();
+}
+
 function updateObstacleNote() {
-  const state = $("obstacleState").value;
+  const firstObstacleR =
+    firstObstacleRValue();
+
+  const state =
+    obstacleBandFromR(
+      firstObstacleR,
+      checked(
+        "insideMajorObstacle"
+      )
+    );
+
+  const kind =
+    $("obstacleKind").value ===
+      "hard"
+      ? "硬障礙"
+      : "軟障礙";
+
   const notes = {
-    far: "Target Obstacle：到障礙之前已有完整最低R:R，例如2R；唔影響Entry注碼，只影響TP、Runner同突破預期。",
-    near: "Entry Obstacle：第一真實障礙明顯壓縮空間，但仍達最低可接受R:R；注碼降一級。",
-    insufficient: "Entry Obstacle：第一真實目標前R:R不足，直接0注。",
-    inside: "已處於大局障礙區內仍順原方向延伸：P1＋Q3最多0.5、P2＋Q3最多0.25、P3／P4為0。"
+    standard:
+      `${firstObstacleR.toFixed(2)}R：至少2R，標準模式，正常按Matrix，固定2R TP。`,
+    rfManaged:
+      `${firstObstacleR.toFixed(2)}R：1.5R–2R，${kind}。軟障礙要P1／P2 Q3或P1 Q2、障礙後有2R空間、事前寫明到障礙推RF；硬障礙另選降注／部分食糊／Skip。`,
+    partial:
+      `${firstObstacleR.toFixed(2)}R：1R–1.5R，只限P1＋Q3、健康同向或明確結構轉換、軟障礙，並30%–50%部分食糊。`,
+    veto:
+      `${firstObstacleR.toFixed(2)}R：低於1R，Hard Veto，0注。`,
+    inside:
+      "已處於重大障礙區內做Continuation：P1 Q3最多0.5、P2 Q3最多0.25、P3／P4為0。"
   };
 
   $("obstacleNote").textContent =
@@ -3253,7 +3771,9 @@ function updateInterface() {
   const breakoutVisible =
     variant === "breakout" ||
     variant === "fullRepairAsia" ||
-    variant === "fullRepairPure";
+    variant === "fullRepairPure" ||
+    variant ===
+      "postOpenConfirmation";
 
   $("breakoutSetupPanel")
     .classList.toggle(
@@ -3276,6 +3796,42 @@ function updateInterface() {
       "hidden",
       variant !==
         "fullRepairAsia"
+    );
+
+  const postOpenVisible =
+    variant ===
+      "postOpenConfirmation";
+
+  $("postOpenConfirmationPanel")
+    .classList.toggle(
+      "hidden",
+      !postOpenVisible
+    );
+
+  const openingDriveVisible =
+    fullRepairVisible ||
+    postOpenVisible;
+
+  $("openingDriveValidityPanel")
+    .classList.toggle(
+      "hidden",
+      !openingDriveVisible
+    );
+
+  const euOpeningVisible =
+    marketCode(false) === "UK100" ||
+    marketCode(false) === "GER40";
+
+  $("euOpeningBacktestPanel")
+    .classList.toggle(
+      "hidden",
+      !euOpeningVisible
+    );
+
+  $("euDRequiredFields")
+    .classList.toggle(
+      "hidden",
+      !postOpenVisible
     );
 
   $("p1NoSweepPanel")
@@ -3463,7 +4019,7 @@ function updateInterface() {
         ? "HSI 10:30後仍開新Setup／其他市場違反時間規則"
         : "違反交易時間限制";
 
-  updateObstacleNote();
+  syncObstacleModelInputs();
   updateBackgroundOverlapNote();
   updateP1TailwindNote();
 }
@@ -3517,7 +4073,10 @@ function triggerChecklistLines() {
     `第一次Retest：${yesNo(currentBaseTrigger.firstRetest)}`,
     `微結構／控制權轉移：${yesNo(currentBaseTrigger.microStructureShift)}`,
     `Retest質素：${$("retestQuality").selectedOptions[0].textContent}`,
-    `交易空間：${$("tradeSpace").selectedOptions[0].textContent}`,
+    `Opening Drive有效期：${currentBaseTrigger.openingDriveStatus || "N/A"}`,
+    `第一障礙距離：${firstObstacleRValue().toFixed(2)}R`,
+    `障礙類型：${$("obstacleKind").selectedOptions[0].textContent}`,
+    `管理模式：${obstacleBandLabel(currentDecision.obstacleState)}`,
     `基礎Q：${currentBaseTrigger.quality}`,
     `Setup修正後Q：${currentAsia2B.effectiveQuality}`
   ];
@@ -3568,7 +4127,9 @@ function checklistSummary() {
     "",
     `次判Range修正：${currentDecision.rangeState}`,
     `Range修正後：${SIZE_LABELS[currentDecision.rangeSize]}`,
-    `大局障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
+    `第一障礙：${currentDecision.firstObstacleR.toFixed(2)}R｜${obstacleDisplayLabel(currentDecision.obstacleState)}｜${currentDecision.obstacleKind}`,
+    `障礙管理：${currentDecision.obstacleManagement}`,
+    `Opening Story ID：${$("openingStoryId").value.trim() || "N/A"}`,
     `P×Q／方向Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
     `障礙修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
     `最終注碼：${SIZE_LABELS[currentDecision.finalSize]}`,
@@ -4019,6 +4580,38 @@ async function saveDecision(event) {
     return;
   }
 
+  if (
+    setupTemplateCode(false) ===
+      "eu_asia_post_open"
+  ) {
+    const requiredEUFields = [
+      ["openingStoryId", "請填同一Opening Story ID"],
+      ["euAsiaSweepDirection", "請選擇Asia Sweep方向"],
+      ["euAsiaSweepTime", "請填Asia Sweep時間"],
+      ["euPorSweepStage", "請選擇POR Sweep階段"],
+      ["euOpeningDriveDirection", "請選擇Opening Drive方向"],
+      ["euOpeningRetestMinutes", "請填Opening Drive至Retest相隔時間"],
+      ["euRetestDepth", "請選擇Retest深度"],
+      ["euRetestEfficiency", "請選擇Retest推進效率"]
+    ];
+
+    for (
+      const [
+        id,
+        message
+      ] of requiredEUFields
+    ) {
+      if (
+        String($(id).value || "")
+          .trim() === ""
+      ) {
+        showToast(message);
+        $(id).focus();
+        return;
+      }
+    }
+  }
+
   const timeframes =
     timeframeValues();
   const recordId =
@@ -4032,9 +4625,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.25",
+      "PracticeJournal-V1.26",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1",
+      "MasterTradeMatrix-AllMarkets-V1.1-EUOpening",
 
     recordMode:
       recordMode(),
@@ -4153,6 +4746,16 @@ async function saveDecision(event) {
       currentBaseTrigger.fullRepairEntryOutside,
     fullRepairAcceptedBackInside:
       currentBaseTrigger.fullRepairAcceptedBackInside,
+    postOpenAsiaSweep:
+      currentBaseTrigger.postOpenAsiaSweep,
+    postOpenAfterOpen:
+      currentBaseTrigger.postOpenAfterOpen,
+    postOpenDriveConfirmed:
+      currentBaseTrigger.postOpenDriveConfirmed,
+    postOpenPreOpenEntry:
+      currentBaseTrigger.postOpenPreOpenEntry,
+    openingDriveStatus:
+      currentBaseTrigger.openingDriveStatus,
     strongTrendContext:
       currentBaseTrigger.strongTrendContext,
     trueStructureRetest:
@@ -4214,6 +4817,26 @@ async function saveDecision(event) {
 
     obstacleState:
       currentDecision.obstacleState,
+    firstObstacleR:
+      currentDecision.firstObstacleR,
+    obstacleKind:
+      currentDecision.obstacleKind,
+    obstacleManagementMode:
+      currentDecision.obstacleManagementMode,
+    obstacleManagement:
+      currentDecision.obstacleManagement,
+    hardObstacleTreatment:
+      currentDecision.hardObstacleTreatment,
+    obstacleSpaceBeyond:
+      checked("obstacleSpaceBeyond"),
+    obstacleRFPlan:
+      checked("obstacleRFPlan"),
+    obstaclePartialPlan:
+      checked("obstaclePartialPlan"),
+    obstacleClearTransition:
+      checked("obstacleClearTransition"),
+    insideMajorObstacle:
+      checked("insideMajorObstacle"),
     marketCap:
       currentDecision.marketCap,
     rawMatrixSize:
@@ -4237,6 +4860,33 @@ async function saveDecision(event) {
       checked("loosenedTriggerBecauseBias"),
     emotionalSizing:
       checked("emotionalSizing"),
+
+    openingStoryId:
+      $("openingStoryId").value.trim(),
+    euAsiaSweepDirection:
+      $("euAsiaSweepDirection").value,
+    euAsiaSweepTime:
+      $("euAsiaSweepTime").value,
+    euPorSweepStage:
+      $("euPorSweepStage").value,
+    euOpeningDriveDirection:
+      $("euOpeningDriveDirection").value,
+    euBrokeMicroStructure:
+      checked("euBrokeMicroStructure"),
+    euBrokeMainStructure:
+      checked("euBrokeMainStructure"),
+    euOpeningRetestMinutes:
+      optionalNumberFromInput(
+        "euOpeningRetestMinutes"
+      ),
+    euNewStructureCycle:
+      checked("euNewStructureCycle"),
+    euRetestDepth:
+      $("euRetestDepth").value,
+    euRetestEfficiency:
+      $("euRetestEfficiency").value,
+    obstacleOutcome:
+      $("obstacleOutcome").value,
 
     entryStatus:
       $("entryStatus").value,
@@ -4955,11 +5605,34 @@ async function openRecord(recordId) {
           : 0
     )}
     <br>
-    <strong>大局障礙：</strong>
+    <strong>第一障礙：</strong>
     ${escapeHtml(
+      Number.isFinite(record.firstObstacleR)
+        ? `${record.firstObstacleR}R`
+        : "舊版未記錄"
+    )}｜${escapeHtml(
       obstacleDisplayLabel(
-        record.obstacleState || "far"
+        record.obstacleState || "standard"
       )
+    )}｜${escapeHtml(
+      record.obstacleKind || "N/A"
+    )}
+    <br>
+    <strong>障礙管理：</strong>
+    ${escapeHtml(
+      record.obstacleManagement ||
+      record.obstacleManagementMode ||
+      "舊版未記錄"
+    )}
+    <br>
+    <strong>Opening Story ID：</strong>
+    ${escapeHtml(
+      record.openingStoryId || "N/A"
+    )}
+    <br>
+    <strong>障礙管理結果：</strong>
+    ${escapeHtml(
+      record.obstacleOutcome || "N/A"
     )}
     <br>
     <strong>最終注碼：</strong>
@@ -5373,10 +6046,35 @@ function buildCsv(records) {
     "Full Repair Asia Sweep",
     "Full Repair入場POR外",
     "POR內重新Acceptance",
+    "EU-D Asia Sweep",
+    "EU-D正式開市後確認",
+    "EU-D Opening Drive確認",
+    "EU-D開市前直接入場",
+    "Opening Drive有效期",
     "強趨勢Context",
     "真正結構Retest",
     "Retest質素",
     "交易空間",
+    "第一障礙R",
+    "障礙類型",
+    "障礙管理模式",
+    "硬障礙處理",
+    "障礙後有2R空間",
+    "到障礙推RF計劃",
+    "部分食糊計劃",
+    "明確結構轉換Context",
+    "Opening Story ID",
+    "Asia Sweep方向",
+    "Asia Sweep時間",
+    "POR Sweep階段",
+    "Opening Drive方向",
+    "EU記錄破微結構",
+    "EU記錄破15M／1H主結",
+    "Opening Drive至Retest分鐘",
+    "已完成新結構循環",
+    "EU Retest深度",
+    "EU Retest推進效率",
+    "障礙管理結果",
     "基礎Q",
     "最終Q",
     "Type A方向",
@@ -5516,6 +6214,19 @@ function buildCsv(records) {
       record.fullRepairAcceptedBackInside
         ? "Yes"
         : "No",
+      record.postOpenAsiaSweep
+        ? "Yes"
+        : "No",
+      record.postOpenAfterOpen
+        ? "Yes"
+        : "No",
+      record.postOpenDriveConfirmed
+        ? "Yes"
+        : "No",
+      record.postOpenPreOpenEntry
+        ? "Yes"
+        : "No",
+      record.openingDriveStatus || "",
       record.strongTrendContext
         ? "Yes"
         : "No",
@@ -5524,6 +6235,48 @@ function buildCsv(records) {
         : "No",
       record.retestQuality || "",
       record.tradeSpace || "",
+      Number.isFinite(
+        record.firstObstacleR
+      )
+        ? record.firstObstacleR
+        : "",
+      record.obstacleKind || "",
+      record.obstacleManagementMode || "",
+      record.hardObstacleTreatment || "",
+      record.obstacleSpaceBeyond
+        ? "Yes"
+        : "No",
+      record.obstacleRFPlan
+        ? "Yes"
+        : "No",
+      record.obstaclePartialPlan
+        ? "Yes"
+        : "No",
+      record.obstacleClearTransition
+        ? "Yes"
+        : "No",
+      record.openingStoryId || "",
+      record.euAsiaSweepDirection || "",
+      record.euAsiaSweepTime || "",
+      record.euPorSweepStage || "",
+      record.euOpeningDriveDirection || "",
+      record.euBrokeMicroStructure
+        ? "Yes"
+        : "No",
+      record.euBrokeMainStructure
+        ? "Yes"
+        : "No",
+      Number.isFinite(
+        record.euOpeningRetestMinutes
+      )
+        ? record.euOpeningRetestMinutes
+        : "",
+      record.euNewStructureCycle
+        ? "Yes"
+        : "No",
+      record.euRetestDepth || "",
+      record.euRetestEfficiency || "",
+      record.obstacleOutcome || "N/A",
       record.baseTrigger ||
         record.trigger ||
         "",
@@ -5549,7 +6302,7 @@ function buildCsv(records) {
         "",
       obstacleDisplayLabel(
         record.obstacleState ||
-        "far"
+        "standard"
       ),
       record.marketCap ?? "",
       record.rawMatrixSize ??
@@ -6453,27 +7206,42 @@ function obstacleStateFromCsv(value) {
     String(value || "");
 
   if (
+    text.includes("<1R") ||
+    text.includes("Hard Veto") ||
     text.includes("不足") ||
+    text === "veto" ||
     text === "insufficient"
   ) {
-    return "insufficient";
+    return "veto";
   }
 
   if (
+    text.includes("1R–1.5R") ||
+    text.includes("部分食糊") ||
+    text === "partial"
+  ) {
+    return "partial";
+  }
+
+  if (
+    text.includes("1.5R–2R") ||
+    text.includes("RF-managed") ||
     text.includes("接近") ||
+    text === "rfManaged" ||
     text === "near"
   ) {
-    return "near";
+    return "rfManaged";
   }
 
   if (
     text.includes("障礙區內") ||
+    text.includes("重大障礙區") ||
     text === "inside"
   ) {
     return "inside";
   }
 
-  return "far";
+  return "standard";
 }
 
 function triggerModelFromCsv(value) {
@@ -6538,7 +7306,7 @@ function recordFromCsvRow(row) {
         row,
         "Matrix版本"
       ) ||
-      "MasterTradeMatrix-AllMarkets-V1",
+      "MasterTradeMatrix-AllMarkets-V1.1-EUOpening",
     recordMode:
       firstCsvValue(
         row,
@@ -6853,6 +7621,39 @@ function recordFromCsvRow(row) {
           "POR內重新Acceptance"
         )
       ),
+    postOpenAsiaSweep:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "EU-D Asia Sweep"
+        )
+      ),
+    postOpenAfterOpen:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "EU-D正式開市後確認"
+        )
+      ),
+    postOpenDriveConfirmed:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "EU-D Opening Drive確認"
+        )
+      ),
+    postOpenPreOpenEntry:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "EU-D開市前直接入場"
+        )
+      ),
+    openingDriveStatus:
+      firstCsvValue(
+        row,
+        "Opening Drive有效期"
+      ) || "fresh",
     strongTrendContext:
       csvBoolean(
         firstCsvValue(
@@ -6933,6 +7734,124 @@ function recordFromCsvRow(row) {
         row,
         "交易空間"
       ),
+    firstObstacleR:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "第一障礙R"
+        )
+      ),
+    obstacleKind:
+      firstCsvValue(
+        row,
+        "障礙類型"
+      ) || "soft",
+    obstacleManagementMode:
+      firstCsvValue(
+        row,
+        "障礙管理模式"
+      ),
+    hardObstacleTreatment:
+      firstCsvValue(
+        row,
+        "硬障礙處理"
+      ),
+    obstacleSpaceBeyond:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "障礙後有2R空間"
+        )
+      ),
+    obstacleRFPlan:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "到障礙推RF計劃"
+        )
+      ),
+    obstaclePartialPlan:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "部分食糊計劃"
+        )
+      ),
+    obstacleClearTransition:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "明確結構轉換Context"
+        )
+      ),
+    openingStoryId:
+      firstCsvValue(
+        row,
+        "Opening Story ID"
+      ),
+    euAsiaSweepDirection:
+      firstCsvValue(
+        row,
+        "Asia Sweep方向"
+      ),
+    euAsiaSweepTime:
+      firstCsvValue(
+        row,
+        "Asia Sweep時間"
+      ),
+    euPorSweepStage:
+      firstCsvValue(
+        row,
+        "POR Sweep階段"
+      ),
+    euOpeningDriveDirection:
+      firstCsvValue(
+        row,
+        "Opening Drive方向"
+      ),
+    euBrokeMicroStructure:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "EU記錄破微結構"
+        )
+      ),
+    euBrokeMainStructure:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "EU記錄破15M／1H主結"
+        )
+      ),
+    euOpeningRetestMinutes:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "Opening Drive至Retest分鐘"
+        )
+      ),
+    euNewStructureCycle:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "已完成新結構循環"
+        )
+      ),
+    euRetestDepth:
+      firstCsvValue(
+        row,
+        "EU Retest深度"
+      ),
+    euRetestEfficiency:
+      firstCsvValue(
+        row,
+        "EU Retest推進效率"
+      ),
+    obstacleOutcome:
+      firstCsvValue(
+        row,
+        "障礙管理結果"
+      ) || "N/A",
     bonusCount:
       csvNumber(
         firstCsvValue(
@@ -7032,6 +7951,11 @@ function recordFromCsvRow(row) {
           row,
           "大局障礙"
         )
+      ),
+    obstacleManagement:
+      firstCsvValue(
+        row,
+        "障礙管理"
       ),
     marketCap:
       csvNumber(
@@ -7875,6 +8799,37 @@ function recalculateLiveDecision() {
         definition.note;
   }
 
+  const euOpeningVariant =
+    variant ===
+      "fullRepairAsia" ||
+    variant ===
+      "fullRepairPure" ||
+    variant ===
+      "postOpenConfirmation";
+
+  $("liveEUOpeningPanel")
+    .classList.toggle(
+      "hidden",
+      !euOpeningVariant
+    );
+
+  const euD =
+    variant ===
+      "postOpenConfirmation";
+
+  $("liveEuDConfirmationRows")
+    .classList.toggle(
+      "hidden",
+      !euD
+    );
+
+  if (!euD) {
+    $("liveEuDConfirmed")
+      .checked = false;
+    $("liveEuDPreOpenEntry")
+      .checked = false;
+  }
+
   const basePosition =
     $("livePosition").value;
 
@@ -8077,6 +9032,15 @@ function recalculateLiveDecision() {
       ) {
         matrixSize = 0;
       }
+    } else if (
+      variant === "trendPullback"
+    ) {
+      if (
+        basePosition !== "P1" &&
+        basePosition !== "P2"
+      ) {
+        matrixSize = 0;
+      }
     }
   }
 
@@ -8110,17 +9074,53 @@ function recalculateLiveDecision() {
   const obstacle =
     $("liveObstacle").value;
 
+  const obstacleKind =
+    $("liveObstacleKind").value;
+
+  const showRF =
+    obstacle === "rfManaged";
+
+  const showPartial =
+    obstacle === "partial" ||
+    (
+      obstacle === "rfManaged" &&
+      obstacleKind === "hard" &&
+      $("liveHardObstacleTreatment")
+        .value === "partial"
+    );
+
+  const showHard =
+    (
+      obstacle === "rfManaged" ||
+      obstacle === "partial"
+    ) &&
+    obstacleKind === "hard";
+
+  $("liveRFManagedPanel")
+    .classList.toggle(
+      "hidden",
+      !showRF
+    );
+
+  $("livePartialModePanel")
+    .classList.toggle(
+      "hidden",
+      !showPartial
+    );
+
+  $("liveHardObstaclePanel")
+    .classList.toggle(
+      "hidden",
+      !showHard
+    );
+
   let obstacleSize =
     rangeSize;
 
-  if (obstacle === "near") {
-    obstacleSize =
-      downgradeOneLevel(
-        rangeSize
-      );
-  } else if (
-    obstacle === "inside"
-  ) {
+  const obstacleVetoes = [];
+  let obstacleNote = "";
+
+  if (obstacle === "inside") {
     obstacleSize =
       Math.min(
         rangeSize,
@@ -8129,13 +9129,142 @@ function recalculateLiveDecision() {
           effectiveQuality
         )
       );
+    obstacleNote =
+      "身處重大障礙區：套Continuation專用上限。";
   } else if (
-    obstacle === "insufficient"
+    obstacle === "veto"
   ) {
     obstacleSize = 0;
+    obstacleVetoes.push(
+      "第一真實障礙不足1R。"
+    );
+    obstacleNote =
+      "<1R：Hard Veto。";
+  } else if (
+    obstacle === "standard"
+  ) {
+    obstacleNote =
+      "≥2R：標準2R模式，唔因障礙降注。";
+  } else if (
+    obstacle === "rfManaged"
+  ) {
+    const pqEligible =
+      (
+        (
+          effectivePosition === "P1" ||
+          effectivePosition === "P2"
+        ) &&
+        effectiveQuality === "Q3"
+      ) ||
+      (
+        effectivePosition === "P1" &&
+        effectiveQuality === "Q2"
+      );
+
+    if (!pqEligible) {
+      obstacleVetoes.push(
+        "1.5R–2R模式嘅P／Q資格不足。"
+      );
+      obstacleSize = 0;
+    } else if (
+      obstacleKind === "soft"
+    ) {
+      if (
+        !checked(
+          "liveObstacleSpaceBeyond"
+        ) ||
+        !checked(
+          "liveObstacleRFPlan"
+        )
+      ) {
+        obstacleVetoes.push(
+          "RF-managed未確認障礙後2R空間及推RF計劃。"
+        );
+        obstacleSize = 0;
+      } else {
+        obstacleNote =
+          "1.5R–2R軟障礙：到障礙推RF，再博2R；注碼不自動降低。";
+      }
+    } else {
+      const treatment =
+        $("liveHardObstacleTreatment")
+          .value;
+
+      if (treatment === "skip") {
+        obstacleVetoes.push(
+          "硬障礙必須突破先成立。"
+        );
+        obstacleSize = 0;
+      } else if (
+        treatment === "partial"
+      ) {
+        if (
+          !checked(
+            "liveObstaclePartialPlan"
+          )
+        ) {
+          obstacleVetoes.push(
+            "硬障礙部分食糊計劃未完整。"
+          );
+          obstacleSize = 0;
+        } else {
+          obstacleNote =
+            "1.5R–2R硬障礙：障礙前部分食糊，餘倉推RF。";
+        }
+      } else if (
+        !checked(
+          "liveObstacleSpaceBeyond"
+        ) ||
+        !checked(
+          "liveObstacleRFPlan"
+        )
+      ) {
+        obstacleVetoes.push(
+          "硬障礙降注＋RF管理條件未完整。"
+        );
+        obstacleSize = 0;
+      } else {
+        obstacleSize =
+          downgradeOneLevel(
+            rangeSize
+          );
+        obstacleNote =
+          "1.5R–2R硬障礙：注碼降一級，到障礙推RF。";
+      }
+    }
+  } else if (
+    obstacle === "partial"
+  ) {
+    const topContext =
+      routeCode ===
+        "healthyAligned" ||
+      checked(
+        "liveObstacleClearTransition"
+      );
+
+    const eligible =
+      effectivePosition === "P1" &&
+      effectiveQuality === "Q3" &&
+      obstacleKind === "soft" &&
+      topContext &&
+      checked(
+        "liveObstaclePartialPlan"
+      );
+
+    if (!eligible) {
+      obstacleVetoes.push(
+        "1R–1.5R只限P1＋Q3、健康同向／明確結構轉換、軟障礙及部分食糊方案。"
+      );
+      obstacleSize = 0;
+    } else {
+      obstacleNote =
+        "1R–1.5R頂級Setup：30%–50%障礙前食糊，餘倉推RF。";
+    }
   }
 
-  const vetoes = [];
+  const vetoes = [
+    ...obstacleVetoes
+  ];
 
   if (
     effectivePosition === "P4"
@@ -8154,11 +9283,35 @@ function recalculateLiveDecision() {
   }
 
   if (
-    obstacle === "insufficient"
+    euOpeningVariant &&
+    $("liveOpeningDriveStatus")
+      .value === "expired"
   ) {
     vetoes.push(
-      "第一真實障礙前R:R不足。"
+      "舊Opening Drive已過期。"
     );
+  }
+
+  if (euD) {
+    if (
+      !checked(
+        "liveEuDConfirmed"
+      )
+    ) {
+      vetoes.push(
+        "EU-D未確認開市後Opening Drive破結構＋首次弱Retest。"
+      );
+    }
+
+    if (
+      checked(
+        "liveEuDPreOpenEntry"
+      )
+    ) {
+      vetoes.push(
+        "Asia 2B during POR開市前直接入場已刪除。"
+      );
+    }
   }
 
   if (
@@ -8247,6 +9400,14 @@ function recalculateLiveDecision() {
       )
       ? "Type A：Q2唯一問題係Sweep／Reclaim邊緣，獲Q3待遇。"
       : `Q：${effectiveQuality}。`,
+    euD
+      ? "EU-D：Asia Sweep冇P升級；P完全由實際結構決定。"
+      : "",
+    euOpeningVariant
+      ? $("liveOpeningDriveStatus")
+          .selectedOptions[0]
+          .textContent
+      : "",
     showCounterP2
       ? counterP2Eligible
         ? `逆主判P2資格：${$("liveCounterP2Basis").selectedOptions[0].textContent}。`
@@ -8262,13 +9423,7 @@ function recalculateLiveDecision() {
       : rangeState === "middle"
         ? "Range中間：0注。"
         : "",
-    obstacle === "near"
-      ? "第一真實障礙壓縮空間：降一級。"
-      : obstacle === "inside"
-        ? "身處重大障礙區：套Continuation專用上限。"
-        : obstacle === "insufficient"
-          ? "第一障礙前R:R不足：0注。"
-          : "第一障礙前有完整R:R：唔降注。"
+    obstacleNote
   ].filter(Boolean);
 
   if (
@@ -8276,7 +9431,7 @@ function recalculateLiveDecision() {
     marketCode(true) === "GER40"
   ) {
     notes.push(
-      "EU規則：Asia 2B during POR唔係獨立Setup。"
+      "EU硬規則：Asia 2B during POR唔可以開市前直接入場。"
     );
   }
 
@@ -8555,56 +9710,6 @@ function resetAllToDefaultsExceptDate() {
   );
 }
 
-function syncTradeSpaceAndObstacle(
-  source
-) {
-  if (source === "tradeSpace") {
-    const value =
-      $("tradeSpace").value;
-
-    if (value === "short") {
-      $("obstacleState").value =
-        "near";
-    } else if (
-      value === "insufficient"
-    ) {
-      $("obstacleState").value =
-        "insufficient";
-    } else if (
-      $("obstacleState").value ===
-        "near" ||
-      $("obstacleState").value ===
-        "insufficient"
-    ) {
-      $("obstacleState").value =
-        "far";
-    }
-  } else {
-    const value =
-      $("obstacleState").value;
-
-    if (value === "near") {
-      $("tradeSpace").value =
-        "short";
-    } else if (
-      value === "insufficient"
-    ) {
-      $("tradeSpace").value =
-        "insufficient";
-    } else if (
-      value === "far" &&
-      (
-        $("tradeSpace").value ===
-          "short" ||
-        $("tradeSpace").value ===
-          "insufficient"
-      )
-    ) {
-      $("tradeSpace").value =
-        "full";
-    }
-  }
-}
 
 function setupEvents() {
   $("liveMarketCode")
@@ -8743,24 +9848,71 @@ function setupEvents() {
     );
   });
 
-
-  $("tradeSpace")
+  $("microStructureShift")
     .addEventListener(
       "change",
-      () =>
-        syncTradeSpaceAndObstacle(
-          "tradeSpace"
-        )
+      () => {
+        if (
+          setupVariant(false) ===
+            "postOpenConfirmation"
+        ) {
+          $("euBrokeMicroStructure")
+            .checked =
+              $("microStructureShift")
+                .checked;
+        }
+      }
     );
 
-  $("obstacleState")
+  $("euBrokeMicroStructure")
     .addEventListener(
       "change",
-      () =>
-        syncTradeSpaceAndObstacle(
-          "obstacleState"
-        )
+      () => {
+        if (
+          setupVariant(false) ===
+            "postOpenConfirmation"
+        ) {
+          $("microStructureShift")
+            .checked =
+              $("euBrokeMicroStructure")
+                .checked;
+        }
+      }
     );
+
+  $("euNewStructureCycle")
+    .addEventListener(
+      "change",
+      () => {
+        if (
+          $("euNewStructureCycle")
+            .checked
+        ) {
+          $("openingDriveStatus")
+            .value = "expired";
+        }
+      }
+    );
+
+  [
+    "firstObstacleR",
+    "obstacleKind",
+    "obstacleSpaceBeyond",
+    "obstacleRFPlan",
+    "obstaclePartialPlan",
+    "obstacleClearTransition",
+    "hardObstacleTreatment",
+    "insideMajorObstacle"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "input",
+      syncObstacleModelInputs
+    );
+    $(id).addEventListener(
+      "change",
+      syncObstacleModelInputs
+    );
+  });
 
   $("decisionForm")
     .addEventListener(
