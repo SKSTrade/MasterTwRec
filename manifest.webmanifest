@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.24",
+  "name": "Master Trade System V1.25",
   "short_name": "Master Trade",
-  "description": "Master Trade Decision Matrix V3.4 with Setup Type A/B/C, global bottom-left reset preserving trade date, trading journal, image backup and restore.",
+  "description": "All-market Master Trade Matrix for HSI, UK100, GER40, FX and gold, with market-specific setups, journal and image backup.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

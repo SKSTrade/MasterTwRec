@@ -1,270 +1,146 @@
-# Master Trade System V1.24
+# Master Trade System V1.25
 
-現行判斷引擎：
+現行引擎：
 
-`Master Trade Decision Matrix V3.4｜Setup Type＋精簡方向規則版`
+`Master Trade Matrix｜HSI／UK100／GER40／外匯／黃金整合版`
 
 核心流程：
 
-> 大局背景 → 主判 × 次判市場關係 → Setup Type → P位置 → Q質素 → Range 25%修正 → P1順風／大局障礙 → 最終注碼
+> 方向權限 → 市場關係及注碼上限 → 位置P → Setup類型 → Trigger質素Q → 第一真實障礙及R:R → 最終注碼
 
-## V1.24｜左下角 Reset All
+最終注碼由方向／市場關係上限、P×Q許可、Range 25%修正及大局障礙限制取最低。
 
-頁面左下角新增固定按鍵：
+## 今次核心改動
 
-> ↺ Default
+已刪除：
 
-按一下會：
+> UK100／GER40：Asia 2B during POR作為獨立Setup
 
-- 保留目前「交易日期」
-- Rulebook所有輸入、選擇、Checkbox、文字欄回復預設
-- Live Decision所有選項回復預設
-- 時間框架回復FX／Gold：D／4H／1H／15M
-- 市場狀態回復App初始值
-- 清除尚未儲存嘅Chart Screenshot預覽
-- 即時重新計算判斷結果
+仍然保留：
 
-唔會：
+- HSI OPR H/L 2B
+- 外匯／黃金 Asia／OPR 2B
+- UK100／GER40正式開市後POR H/L 2B
+- EU-B Asia Sweep＋POR Full Repair
+- EU-C Pure POR Full Repair
 
-- 刪除紀錄庫內已儲存紀錄
-- 改變或刪除交易日期
-- 影響完整備份／已儲存圖片
+## 市場時間框架
 
-原本V1.23嘅「Retest to Default」按鍵已移除。
+| 市場 | 大局 | 主判 | 次判 | Trigger |
+|---|---|---|---|---|
+| HSI | 4H | 1H | 15M | 1M |
+| UK100／GER40 | 4H | 1H | 15M | 5M／1M |
+| 外匯／黃金 | Daily | 4H | 1H | 15M／5M／1M |
 
-## V1.22｜Type A Q2→Q3一致性修正
+## 方向／Matrix
 
-修正Type A評分同Q欄可能出現互相矛盾嘅情況。
+- 健康同向：最高1注
+- 同向含弱勢／轉換：最高0.5
+- 衝突順主判：最高0.5
+- 順次判、逆主判：
+  - P1 Q3最高0.5
+  - P1 Q2最高0.25
+  - P2 Q3一般最高0.25
+- 逆主判P2：
+  - 主判健康：要有效P1順風
+  - 主判弱勢：要主判次結突破＋第一次Retest
+- 雙轉換／Range：
+  - P1 Q3 0.5
+  - P1 Q2 0.25
+  - P2 Q3 0.25
+  - P3 Q3 0.25或0
+  - Range中間0
 
-例如：
+## 窄義HTF P1反轉例外
 
-- Type A勾選「Retest明顯較慢、較弱」
-- 但Q欄仍保留預設「Retest有瑕疵」
+當正常方向權限為0，只有同時具備：
 
-舊版會將Q2原因判作Retest瑕疵，因此唔會升Q3。
+- 清晰Daily／Weekly P1
+- 原生至少P2
+- Q3右側反轉
+- Sweep＋Reclaim＋微結構轉向
+- 第一段反應仍新鮮
+- 空間足夠
 
-V1.22改為：
+先可最高0.25 Probe。
 
-- 勾選Type A「Sweep乾淨」→ 同步有效Sweep
-- 勾選Type A「Reclaim破微結構」→ 同步有效Reclaim
-- 勾選Type A「Retest明顯較弱」→ 同步Q欄Retest＝Weak
-- Q欄改成相反判斷 → 取消對應Type A條件
-- Q待遇欄會直接顯示未升Q3嘅原因
+Type A P3→P2-effective唔會創造方向權限。
 
-Type A Q2→Q3仍然只限：
+## Setup Type
 
-> 基礎Q2唯一問題係Sweep／Reclaim質素處於邊緣＋Retest弱＋完整R:R＋Setup核心有效
+### Type A｜高質Session 2B
 
-Retest瑕疵、空間一般／不足、多項瑕疵或Setup被否定，仍然維持Q2／Q1。
+指定：
 
-## V1.21方向權重修正
+- HSI OPR 2B
+- FX／XAU Asia／OPR 2B
+- UK100／GER40正式開市後POR 2B
 
-逆主判P2特殊資格簡化為：
+待遇：
 
-> 主判仍係Trend＋次判已不再同主判同向＋P1順風仍有效＋P2＋Q3 → 最高0.25
+- 原始P3可獲P2-effective
+- 基礎Q2只有單一Sweep／Reclaim質素邊緣，先可獲Q3待遇
 
-不再要求「主判次結有效突破＋首次Retest」。
+### Type B｜普通Sweep＋Reclaim
 
-同時：
+冇自動P／Q升級。
 
-- 次判仍同主判同向 → 逆主判P2仍然0
-- 順主判／順已確認方向交易 → P1順風只係Context，唔會額外加注
-- 例如主判弱升＋次判轉換偏升＋Long＋P2＋Q3 → 仍按包含轉換順已確認方向，最高0.5
+### Type C｜Breakout／No Sweep
 
-## V3.4核心更新
+- Breakout＋Acceptance＋First Retest可以係原生P2
+- EU Full Repair屬Breakout結構原生P2
+- 普通No-Sweep反轉只限真正P1
+- 強趨勢Pullback只限真實P1／P2結構
 
-### 1｜方向規則直接整合入主判 × 次判
+## EU POR
 
-- 雙同向只做共同方向，反向固定0。
-- 衝突順主判優先。
-- 順次判逆主判，P1＋Q3正常最高0.25。
-- 逆主判P2正常0；只要：
-  - 主判仍係健康／弱勢Trend；
-  - 次判已不再同主判同向；
-  - P1順風仍有效；
-  - P2＋Q3
-  就可最高0.25。
-- 唔需要等主判次結先被突破。
-- 包含轉換可順已確認方向；反向正常以Transition層真正P1＋Q3為主，但符合以上「次判不再同向＋有效P1順風」時，P2＋Q3亦可0.25。
-- 雙轉換／橫行只做邊界。
+UTC+8圖表：
 
-### 2｜Market State硬規則
+- 夏令POR：14:00–15:00
+- 冬令POR：15:00–16:00
 
-> 主結未實收穿，一律仍屬原趨勢，最多降成弱勢。
+只喺正式現貨開市後執行EU Setup。
 
-Wick穿、Sweep主結收返、次結失守、深回調，都唔等於Transition。
+EU-B／EU-C成交前要喺POR外側重新Reclaim；如果已喺POR內形成Acceptance，Full Repair失效。
 
-只有有效實收穿主結，先由Trend進Transition，再判偏升／中性／偏跌。
+## Q與障礙
 
-### 3｜Setup Type
+Q3核心：
 
-#### Type A｜高質 OPR／Asia 2B
-
-方向一致＋現有6項評分5／6以上先成立。
-
-特殊待遇：
-
-- 原始P3 → P2-effective
-- P2唔升P1
-- P4救唔到
-- Q2只有唯一問題係Sweep／Reclaim質素邊緣時，先可Q2 → Q3
-- Retest太快／深／強、空間不足、Setup被否定都救唔到
-
-Type A候選未達高質資格時，App自動按Type B普通Sweep-Reclaim處理。
-
-#### Type B｜普通 Sweep & Reclaim
-
-普通Swing、PDH／PDL、結構高低位Sweep等。
-
-> 冇任何P／Q特殊升級。
-
-#### Type C｜No Sweep
-
-冇真正Liquidity Sweep。
-
-只考慮：
-
-> P1＋明顯Rejection＋Micro Structure Break＋Weak Retest＋合理空間
-
-P2／P3普通No-Sweep Setup＝0。
-
-### 4｜取消Trigger加分證據
-
-唔再逐項RVOL＋1、Close＋1、2B＋1等。
-
-> P決定位置，Setup Type決定模式Edge，Q決定執行質素。
-
-避免Double Counting。
-
-### 5｜大局實際結構重疊
-
-定義：
-
-> Entry zone本身同HTF真實價格結構有實際空間交集。
-
-裸K測試：
-
-Hide晒Fib、Asia、OPR、Mon H/L、PDH／PDL後，仍會獨立畫出該區，先算真實結構。
-
-可以直接影響P級。
-
-### 6｜P1順風
-
-P1順風唔改P級。
-
-只計：
-
-> P1直接引發第一段反轉＋第一次回調Setup
-
-完成第一個LH／HL循環、轉橫行、正式確認新趨勢、或者關鍵結構被反向Reclaim後，順風失效。
-
-### 7｜次判轉換中性 Range 25%
-
-- Long底25% → 不降級
-- Long非底25% → 降一級
-- Short頂25% → 不降級
-- Short非頂25% → 降一級
-- 真正Range正中 → 0
-
-只改Size，唔改P級。
-
-### 8｜大局障礙
-
-#### Entry Obstacle
-
-第一真實障礙壓縮Entry空間。
-
-- RR不足 → 0
-- 仍可交易但空間明顯壓縮 → 降一級
-
-#### Target Obstacle
-
-到障礙之前已有完整最低RR，例如2R。
-
-> 唔影響Entry注碼。
-
-只影響TP、Runner及突破預期。
-
-#### 已處於大局障礙區內仍順向延伸
-
-- P1＋Q3最多0.5
-- P2＋Q3最多0.25
-- P3／P4＝0
-
-## Q質素
-
-### Type A／B
-
-Q3：
-
-- Reclaim有效
-- Retest明顯弱
-- Setup冇即時被否定
-- 第一真實目標有合理空間
-
-Q2：
-
-核心仍成立，但Retest稍快／深／強、Reclaim一般或結構確認未完整。
-
-Q1：
-
-Reclaim失敗、Retest否定Setup、反方向Micro Structure主動建立或空間不足。
-
-### Type C
-
-睇：
-
-- P1 Rejection
-- 右側Micro Structure Break
-- Weak Retest
-- 合理空間
-
-## Price Action優先次序
-
-> 價格推進效率 → 深度 → K線力度 → 時間 → Volume
-
-Volume唔再獨立加分。
+- 有效Sweep或Breakout
+- 有效Reclaim／Acceptance
+- 微結構或控制權轉移
+- Retest明顯較弱
+- 第一真實障礙前有足夠空間
+
+障礙近但仍達最低R:R：降一級。  
+第一障礙前R:R不足：0注。
 
 ## Hard Veto
 
-1. P4／Range正中／追價
-2. Setup核心確認失敗
-3. Retest快＋深＋強到否定Setup
-4. 第一真實目標前RR不足
-5. 違反交易時間／總風險上限
+1. P4／Range中間／追價
+2. 冇有效Sweep-Reclaim或Breakout Setup
+3. Retest快、深、強
+4. 第一真實目標前冇最低R:R
+5. 違反交易時間或總風險限制
 
-## 資料功能
+## 交易管理
 
-保留：
-
-- Live Decision
-- Rulebook
-- 紀錄庫
-- 規則
-- Practice／Live紀錄
-- Entry／Miss／Skip
-- 多張Chart Screenshot
-- Clipboard貼圖
-- RF／TP2 N/A
-- Entry-time Q／Post-entry Q
-- 勝率、平均R、RF率、TP2率
-- CSV匯出／匯入
-- CSV＋照片ZIP完整備份／還原
-- UUID紀錄ID去重
-- Rulebook側邊快捷導覽
-- 返回頂部按鍵
+- Limit落去入場位方式會重新改變Entry-time Q
+- 深但仍弱：Hold
+- 深兼強但未Invalid：返Entry／BE附近減半
+- Thesis Invalid：即時Exit
+- 統計優先固定2R全平
 
 ## 資料保存
 
-文字紀錄仍使用：
+LocalStorage Key維持：
 
 `masterTradePracticeJournalV1Records`
 
-圖片仍使用IndexedDB：
+圖片IndexedDB維持：
 
 - DB：`masterTradePracticeJournalImages`
 - Store：`chartImages`
 
-同一網站Origin更新時，V1.24沿用原有Storage Key，設計上舊紀錄及圖片繼續保留。
-
-清除瀏覽器／Safari網站資料仍可能刪除本機資料，重要紀錄應定期匯出完整ZIP。
+同一GitHub Pages URL／Origin更新時，V1.25沿用舊Storage Key，設計上舊紀錄及圖片繼續保留。清除Safari／瀏覽器網站資料仍可能刪除本機資料，重要紀錄應定期匯出完整ZIP。

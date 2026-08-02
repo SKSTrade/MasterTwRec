@@ -95,22 +95,214 @@ const STATES = {
   }
 };
 
+
+const MARKET_CONFIG = {
+  HSI: {
+    label: "HSI",
+    preset: "hsi",
+    defaultSymbol: "HSI",
+    setupCodes: [
+      "hsi_opr_2b",
+      "hsi_structure_sweep",
+      "hsi_breakout_retest",
+      "trend_pullback",
+      "custom"
+    ],
+    timeRule: "HSI：10:30後唔開新Setup；已入場倉位只按管理規則處理。"
+  },
+  UK100: {
+    label: "UK100",
+    preset: "eu",
+    defaultSymbol: "UK100",
+    setupCodes: [
+      "eu_por_2b",
+      "eu_asia_full_repair",
+      "eu_pure_full_repair",
+      "trend_pullback",
+      "custom"
+    ],
+    timeRule: "EU POR（UTC+8圖表）：夏令14:00–15:00；冬令15:00–16:00。只喺正式現貨開市後執行POR Setup。"
+  },
+  GER40: {
+    label: "GER40",
+    preset: "eu",
+    defaultSymbol: "GER40",
+    setupCodes: [
+      "eu_por_2b",
+      "eu_asia_full_repair",
+      "eu_pure_full_repair",
+      "trend_pullback",
+      "custom"
+    ],
+    timeRule: "EU POR（UTC+8圖表）：夏令14:00–15:00；冬令15:00–16:00。只喺正式現貨開市後執行POR Setup。"
+  },
+  FX: {
+    label: "外匯",
+    preset: "fx",
+    defaultSymbol: "EURUSD",
+    setupCodes: [
+      "fx_session_2b",
+      "fx_liquidity_sweep",
+      "fx_breakout_retest",
+      "fx_p1_reversal",
+      "trend_pullback",
+      "custom"
+    ],
+    timeRule: "外匯：按交易Session及你現有時間規則執行；入場後仍須重新評估Entry-time Q。"
+  },
+  XAU: {
+    label: "黃金",
+    preset: "xau",
+    defaultSymbol: "XAUUSD",
+    setupCodes: [
+      "xau_session_2b",
+      "xau_htf_session_sweep",
+      "xau_breakout_retest",
+      "trend_pullback",
+      "custom"
+    ],
+    timeRule: "黃金：高速大陽／大陰Retest唔可以因低Volume放行；SL放結構失效點。"
+  }
+};
+
+const SETUP_DEFINITIONS = {
+  hsi_opr_2b: {
+    marketGroup: "HSI",
+    label: "HSI-A｜OPR H／L 2B",
+    type: "A",
+    variant: "session2B",
+    designatedTypeA: true,
+    liquidityLabel: "OPR H／L",
+    note: "Sweep OPR邊界 → Reclaim → 破1M微結構 → 第一次弱Retest。純OPR原始P3；高質可獲P2-effective待遇。"
+  },
+  hsi_structure_sweep: {
+    marketGroup: "HSI",
+    label: "HSI-B｜普通結構Sweep",
+    type: "B",
+    variant: "sweep",
+    note: "Asia H／L、Mon H／L、PDH／PDL或15M局部Swing；冇OPR特殊升級。"
+  },
+  hsi_breakout_retest: {
+    marketGroup: "HSI",
+    label: "HSI-C｜Breakout＋Acceptance＋First Retest",
+    type: "C",
+    variant: "breakout",
+    nativeP2: true,
+    note: "15M／1H重要結構有效突破、Acceptance及第一次弱Retest；原生P2，改變1H狀態可屬P1事件。"
+  },
+  eu_por_2b: {
+    marketGroup: "EU",
+    label: "EU-A｜開市後POR H／L 2B",
+    type: "A",
+    variant: "session2B",
+    designatedTypeA: true,
+    liquidityLabel: "開市後POR H／L",
+    note: "只限正式現貨開市後首次Sweep POR邊界。純POR原始P3；高質可獲P2-effective待遇。"
+  },
+  eu_asia_full_repair: {
+    marketGroup: "EU",
+    label: "EU-B｜Asia Sweep＋POR Full Repair",
+    type: "C",
+    variant: "fullRepairAsia",
+    nativeP2: true,
+    note: "POR期間Sweep Asia邊界後，正式開市完整修復POR、突破外側邊界、Acceptance及第一次弱Retest。原生P2。"
+  },
+  eu_pure_full_repair: {
+    marketGroup: "EU",
+    label: "EU-C｜Pure POR Full Repair",
+    type: "C",
+    variant: "fullRepairPure",
+    nativeP2: true,
+    note: "冇Asia Sweep；正式開市後完整修復POR、突破外側邊界、Acceptance及第一次弱Retest。原生P2。"
+  },
+  fx_session_2b: {
+    marketGroup: "FX",
+    label: "FX-A｜Asia／OPR 2B",
+    type: "A",
+    variant: "session2B",
+    designatedTypeA: true,
+    liquidityLabel: "Asia／指定OPR H／L",
+    note: "Sweep指定Session邊界 → Reclaim → 破15M／5M微結構 → 第一次弱Retest。純邊界原始P3；高質可P2-effective。"
+  },
+  fx_liquidity_sweep: {
+    marketGroup: "FX",
+    label: "FX-B｜普通Liquidity Sweep",
+    type: "B",
+    variant: "sweep",
+    note: "PDH／PDL、Mon H／L、Europe H／L、局部Swing或前一日Range邊界；冇自動P／Q升級。"
+  },
+  fx_breakout_retest: {
+    marketGroup: "FX",
+    label: "FX-C｜Breakout＋Acceptance＋First Retest",
+    type: "C",
+    variant: "breakout",
+    nativeP2: true,
+    note: "1H主結、4H工作結構、大Range邊界或舊支持阻力互換；有效Breakout＋Acceptance＋首次Retest＝原生P2。"
+  },
+  fx_p1_reversal: {
+    marketGroup: "FX",
+    label: "FX-D｜P1反轉Setup",
+    type: "B",
+    variant: "p1ReversalSweep",
+    note: "只限Daily／4H主要P1、主判已弱、次判Sweep＋Reclaim＋右側反轉，而且第一段反應仍新鮮。"
+  },
+  xau_session_2b: {
+    marketGroup: "XAU",
+    label: "XAU-A｜Asia／OPR 2B",
+    type: "A",
+    variant: "session2B",
+    designatedTypeA: true,
+    liquidityLabel: "Asia／OPR H／L",
+    note: "黃金Session 2B；P／Q特殊待遇同外匯Type A一致，但Retest標準更嚴格。"
+  },
+  xau_htf_session_sweep: {
+    marketGroup: "XAU",
+    label: "XAU-B｜HTF結構＋Session Sweep",
+    type: "B",
+    variant: "sweep",
+    note: "Session Sweep只係Trigger；真正P由Daily／4H／1H真實結構、Range邊界及重疊決定。"
+  },
+  xau_breakout_retest: {
+    marketGroup: "XAU",
+    label: "XAU-C｜Breakout＋Acceptance＋First Retest",
+    type: "C",
+    variant: "breakout",
+    nativeP2: true,
+    note: "4H／1H大Range、歷史高低位或Market State轉換後第一次Retest；原生P2，改變4H狀態可屬P1。"
+  },
+  trend_pullback: {
+    marketGroup: "ALL",
+    label: "Type C｜強趨勢Pullback至真正結構",
+    type: "C",
+    variant: "trendPullback",
+    note: "冇Sweep；只限強趨勢Context、真正P1／P2結構、第一次受控Retest及右側控制權確認。"
+  },
+  custom: {
+    marketGroup: "ALL",
+    label: "自訂｜按實際Setup分類",
+    type: "B",
+    variant: "sweep",
+    manualType: true,
+    note: "自訂Setup預設按Type B。Type A只有指定市場Session 2B先有效；UK100／GER40嘅Asia 2B during POR已刪除。"
+  }
+};
+
 const POSITION_INFO = {
   P1: {
     title: "大局級位置",
-    note: "W／D重大支持阻力、大局／主判主結、主判大型Range真正邊界、會改變主判Market State嘅關鍵結構，或者次判主結同HTF重大真實結構直接重疊。"
+    note: "Weekly／Daily主要支持阻力、大局層或主判層主結、主判大型Range頂底、會改變主判Market State嘅突破＋回測、次判主結與HTF主要結構重疊，或者W／D 0.618與真實HTF結構重疊。"
   },
   P2: {
     title: "重要工作位置",
-    note: "次判主結、主判次結、重要Range邊界、工作結構突破＋首次Retest、重要Swap／Impulse Origin，或者實際結構＋Mon H/L／Asia／OPR／PDH／PDL重疊。"
+    note: "次判主結、主判次結、次判重要Range邊界、Breakout＋Acceptance＋第一次Retest、工作結構Swap、Impulse Origin，或者主要結構與Session Liquidity重疊。"
   },
   P3: {
     title: "普通局部位置",
-    note: "次判次結、Entry TF主結、普通局部Support／Resistance、低TF Range邊界、普通結構＋Session Liquidity。Type A高質OPR／Asia 2B可令原始P3獲P2-effective待遇。"
+    note: "次判次結、Trigger層主結、Session H／L＋普通局部結構、0.618＋普通Swap、低時間框架Range邊界，或指定POR／OPR／Asia H／L工作線。高質Type A可令原始P3獲P2-effective待遇。"
   },
   P4: {
     title: "無價值位置",
-    note: "Range中間、純Fib、純Asia／OPR、純Session Level冇結構、追價、冇明顯Edge，或者第一真實障礙太近令R:R不足。P4＝0。"
+    note: "大Range中間、純Fib、純Session線但冇Setup優勢、追價、前方障礙極近、上下距離接近冇Edge，或者冇真實結構支持。P4＝0。"
   }
 };
 
@@ -169,19 +361,285 @@ function timeframeValues() {
   };
 }
 
+function marketCode(live = false) {
+  const id =
+    live
+      ? "liveMarketCode"
+      : "marketCode";
+
+  return $(id)?.value || "FX";
+}
+
+function setupTemplateCode(live = false) {
+  const id =
+    live
+      ? "liveSetupTemplate"
+      : "setupTemplate";
+
+  return $(id)?.value || "custom";
+}
+
+function setupDefinition(live = false) {
+  return (
+    SETUP_DEFINITIONS[
+      setupTemplateCode(live)
+    ] ||
+    SETUP_DEFINITIONS.custom
+  );
+}
+
+function setupVariant(live = false) {
+  const definition =
+    setupDefinition(live);
+
+  if (
+    definition.manualType
+  ) {
+    const selectedType =
+      $(
+        live
+          ? "liveSetupType"
+          : "setupType"
+      ).value;
+
+    if (selectedType === "C") {
+      return "p1NoSweep";
+    }
+
+    if (selectedType === "A") {
+      return "session2B";
+    }
+
+    return "sweep";
+  }
+
+  return definition.variant;
+}
+
+function isDesignatedTypeASetup(
+  live = false
+) {
+  const definition =
+    setupDefinition(live);
+
+  if (!definition.designatedTypeA) {
+    return false;
+  }
+
+  const market =
+    marketCode(live);
+
+  if (
+    market === "UK100" ||
+    market === "GER40"
+  ) {
+    return (
+      setupTemplateCode(live) ===
+      "eu_por_2b"
+    );
+  }
+
+  return true;
+}
+
+function populateSetupTemplateSelect(
+  market,
+  selectId,
+  preferredCode = ""
+) {
+  const select = $(selectId);
+
+  if (!select) return;
+
+  const config =
+    MARKET_CONFIG[market] ||
+    MARKET_CONFIG.FX;
+
+  const allowed =
+    config.setupCodes;
+
+  select.innerHTML = "";
+
+  allowed.forEach((code) => {
+    const definition =
+      SETUP_DEFINITIONS[code];
+
+    select.add(
+      new Option(
+        definition.label,
+        code
+      )
+    );
+  });
+
+  const next =
+    allowed.includes(preferredCode)
+      ? preferredCode
+      : allowed[0];
+
+  select.value = next;
+}
+
+function applySetupTemplate(
+  live = false
+) {
+  const definition =
+    setupDefinition(live);
+
+  const typeId =
+    live
+      ? "liveSetupType"
+      : "setupType";
+
+  const typeSelect =
+    $(typeId);
+
+  if (!definition.manualType) {
+    typeSelect.value =
+      definition.type;
+  }
+
+  typeSelect.disabled =
+    !definition.manualType;
+
+  const noteId =
+    live
+      ? "liveSetupTemplateNote"
+      : "setupTemplateNote";
+
+  if ($(noteId)) {
+    $(noteId).textContent =
+      definition.note;
+  }
+
+  const typeLabelId =
+    live
+      ? "liveSetupClassification"
+      : "setupClassification";
+
+  if ($(typeLabelId)) {
+    $(typeLabelId).textContent =
+      setupTypeLabel(
+        typeSelect.value
+      );
+  }
+}
+
+function applyMarketPreset(
+  market,
+  live = false
+) {
+  const config =
+    MARKET_CONFIG[market] ||
+    MARKET_CONFIG.FX;
+
+  const selectId =
+    live
+      ? "liveSetupTemplate"
+      : "setupTemplate";
+
+  const previous =
+    $(selectId)?.value || "";
+
+  populateSetupTemplateSelect(
+    market,
+    selectId,
+    previous
+  );
+
+  applySetupTemplate(live);
+
+  if (!live) {
+    $("timeframePreset").value =
+      config.preset;
+    applyTimeframePreset(
+      config.preset
+    );
+
+    const knownDefaults = [
+      "HSI",
+      "UK100",
+      "GER40",
+      "EURUSD",
+      "XAUUSD"
+    ];
+
+    const currentSymbol =
+      $("symbol").value
+        .trim()
+        .toUpperCase();
+
+    if (
+      !currentSymbol ||
+      knownDefaults.includes(
+        currentSymbol
+      )
+    ) {
+      $("symbol").value =
+        config.defaultSymbol;
+    }
+
+    $("marketTimeRuleNote")
+      .textContent =
+        config.timeRule;
+  }
+}
+
+function setupTypeFromTemplate(
+  live = false
+) {
+  const definition =
+    setupDefinition(live);
+
+  const selectedType =
+    $(
+      live
+        ? "liveSetupType"
+        : "setupType"
+    ).value;
+
+  return definition.manualType
+    ? selectedType
+    : definition.type;
+}
+
 function applyTimeframePreset(value) {
   suppressPresetChange = true;
 
-  if (value === "fx") {
-    $("backgroundTimeframe").value = "D";
-    $("mainTimeframe").value = "4H";
-    $("secondaryTimeframe").value = "1H";
-    $("entryTimeframe").value = "15M";
-  } else if (value === "hsi1m") {
-    $("backgroundTimeframe").value = "4H";
-    $("mainTimeframe").value = "1H";
-    $("secondaryTimeframe").value = "15M";
-    $("entryTimeframe").value = "1M";
+  if (
+    value === "fx" ||
+    value === "xau"
+  ) {
+    $("backgroundTimeframe").value =
+      "D";
+    $("mainTimeframe").value =
+      "4H";
+    $("secondaryTimeframe").value =
+      "1H";
+    $("entryTimeframe").value =
+      "15M";
+  } else if (
+    value === "hsi"
+  ) {
+    $("backgroundTimeframe").value =
+      "4H";
+    $("mainTimeframe").value =
+      "1H";
+    $("secondaryTimeframe").value =
+      "15M";
+    $("entryTimeframe").value =
+      "1M";
+  } else if (
+    value === "eu"
+  ) {
+    $("backgroundTimeframe").value =
+      "4H";
+    $("mainTimeframe").value =
+      "1H";
+    $("secondaryTimeframe").value =
+      "15M";
+    $("entryTimeframe").value =
+      "5M";
   }
 
   suppressPresetChange = false;
@@ -267,54 +725,120 @@ function computeMarketRoute(
     reason
   });
 
+  const mainTransition =
+    isTransition(mainState);
+  const secondaryTransition =
+    isTransition(secondaryState);
+
   if (
-    relation ===
-    "雙轉換／橫行"
+    mainTransition &&
+    secondaryTransition
   ) {
     return result(
       "bothTransition",
-      "雙轉換／橫行｜只做邊界",
+      "雙轉換／橫行｜只做Range邊界",
       0.5,
-      "主判＋次判都處於Transition／Range，兩邊都可以有邊界劇本，但中間位一律不做；P1主要邊界最高0.5。"
+      "主判＋次判都處Transition／Range；P1邊界最高0.5、P2邊界最高0.25，Range中間固定0。"
     );
   }
 
   if (
-    relation === "包含轉換"
+    mainTransition ||
+    secondaryTransition
   ) {
-    const mainTransition =
-      isTransition(mainState);
-    const confirmedBias =
-      mainTransition
-        ? secondaryBias
-        : mainBias;
-    const confirmedLayer =
-      mainTransition
-        ? "次判"
-        : "主判";
-    const transitionLayer =
-      mainTransition
-        ? "主判"
-        : "次判";
-
     if (
-      currentTradeBias ===
-      confirmedBias
+      !mainTransition &&
+      secondaryTransition
     ) {
+      if (
+        secondaryBias === mainBias
+      ) {
+        if (
+          currentTradeBias ===
+          mainBias
+        ) {
+          return result(
+            "weakAligned",
+            "同向含轉換｜順共同偏向",
+            0.5,
+            "主判趨勢與次判Transition偏向一致；只做共同方向，最高0.5注。"
+          );
+        }
+
+        return result(
+          "alignedReverse",
+          "同向含轉換｜反共同偏向",
+          0,
+          "主判趨勢與次判Transition偏向一致；反共同方向正常0，只有窄義HTF P1反轉例外可0.25 Probe。"
+        );
+      }
+
+      if (
+        currentTradeBias ===
+        mainBias
+      ) {
+        return result(
+          "transitionConfirmed",
+          "包含轉換｜順主判已確認方向",
+          0.5,
+          "次判仍處Transition；順主判已確認方向，最高0.5注。"
+        );
+      }
+
       return result(
-        "transitionConfirmed",
-        `包含轉換｜順${confirmedLayer}已確認方向`,
+        "conflictSecondary",
+        "次判已脫離主判同向｜逆主判",
         0.5,
-        `${transitionLayer}仍處Transition；今次交易順${confirmedLayer}${biasDirectionLabel(confirmedBias)}已確認方向，可按限制交易Matrix部署，最高0.5注。`
+        "主判仍係Trend，但今次交易逆主判；P1＋Q3最高0.5，P2＋Q3只喺指定逆主判資格成立時最高0.25。"
       );
     }
 
-    return result(
-      "transitionReverse",
-      `包含轉換｜${transitionLayer}反向部署`,
-      0.25,
-      `今次交易逆${confirmedLayer}${biasDirectionLabel(confirmedBias)}當前方向；正常以Transition層真正P1＋Q3為主。若主判仍係趨勢、次判已不再同主判同向，而且P1順風仍有效，P2＋Q3亦可最高0.25。`
-    );
+    if (
+      mainTransition &&
+      !secondaryTransition
+    ) {
+      if (
+        mainBias === secondaryBias
+      ) {
+        if (
+          currentTradeBias ===
+          secondaryBias
+        ) {
+          return result(
+            "weakAligned",
+            "同向含轉換｜順共同偏向",
+            0.5,
+            "主判Transition偏向與次判趨勢一致；只做共同方向，最高0.5注。"
+          );
+        }
+
+        return result(
+          "alignedReverse",
+          "同向含轉換｜反共同偏向",
+          0,
+          "主判Transition偏向與次判趨勢一致；反共同方向正常0，只有窄義HTF P1反轉例外可0.25 Probe。"
+        );
+      }
+
+      if (
+        currentTradeBias ===
+        secondaryBias
+      ) {
+        return result(
+          "transitionConfirmed",
+          "包含轉換｜順次判已確認方向",
+          0.5,
+          "主判仍處Transition；順次判已確認方向，最高0.5注。"
+        );
+      }
+
+      return result(
+        "transitionReverse",
+        "主判Transition｜逆次判已確認方向",
+        0.25,
+        "主判未有新Trend確認而今次逆次判已確認方向；只限Transition層真正P1＋Q3反向Probe，最高0.25。"
+      );
+    }
   }
 
   if (
@@ -332,9 +856,9 @@ function computeMarketRoute(
     ) {
       return result(
         "alignedReverse",
-        "雙同向｜反共同方向禁止",
+        "雙同向｜反共同方向",
         0,
-        `主判＋次判共同${biasDirectionLabel(commonBias)}；V3.4雙同向只做共同方向，即使到W／D／4H P1大位亦唔直接反向。`
+        `主判＋次判共同${biasDirectionLabel(commonBias)}；正常方向權限為0，只有窄義HTF P1反轉例外可0.25 Probe。`
       );
     }
 
@@ -354,7 +878,7 @@ function computeMarketRoute(
       "weakAligned",
       `同向有弱勢｜順共同${biasDirectionLabel(commonBias)}`,
       0.5,
-      "主判＋次判方向一致，但至少一層屬弱勢；仍只做共同方向，最高0.5注。"
+      "主判＋次判方向一致，但至少一層弱勢；最高0.5注。"
     );
   }
 
@@ -369,15 +893,15 @@ function computeMarketRoute(
         "conflictMain",
         `方向衝突｜順主判${biasDirectionLabel(mainBias)}、逆次判`,
         0.5,
-        `今次交易順主判${biasDirectionLabel(mainBias)}，視為等次判回調完成後重新順主判；P1／高質P2優先，最高0.5注。`
+        "等次判喺P1／P2完成右側反轉後重新順主判；最高0.5注。"
       );
     }
 
     return result(
       "conflictSecondary",
       `方向衝突｜順次判${biasDirectionLabel(secondaryBias)}、逆主判`,
-      0.25,
-      `今次交易順次判、逆主判，只當較大級別趨勢內局部反彈／回調；以高質P1＋Q3為主，最高0.25注。`
+      0.5,
+      "順次判、逆主判：P1＋Q3最高0.5；P1＋Q2最高0.25；P2＋Q3只限指定資格，最高0.25。"
     );
   }
 
@@ -446,13 +970,26 @@ function preferredDirectionInfo() {
     route.code ===
       "healthyAligned" ||
     route.code ===
-      "weakAligned" ||
+      "weakAligned"
+  ) {
+    return {
+      label:
+        `只做共同${biasDirectionLabel(
+          mainBias ??
+          secondaryBias
+        )}`,
+      note:
+        route.reason
+    };
+  }
+
+  if (
     route.code ===
       "alignedReverse"
   ) {
     return {
       label:
-        `只做共同${biasDirectionLabel(mainBias)}`,
+        "共同方向優先｜反向只限窄義P1 Probe",
       note:
         route.reason
     };
@@ -468,38 +1005,39 @@ function preferredDirectionInfo() {
       label:
         `順主判${biasDirectionLabel(mainBias)}優先`,
       note:
-        `次判${biasDirectionLabel(secondaryBias)}方向可有局部劇本，但逆主判時位置要求更高、注碼更低。`
+        route.reason
     };
   }
 
   if (
     route.code ===
-      "transitionConfirmed" ||
+      "transitionConfirmed"
+  ) {
+    return {
+      label:
+        "順已確認方向優先",
+      note:
+        route.reason
+    };
+  }
+
+  if (
     route.code ===
       "transitionReverse"
   ) {
-    const mainTransition =
-      isTransition(
-        $("mainState").value
-      );
-    const confirmedBias =
-      mainTransition
-        ? secondaryBias
-        : mainBias;
-
     return {
       label:
-        `順已確認${biasDirectionLabel(confirmedBias)}優先`,
+        "已確認方向優先｜反向只限Transition P1 Probe",
       note:
-        "包含Transition時先順已確認嗰層方向；反向正常以Transition層真正P1＋Q3為主，但若主判仍係趨勢、次判已不再同主判同向＋有效P1順風，P2＋Q3亦可0.25。"
+        route.reason
     };
   }
 
   return {
     label:
-      "區間邊界雙向劇本",
+      "Range邊界雙向劇本",
     note:
-      "雙轉換／橫行只做清晰P1／P2邊界，中間位不做；突破唔追，等接受＋首次回測。"
+      route.reason
   };
 }
 
@@ -507,98 +1045,66 @@ function combinedDeploymentInfo() {
   const route =
     marketRouteInfo();
 
-  if (
-    route.code ===
-    "healthyAligned"
-  ) {
-    return {
+  const map = {
+    healthyAligned: {
       priority:
-        `雙健康同向：只順共同方向部署P1／P2＋Q3，完整條件最高1注；P3只作小注。`,
+        "雙健康同向：只順共同方向，P1／P2＋Q3最高1注。",
       secondary:
-        "反共同方向禁止。到大局阻力／支持只可以停止追、降級或Skip，唔直接反向。"
-    };
-  }
-
-  if (
-    route.code ===
-    "weakAligned"
-  ) {
-    return {
+        "P3只作低一級部署；反向正常0。"
+    },
+    weakAligned: {
       priority:
-        "同向有弱勢：仍只做共同方向，優先P1／P2＋Q3，最高0.5注，避免追延伸。",
+        "同向但含弱勢／轉換：只順共同方向，P1／P2＋Q3最高0.5。",
       secondary:
-        "反共同方向禁止；等其中一層Market State轉弱／轉換後先重新評估反向劇本。"
-    };
-  }
-
-  if (
-    route.code ===
-    "alignedReverse"
-  ) {
-    return {
+        "避免延伸段追價；等真正P1／P2同右側確認。"
+    },
+    alignedReverse: {
       priority:
-        "目前交易方向逆主判＋次判共同方向：不部署。",
+        "反共同方向正常0注。",
       secondary:
-        "即使大局P1＋Q3都唔直接反向；先等主判或次判Market State改變。"
-    };
-  }
-
-  if (
-    route.code ===
-    "conflictMain"
-  ) {
-    return {
+        "只有Daily／Weekly P1＋原生至少P2＋Q3＋Sweep／Reclaim／微結構轉向＋第一段新鮮反應，先可0.25 Probe。"
+    },
+    conflictMain: {
       priority:
-        "方向衝突順主判：等次判回調到主判P1／高質P2後重新順主判，最高0.5注。",
+        "方向衝突順主判：P1／P2＋Q3最高0.5。",
       secondary:
-        "P3＋Q3只屬0.25／0小注測試；位置唔夠就等。"
-    };
-  }
-
-  if (
-    route.code ===
-    "conflictSecondary"
-  ) {
-    return {
+        "P3＋Q3只限明確小注測試位，否則0。"
+    },
+    conflictSecondary: {
       priority:
-        "方向衝突順次判、逆主判：只當局部反彈／回調，主要要求高質P1＋Q3，最高0.25注。",
+        "順次判、逆主判：P1＋Q3最高0.5；P1＋Q2最高0.25。",
       secondary:
-        "P2通常不做；P1＋Q2亦預設0，只有你明確標記特殊可接受情況先考慮0.25。"
-    };
-  }
-
-  if (
-    route.code ===
-    "transitionConfirmed"
-  ) {
-    return {
+        "P2＋Q3一般最高0.25，但主判健康要有效P1順風；主判弱勢要主判次結突破＋首次Retest。"
+    },
+    transitionConfirmed: {
       priority:
-        "包含轉換：優先順已確認嗰層方向，P1／P2＋Q3最高0.5注。",
+        "包含轉換：順已確認方向，P1／P2＋Q3最高0.5。",
       secondary:
-        "逆已確認方向唔喺普通位置做；等Transition層真正P1大位＋Q3先試反向0.25。"
-    };
-  }
-
-  if (
-    route.code ===
-    "transitionReverse"
-  ) {
-    return {
+        "偏向唔等於新Trend已確認；仍受P、Q同障礙限制。"
+    },
+    transitionReverse: {
       priority:
-        "包含轉換反向：正常以Transition層真正P1＋Q3為主，最高0.25注。",
+        "主判Transition而逆次判已確認方向：只做真正Transition P1＋Q3。",
       secondary:
-        "如果主判仍係趨勢、次判已不再同主判同向，而且P1順風仍有效，P2＋Q3亦可0.25；P1順風唔會將P2升P1。"
-    };
-  }
-
-  return {
-    priority:
-      "雙轉換／橫行：只做清晰邊界。P1＋Q3一般0.25，主要邊界可0.5；P2清晰邊界＋Q3為0.25。",
-    secondary:
-      "中間位一律不做；突破唔追，等Acceptance＋首次回測。"
+        "最高0.25 Probe；普通P2/P3不做。"
+    },
+    bothTransition: {
+      priority:
+        "雙轉換／Range：只做邊界；P1 Q3最高0.5、P2 Q3最高0.25。",
+      secondary:
+        "P3邊界Q3只限明確可測試先0.25；Range中間固定0。"
+    }
   };
-}
 
+  return (
+    map[route.code] || {
+      priority:
+        "方向權限未成立：不部署。",
+      secondary:
+        "等待Market State及方向關係清晰。"
+    }
+  );
+}
 
 function triggerModelLabel() {
   return "Q Trigger｜按Setup Type評確認質素";
@@ -606,9 +1112,9 @@ function triggerModelLabel() {
 
 function setupTypeLabel(code) {
   const labels = {
-    A: "Type A｜高質 OPR／Asia 2B",
-    B: "Type B｜普通 Sweep & Reclaim",
-    C: "Type C｜No Sweep"
+    A: "Type A｜高質Session 2B",
+    B: "Type B｜普通Sweep＋Reclaim",
+    C: "Type C｜Breakout／No Sweep"
   };
 
   return labels[code] || code;
@@ -616,7 +1122,10 @@ function setupTypeLabel(code) {
 
 function evaluateBaseTrigger() {
   const selectedSetupType =
-    $("setupType").value;
+    setupTypeFromTemplate(false);
+
+  const variant =
+    setupVariant(false);
 
   const failures = [];
   const coreFailures = [];
@@ -629,55 +1138,72 @@ function evaluateBaseTrigger() {
     checked("validReclaim");
   const reclaimQuality =
     $("reclaimQuality").value;
+  const microStructureShift =
+    checked("microStructureShift");
+
+  const validBreakout =
+    checked("validBreakout");
+  const validAcceptance =
+    checked("validAcceptance");
+  const firstRetest =
+    variant === "trendPullback"
+      ? checked("trendFirstRetest")
+      : checked("firstRetest");
+  const breakoutQuality =
+    $("breakoutQuality").value;
+
+  const fullRepairComplete =
+    checked("fullRepairComplete");
+  const fullRepairAsiaSweep =
+    checked("fullRepairAsiaSweep");
+  const fullRepairEntryOutside =
+    checked("fullRepairEntryOutside");
+  const fullRepairAcceptedBackInside =
+    checked(
+      "fullRepairAcceptedBackInside"
+    );
+
+  const noSweepRejection =
+    checked("noSweepRejection");
+  const strongTrendContext =
+    checked("strongTrendContext");
+  const trueStructureRetest =
+    checked("trueStructureRetest");
+
   const retestQuality =
     $("retestQuality").value;
   const tradeSpace =
     $("tradeSpace").value;
 
-  const noSweepRejection =
-    checked("noSweepRejection");
-  const noSweepMicroBreak =
-    checked("noSweepMicroBreak");
+  const addCoreFailure = (text) => {
+    coreFailures.push(text);
+  };
 
-  if (
-    selectedSetupType === "C"
-  ) {
-    if (!noSweepRejection) {
-      coreFailures.push(
-        "No Sweep Setup缺少P1位置明顯Rejection。"
-      );
-    } else {
-      positives.push(
-        "P1位置有明顯Rejection。"
-      );
-    }
+  const addImperfection = (text) => {
+    imperfections.push(text);
+  };
 
-    if (!noSweepMicroBreak) {
-      coreFailures.push(
-        "No Sweep Setup缺少右側Micro Structure Break／轉向確認。"
-      );
-    } else {
-      positives.push(
-        "右側Micro Structure Break／轉向確認成立。"
-      );
-    }
-  } else {
+  const addPositive = (text) => {
+    positives.push(text);
+  };
+
+  const evaluateSweepCore = () => {
     if (!validSweep) {
-      coreFailures.push(
+      addCoreFailure(
         "冇有效Sweep。"
       );
     } else {
-      positives.push(
+      addPositive(
         "有效Sweep成立。"
       );
     }
 
     if (!validReclaim) {
-      coreFailures.push(
-        "冇真正有效Reclaim。"
+      addCoreFailure(
+        "冇有效Reclaim。"
       );
     } else {
-      positives.push(
+      addPositive(
         "有效Reclaim成立。"
       );
     }
@@ -685,18 +1211,214 @@ function evaluateBaseTrigger() {
     if (
       reclaimQuality === "negated"
     ) {
-      coreFailures.push(
-        "Sweep／Reclaim失敗或被完全否定。"
+      addCoreFailure(
+        "Reclaim被吞噬／否定。"
       );
     } else if (
       reclaimQuality === "ordinary"
     ) {
-      imperfections.push(
-        "Sweep／Reclaim仍有效，但質素處於邊緣。"
+      addImperfection(
+        "Sweep／Reclaim有效，但質素處於邊緣。"
       );
     } else {
-      positives.push(
+      addPositive(
         "Sweep／Reclaim乾淨明確。"
+      );
+    }
+
+    if (!microStructureShift) {
+      addImperfection(
+        "未見清晰微結構突破／控制權轉移。"
+      );
+    } else {
+      addPositive(
+        "微結構突破／控制權轉移成立。"
+      );
+    }
+  };
+
+  const evaluateBreakoutCore = () => {
+    if (!validBreakout) {
+      addCoreFailure(
+        "冇有效Breakout。"
+      );
+    } else {
+      addPositive(
+        "有效Breakout成立。"
+      );
+    }
+
+    if (!validAcceptance) {
+      addCoreFailure(
+        "Breakout後冇有效Acceptance。"
+      );
+    } else {
+      addPositive(
+        "Breakout後Acceptance成立。"
+      );
+    }
+
+    if (!firstRetest) {
+      addCoreFailure(
+        "唔係第一次Retest／首次回測條件未成立。"
+      );
+    } else {
+      addPositive(
+        "第一次Retest成立。"
+      );
+    }
+
+    if (
+      breakoutQuality === "negated"
+    ) {
+      addCoreFailure(
+        "Breakout後重新Acceptance返原Range／突破被否定。"
+      );
+    } else if (
+      breakoutQuality === "ordinary"
+    ) {
+      addImperfection(
+        "Opening Drive／Acceptance只屬合格，Follow-through普通。"
+      );
+    } else {
+      addPositive(
+        "Opening Drive／Acceptance乾淨明確。"
+      );
+    }
+
+    if (!microStructureShift) {
+      addImperfection(
+        "控制權轉移／微結構確認未完整。"
+      );
+    } else {
+      addPositive(
+        "控制權轉移／微結構確認成立。"
+      );
+    }
+  };
+
+  if (
+    variant === "session2B" ||
+    variant === "sweep" ||
+    variant === "p1ReversalSweep"
+  ) {
+    evaluateSweepCore();
+  } else if (
+    variant === "breakout"
+  ) {
+    evaluateBreakoutCore();
+  } else if (
+    variant === "fullRepairAsia" ||
+    variant === "fullRepairPure"
+  ) {
+    if (!fullRepairComplete) {
+      addCoreFailure(
+        "完整POR Full Repair未完成。"
+      );
+    } else {
+      addPositive(
+        "完整POR Full Repair成立。"
+      );
+    }
+
+    if (
+      variant ===
+        "fullRepairAsia" &&
+      !fullRepairAsiaSweep
+    ) {
+      addCoreFailure(
+        "EU-B缺少POR期間Asia H／L Sweep。"
+      );
+    } else if (
+      variant ===
+      "fullRepairAsia"
+    ) {
+      addPositive(
+        "POR期間Asia Sweep成立。"
+      );
+    }
+
+    evaluateBreakoutCore();
+
+    if (!fullRepairEntryOutside) {
+      addCoreFailure(
+        "Full Repair入場未企穩POR外側；成交前未重新Reclaim POR邊界。"
+      );
+    } else {
+      addPositive(
+        "入場位位於POR外側。"
+      );
+    }
+
+    if (
+      fullRepairAcceptedBackInside
+    ) {
+      addCoreFailure(
+        "價格已喺POR內重新形成Acceptance，Full Repair失效。"
+      );
+    }
+  } else if (
+    variant === "p1NoSweep"
+  ) {
+    if (!noSweepRejection) {
+      addCoreFailure(
+        "No-Sweep Setup缺少真正P1 Rejection。"
+      );
+    } else {
+      addPositive(
+        "真正P1 Rejection成立。"
+      );
+    }
+
+    if (!microStructureShift) {
+      addCoreFailure(
+        "No-Sweep Setup缺少右側微結構轉向確認。"
+      );
+    } else {
+      addPositive(
+        "右側微結構轉向確認成立。"
+      );
+    }
+  } else if (
+    variant === "trendPullback"
+  ) {
+    if (!strongTrendContext) {
+      addCoreFailure(
+        "未確認強趨勢Context。"
+      );
+    } else {
+      addPositive(
+        "強趨勢Context成立。"
+      );
+    }
+
+    if (!trueStructureRetest) {
+      addCoreFailure(
+        "Pullback未回到真正結構。"
+      );
+    } else {
+      addPositive(
+        "Pullback回到真正結構。"
+      );
+    }
+
+    if (!firstRetest) {
+      addCoreFailure(
+        "唔係第一次Retest。"
+      );
+    } else {
+      addPositive(
+        "第一次Retest成立。"
+      );
+    }
+
+    if (!microStructureShift) {
+      addImperfection(
+        "右側控制權確認未完整。"
+      );
+    } else {
+      addPositive(
+        "右側控制權確認成立。"
       );
     }
   }
@@ -704,18 +1426,18 @@ function evaluateBaseTrigger() {
   if (
     retestQuality === "invalid"
   ) {
-    coreFailures.push(
+    addCoreFailure(
       "Retest快、深、強，已否定Setup。"
     );
   } else if (
     retestQuality === "imperfect"
   ) {
-    imperfections.push(
-      "Retest有瑕疵，但Setup核心仍成立。"
+    addImperfection(
+      "Retest稍快／稍深／稍強，但故事未失效。"
     );
   } else {
-    positives.push(
-      "Retest明顯弱／受控。"
+    addPositive(
+      "Retest明顯弱過Reclaim／Opening Drive。"
     );
   }
 
@@ -723,17 +1445,17 @@ function evaluateBaseTrigger() {
     tradeSpace === "insufficient"
   ) {
     failures.push(
-      "第一個真實Target前R:R不足。"
+      "第一個真實障礙前冇最低可接受R:R。"
     );
   } else if (
     tradeSpace === "short"
   ) {
-    imperfections.push(
-      "交易空間只達最低可接受R:R。"
+    addPositive(
+      "第一真實障礙前仍達最低可接受R:R；注碼由Obstacle階段降一級，唔重複降低Q。"
     );
   } else {
-    positives.push(
-      "第一個真實Target前有完整合理R:R。"
+    addPositive(
+      "第一真實障礙前有完整合理R:R。"
     );
   }
 
@@ -754,34 +1476,22 @@ function evaluateBaseTrigger() {
   if (
     failures.length === 0
   ) {
-    if (
-      selectedSetupType === "C"
-    ) {
-      quality =
-        retestQuality === "weak" &&
-        tradeSpace === "full" &&
-        noSweepRejection &&
-        noSweepMicroBreak
-          ? "Q3"
-          : "Q2";
-    } else {
-      quality =
-        reclaimQuality === "strong" &&
-        retestQuality === "weak" &&
-        tradeSpace === "full"
-          ? "Q3"
-          : "Q2";
-    }
+    quality =
+      imperfections.length === 0
+        ? "Q3"
+        : "Q2";
   }
 
   const typeAUpgradeable =
-    selectedSetupType !== "C" &&
+    selectedSetupType === "A" &&
+    isDesignatedTypeASetup(false) &&
     quality === "Q2" &&
     validSweep &&
     validReclaim &&
+    microStructureShift &&
     reclaimQuality === "ordinary" &&
     retestQuality === "weak" &&
-    tradeSpace === "full" &&
+    tradeSpace !== "insufficient" &&
     failures.length === 0 &&
     imperfections.length === 1;
 
@@ -790,6 +1500,12 @@ function evaluateBaseTrigger() {
 
   if (quality === "Q2") {
     if (
+      selectedSetupType !== "A" ||
+      !isDesignatedTypeASetup(false)
+    ) {
+      typeAUpgradeReason =
+        "只有指定市場嘅高質Session 2B先有Type A Q修正。";
+    } else if (
       !validSweep ||
       !validReclaim ||
       failures.length > 0
@@ -797,15 +1513,20 @@ function evaluateBaseTrigger() {
       typeAUpgradeReason =
         "Setup核心確認未完整，Type A唔可以救返。";
     } else if (
+      !microStructureShift
+    ) {
+      typeAUpgradeReason =
+        "缺少微結構突破／控制權轉移；唔係單純Reclaim邊緣。";
+    } else if (
       retestQuality !== "weak"
     ) {
       typeAUpgradeReason =
         "Q2包含Retest瑕疵；Type A只可以修正Sweep／Reclaim質素邊緣。";
     } else if (
-      tradeSpace !== "full"
+      tradeSpace === "insufficient"
     ) {
       typeAUpgradeReason =
-        "交易空間未達完整合理R:R；Type A唔可以用嚟修正空間。";
+        "第一障礙前R:R不足；Type A唔可以救。";
     } else if (
       reclaimQuality !== "ordinary"
     ) {
@@ -815,21 +1536,24 @@ function evaluateBaseTrigger() {
       imperfections.length !== 1
     ) {
       typeAUpgradeReason =
-        "Q2有多過一項瑕疵，唔符合只修正單一Sweep／Reclaim邊緣。";
+        "Q2有多過一項瑕疵，唔符合單一Reclaim邊緣修正。";
     } else {
       typeAUpgradeReason =
-        "基礎Q2唯一問題係Sweep／Reclaim質素邊緣，符合Type A升Q3資格。";
+        "基礎Q2唯一問題係Sweep／Reclaim質素邊緣，符合Type A Q3待遇。";
     }
   }
 
   return {
     model:
-      selectedSetupType === "C"
-        ? "C"
-        : "A",
+      variant,
     modelLabel:
       triggerModelLabel(),
     selectedSetupType,
+    setupTemplate:
+      setupTemplateCode(false),
+    setupTemplateLabel:
+      setupDefinition(false).label,
+    variant,
     quality,
     preBonusQuality:
       quality,
@@ -845,9 +1569,21 @@ function evaluateBaseTrigger() {
     validSweep,
     validReclaim,
     reclaimQuality,
-    retestQuality,
+    microStructureShift,
+    validBreakout,
+    validAcceptance,
+    firstRetest,
+    breakoutQuality,
+    fullRepairComplete,
+    fullRepairAsiaSweep,
+    fullRepairEntryOutside,
+    fullRepairAcceptedBackInside,
     noSweepRejection,
-    noSweepMicroBreak,
+    noSweepMicroBreak:
+      microStructureShift,
+    strongTrendContext,
+    trueStructureRetest,
+    retestQuality,
     typeAUpgradeable,
     typeAUpgradeReason,
     modelCoreValid:
@@ -857,7 +1593,13 @@ function evaluateBaseTrigger() {
 
 function evaluateAsia2B(baseTrigger) {
   const selectedSetupType =
-    $("setupType").value;
+    setupTypeFromTemplate(false);
+
+  const definition =
+    setupDefinition(false);
+
+  const variant =
+    setupVariant(false);
 
   const basePosition =
     $("positionLevel").value;
@@ -894,8 +1636,12 @@ function evaluateAsia2B(baseTrigger) {
     checked("asia2BNoDoubleSweep")
   ].filter(Boolean).length;
 
+  const designatedTypeA =
+    isDesignatedTypeASetup(false);
+
   const highQuality =
     selectedSetupType === "A" &&
+    designatedTypeA &&
     directionMatches &&
     criteriaCount >= 5;
 
@@ -907,9 +1653,16 @@ function evaluateAsia2B(baseTrigger) {
     !highQuality
   ) {
     effectiveSetupType = "B";
-    warnings.push(
-      `Type A候選只符合${criteriaCount}/6項或者方向唔一致；未達高質，今次自動按Type B普通Sweep-Reclaim處理。`
-    );
+
+    if (!designatedTypeA) {
+      warnings.push(
+        "Type A只限HSI OPR 2B、FX／XAU Asia／OPR 2B、UK100／GER40正式開市後POR 2B。Asia 2B during POR已刪除，今次按Type B處理。"
+      );
+    } else {
+      warnings.push(
+        `Type A候選只符合${criteriaCount}/6項或者方向唔一致；未達高質，今次按Type B處理。`
+      );
+    }
   }
 
   if (
@@ -921,19 +1674,19 @@ function evaluateAsia2B(baseTrigger) {
       effectivePosition = "P2";
       positionPromoted = true;
       reasons.push(
-        "Type A高質OPR／Asia 2B：原始P3獲P2-effective待遇；原始P級仍記P3。"
+        "高質Type A Session 2B：原始P3獲P2-effective待遇；原始P級仍記P3。"
       );
     } else if (
       basePosition === "P2"
     ) {
       reasons.push(
-        "Type A強化P2執行Edge，但P2唔會升P1。"
+        "Type A強化執行Edge，但實際P2唔會升P1。"
       );
     } else if (
       basePosition === "P4"
     ) {
       warnings.push(
-        "Type A唔可以拯救P4。"
+        "Type A唔可以救P4。"
       );
     }
 
@@ -943,7 +1696,7 @@ function evaluateAsia2B(baseTrigger) {
       effectiveQuality = "Q3";
       triggerPromoted = true;
       reasons.push(
-        "Type A：基礎Q2唯一問題係Sweep／Reclaim質素邊緣，符合Q2 → Q3修正。"
+        "Type A：基礎Q2唯一瑕疵係Sweep／Reclaim質素邊緣，獲Q3待遇。"
       );
     } else if (
       baseTrigger.quality === "Q2"
@@ -958,24 +1711,47 @@ function evaluateAsia2B(baseTrigger) {
     effectiveSetupType === "B"
   ) {
     reasons.push(
-      "Type B普通Sweep-Reclaim：冇任何P／Q特殊升級。"
+      "Type B普通Sweep＋Reclaim：冇自動P／Q升級。"
     );
   }
 
   if (
     effectiveSetupType === "C"
   ) {
-    reasons.push(
-      "Type C No Sweep：只考慮P1＋高質右側確認；P2／P3普通Setup直接0。"
+    if (
+      variant === "breakout" ||
+      variant === "fullRepairAsia" ||
+      variant === "fullRepairPure"
+    ) {
+      reasons.push(
+        "Breakout／Full Repair Setup：有效Breakout＋Acceptance＋第一次Retest可構成原生P2；唔係Type A升級。"
+      );
+    } else {
+      reasons.push(
+        "No-Sweep Setup：只限真正P1、有效Breakout首次Retest或強趨勢回到真實結構。"
+      );
+    }
+  }
+
+  if (
+    definition.nativeP2 &&
+    basePosition === "P3"
+  ) {
+    warnings.push(
+      "你揀嘅Setup本身屬Breakout＋Acceptance＋首次Retest原生P2；目前仍選P3，請重新檢查位置分級。App唔會自動升P。"
     );
   }
 
-  const asiaLabel =
+  const sessionLabel =
+    definition.liquidityLabel ||
+    "指定Session H／L";
+
+  const setupLabel =
     selectedSetupType === "A"
       ? type === "asiaTop"
-        ? "洗OPR／亞洲盤頂2B"
-        : "洗OPR／亞洲盤底2B"
-      : "無";
+        ? `Sweep ${sessionLabel}頂｜偏Short`
+        : `Sweep ${sessionLabel}底｜偏Long`
+      : definition.label;
 
   return {
     type:
@@ -983,15 +1759,22 @@ function evaluateAsia2B(baseTrigger) {
         ? type
         : "none",
     label:
-      asiaLabel,
+      setupLabel,
     selectedSetupType,
     effectiveSetupType,
     effectiveSetupTypeLabel:
       setupTypeLabel(
         effectiveSetupType
       ),
+    setupTemplate:
+      setupTemplateCode(false),
+    setupTemplateLabel:
+      definition.label,
+    setupVariant:
+      variant,
     active:
       selectedSetupType === "A",
+    designatedTypeA,
     directionMatches,
     criteriaCount:
       selectedSetupType === "A"
@@ -1034,9 +1817,7 @@ function matrixCell(
         position === "P2"
       ) &&
       quality === "Q3"
-    ) {
-      return 1;
-    }
+    ) return 1;
 
     if (
       (
@@ -1044,23 +1825,17 @@ function matrixCell(
         position === "P2"
       ) &&
       quality === "Q2"
-    ) {
-      return 0.5;
-    }
+    ) return 0.5;
 
     if (
       position === "P3" &&
       quality === "Q3"
-    ) {
-      return 0.5;
-    }
+    ) return 0.5;
 
     if (
       position === "P3" &&
       quality === "Q2"
-    ) {
-      return 0.25;
-    }
+    ) return 0.25;
 
     return 0;
   }
@@ -1077,9 +1852,7 @@ function matrixCell(
         position === "P2"
       ) &&
       quality === "Q3"
-    ) {
-      return 0.5;
-    }
+    ) return 0.5;
 
     if (
       (
@@ -1087,15 +1860,16 @@ function matrixCell(
         position === "P2"
       ) &&
       quality === "Q2"
-    ) {
-      return 0.25;
-    }
+    ) return 0.25;
 
     if (
       position === "P3" &&
       quality === "Q3"
     ) {
-      return 0.25;
+      return options
+        .p3AlignedTestable === false
+          ? 0
+          : 0.25;
     }
 
     return 0;
@@ -1105,6 +1879,17 @@ function matrixCell(
     routeCode ===
     "alignedReverse"
   ) {
+    if (
+      options.htfP1ReversalEligible &&
+      (
+        options.basePosition === "P1" ||
+        options.basePosition === "P2"
+      ) &&
+      quality === "Q3"
+    ) {
+      return 0.25;
+    }
+
     return 0;
   }
 
@@ -1118,9 +1903,7 @@ function matrixCell(
         position === "P2"
       ) &&
       quality === "Q3"
-    ) {
-      return 0.5;
-    }
+    ) return 0.5;
 
     if (
       (
@@ -1128,9 +1911,7 @@ function matrixCell(
         position === "P2"
       ) &&
       quality === "Q2"
-    ) {
-      return 0.25;
-    }
+    ) return 0.25;
 
     if (
       position === "P3" &&
@@ -1138,8 +1919,8 @@ function matrixCell(
     ) {
       return options
         .p3ConflictTestable
-        ? 0.25
-        : 0;
+          ? 0.25
+          : 0;
     }
 
     return 0;
@@ -1152,17 +1933,18 @@ function matrixCell(
     if (
       position === "P1" &&
       quality === "Q3"
-    ) {
-      return 0.25;
-    }
+    ) return 0.5;
+
+    if (
+      position === "P1" &&
+      quality === "Q2"
+    ) return 0.25;
 
     if (
       position === "P2" &&
       quality === "Q3" &&
       options.counterP2Eligible
-    ) {
-      return 0.25;
-    }
+    ) return 0.25;
 
     return 0;
   }
@@ -1175,17 +1957,7 @@ function matrixCell(
       position === "P1" &&
       quality === "Q3" &&
       options.transitionLayerP1
-    ) {
-      return 0.25;
-    }
-
-    if (
-      position === "P2" &&
-      quality === "Q3" &&
-      options.counterP2Eligible
-    ) {
-      return 0.25;
-    }
+    ) return 0.25;
 
     return 0;
   }
@@ -1197,18 +1969,26 @@ function matrixCell(
     if (
       position === "P1" &&
       quality === "Q3"
-    ) {
-      return options
-        .bothTransitionMajorP1
-        ? 0.5
-        : 0.25;
-    }
+    ) return 0.5;
+
+    if (
+      position === "P1" &&
+      quality === "Q2"
+    ) return 0.25;
 
     if (
       position === "P2" &&
       quality === "Q3"
+    ) return 0.25;
+
+    if (
+      position === "P3" &&
+      quality === "Q3"
     ) {
-      return 0.25;
+      return options
+        .bothTransitionP3Testable
+          ? 0.25
+          : 0;
     }
 
     return 0;
@@ -1220,79 +2000,171 @@ function matrixCell(
 function counterP2EligibilityInfo(
   positionOverride = null
 ) {
+  const route =
+    marketRouteInfo();
+
   const mainState =
     $("mainState").value;
-  const secondaryState =
-    $("secondaryState").value;
-
-  const mainBias =
-    stateBias(mainState);
-  const secondaryBias =
-    stateBias(secondaryState);
 
   const position =
     positionOverride ||
     $("positionLevel").value;
 
-  const currentTradeBias =
-    tradeBias();
-
-  const mainIsConfirmedTrend =
-    !isTransition(mainState) &&
-    mainBias !== null;
-
-  const tradeIsAgainstMain =
-    mainBias !== null &&
-    currentTradeBias !== mainBias;
-
-  const secondaryNoLongerAligned =
-    secondaryBias !== mainBias;
-
-  const validP1Tailwind =
-    $("p1BackgroundTailwind").value ===
-    "valid";
-
   if (
-    position !== "P2" ||
-    !mainIsConfirmedTrend ||
-    !tradeIsAgainstMain
+    route.code !==
+      "conflictSecondary" ||
+    position !== "P2"
   ) {
     return {
       eligible: false,
+      basis: "none",
       reason:
         "逆主判P2特殊資格目前不適用。"
     };
   }
 
   if (
-    secondaryNoLongerAligned &&
-    validP1Tailwind
+    isHealthy(mainState)
+  ) {
+    if (
+      $("p1BackgroundTailwind")
+        .value === "valid"
+    ) {
+      return {
+        eligible: true,
+        basis:
+          "healthyTailwind",
+        reason:
+          "主判健康＋有效P1順風＋P2＋Q3：逆主判P2最高0.25。"
+      };
+    }
+
+    return {
+      eligible: false,
+      basis: "none",
+      reason:
+        "主判健康：逆向P2必須有仍有效P1順風。"
+    };
+  }
+
+  if (
+    isWeak(mainState)
+  ) {
+    if (
+      checked(
+        "counterP2WeakBreakRetest"
+      )
+    ) {
+      return {
+        eligible: true,
+        basis:
+          "weakBreakRetest",
+        reason:
+          "主判弱勢＋主判次結有效突破＋首次Retest＋P2＋Q3：最高0.25。"
+      };
+    }
+
+    return {
+      eligible: false,
+      basis: "none",
+      reason:
+        "主判弱勢：逆向P2要先有主判次結有效突破＋第一次Retest。"
+    };
+  }
+
+  return {
+    eligible: false,
+    basis: "none",
+    reason:
+      "主判唔係健康／弱勢Trend，逆主判P2資格不適用。"
+  };
+}
+
+function htfP1ReversalExceptionInfo(
+  baseTrigger,
+  basePosition,
+  effectiveQuality
+) {
+  const route =
+    marketRouteInfo();
+
+  if (
+    route.code !==
+    "alignedReverse"
+  ) {
+    return {
+      eligible: false,
+      reason:
+        "窄義HTF P1反轉例外目前不適用。"
+    };
+  }
+
+  if (
+    !checked(
+      "htfP1ReversalException"
+    )
+  ) {
+    return {
+      eligible: false,
+      reason:
+        "方向權限為0；未確認窄義HTF P1反轉例外。"
+    };
+  }
+
+  const nativePositionOk =
+    basePosition === "P1" ||
+    basePosition === "P2";
+
+  const triggerOk =
+    effectiveQuality === "Q3" &&
+    baseTrigger.validSweep &&
+    baseTrigger.validReclaim &&
+    baseTrigger.microStructureShift &&
+    baseTrigger.tradeSpace !==
+      "insufficient";
+
+  const fresh =
+    $("p1BackgroundTailwind")
+      .value === "valid";
+
+  if (
+    nativePositionOk &&
+    triggerOk &&
+    fresh
   ) {
     return {
       eligible: true,
       reason:
-        "次判已不再同主判同向＋P1順風仍有效＋P2＋Q3：逆主判P2最高0.25。"
-    };
-  }
-
-  if (!secondaryNoLongerAligned) {
-    return {
-      eligible: false,
-      reason:
-        "次判仍然同主判同向；雙同向／同方向背景唔會因P1順風而開逆主判P2權限。"
+        "窄義HTF P1反轉例外成立：原生至少P2＋Q3＋Sweep／Reclaim／微結構轉向＋第一段新鮮反應，最高0.25 Probe。"
     };
   }
 
   return {
     eligible: false,
     reason:
-      "次判已不再同主判同向，但P1順風唔係「仍有效」；逆主判P2正常0注。"
+      "例外未完整：必須原生至少P2、Q3、Sweep＋Reclaim＋微結構轉向、P1第一段反應仍有效，而且空間足夠。Type A P3→P2-effective唔會創造方向權限。"
   };
 }
 
 function currentMatrixOptions(
-  effectivePosition = null
+  effectivePosition = null,
+  baseTrigger = null,
+  effectiveQuality = "Q1",
+  basePosition = null
 ) {
+  const originalPosition =
+    basePosition ||
+    $("positionLevel").value;
+
+  const trigger =
+    baseTrigger ||
+    currentBaseTrigger || {
+      validSweep: false,
+      validReclaim: false,
+      microStructureShift: false,
+      tradeSpace: "insufficient"
+    };
+
   return {
     transitionLayerP1:
       checked(
@@ -1309,50 +2181,217 @@ function currentMatrixOptions(
     bothTransitionMajorP1:
       checked(
         "bothTransitionMajorP1"
-      )
+      ),
+    bothTransitionP3Testable:
+      checked(
+        "bothTransitionP3Testable"
+      ),
+    htfP1ReversalEligible:
+      htfP1ReversalExceptionInfo(
+        trigger,
+        originalPosition,
+        effectiveQuality
+      ).eligible,
+    basePosition:
+      originalPosition
+  };
+}
+
+function applySetupMatrixConstraint(
+  size,
+  setupResult
+) {
+  const variant =
+    setupResult.setupVariant;
+
+  const basePosition =
+    setupResult.basePosition;
+
+  const effectivePosition =
+    setupResult.effectivePosition;
+
+  const quality =
+    setupResult.effectiveQuality;
+
+  if (
+    setupResult.effectiveSetupType !==
+      "C" &&
+    variant !==
+      "p1ReversalSweep"
+  ) {
+    return {
+      size,
+      reason:
+        "Setup類型冇額外位置限制。"
+    };
+  }
+
+  if (
+    variant === "breakout" ||
+    variant === "fullRepairAsia" ||
+    variant === "fullRepairPure"
+  ) {
+    if (
+      basePosition === "P1" ||
+      basePosition === "P2"
+    ) {
+      return {
+        size,
+        reason:
+          "Breakout／Full Repair原生P1／P2位置有效。"
+      };
+    }
+
+    return {
+      size: 0,
+      reason:
+        "Breakout＋Acceptance＋First Retest應屬原生P2／P1；P3／P4位置不部署。"
+    };
+  }
+
+  if (
+    variant ===
+    "p1NoSweep"
+  ) {
+    return {
+      size:
+        basePosition === "P1"
+          ? size
+          : 0,
+      reason:
+        basePosition === "P1"
+          ? "No-Sweep P1反轉位置有效。"
+          : "普通P2／P3 No-Sweep一般不做；只限真正P1。"
+    };
+  }
+
+  if (
+    variant ===
+    "trendPullback"
+  ) {
+    const allowed =
+      basePosition === "P1" ||
+      (
+        basePosition === "P2" &&
+        quality === "Q3"
+      );
+
+    return {
+      size:
+        allowed
+          ? size
+          : 0,
+      reason:
+        allowed
+          ? "強趨勢Pullback回到真正P1／P2結構，位置有效。"
+          : "強趨勢No-Sweep Pullback只限真實P1，或原生P2＋Q3。"
+    };
+  }
+
+  if (
+    variant ===
+    "p1ReversalSweep"
+  ) {
+    return {
+      size:
+        basePosition === "P1"
+          ? size
+          : 0,
+      reason:
+        basePosition === "P1"
+          ? "P1反轉Setup位置有效。"
+          : "FX-D P1反轉Setup只限Daily／4H真正P1位置。"
+    };
+  }
+
+  return {
+    size,
+    reason:
+      "Setup位置限制維持原Matrix。"
   };
 }
 
 function evaluateMatrix(
   effectivePosition,
   effectiveQuality,
-  effectiveSetupType = "B"
+  effectiveSetupType = "B",
+  setupResult = null,
+  baseTrigger = null
 ) {
   const route =
     marketRouteInfo();
 
-  let size =
+  const resolvedSetup =
+    setupResult || {
+      effectiveSetupType,
+      setupVariant:
+        setupVariant(false),
+      basePosition:
+        $("positionLevel").value,
+      effectivePosition,
+      effectiveQuality
+    };
+
+  const options =
+    currentMatrixOptions(
+      effectivePosition,
+      baseTrigger,
+      effectiveQuality,
+      resolvedSetup.basePosition
+    );
+
+  let marketCap =
+    route.cap;
+
+  if (
+    route.code ===
+      "alignedReverse" &&
+    options
+      .htfP1ReversalEligible
+  ) {
+    marketCap = 0.25;
+  }
+
+  const rawCell =
     matrixCell(
       route.code,
       effectivePosition,
       effectiveQuality,
-      currentMatrixOptions(
-        effectivePosition
-      )
+      options
     );
 
-  if (
-    effectiveSetupType === "C" &&
-    !(
-      effectivePosition === "P1" &&
-      effectiveQuality === "Q3"
-    )
-  ) {
-    size = 0;
-  }
+  const constrained =
+    applySetupMatrixConstraint(
+      rawCell,
+      resolvedSetup
+    );
+
+  const size =
+    Math.min(
+      constrained.size,
+      marketCap
+    );
 
   const combination =
     `${effectivePosition}＋${effectiveQuality}`;
 
   let cellExplanation =
-    `${route.label}；${combination}按對應市場關係Matrix最高許可${SIZE_LABELS[size]}。`;
+    `${route.label}；${combination}按市場關係Matrix為${SIZE_LABELS[rawCell]}。${constrained.reason}`;
 
   if (
     route.code ===
     "alignedReverse"
   ) {
     cellExplanation =
-      `${combination}唔會改變方向規則：雙同向只做共同方向，反向一律0注。`;
+      options
+        .htfP1ReversalEligible
+        ? `正常方向權限為0，但窄義HTF P1反轉例外完整成立；${combination}最高0.25 Probe。`
+        : `反共同方向正常0注。${htfP1ReversalExceptionInfo(
+            baseTrigger ||
+            currentBaseTrigger,
+            resolvedSetup.basePosition,
+            effectiveQuality
+          ).reason}`;
   } else if (
     route.code ===
       "conflictSecondary" &&
@@ -1362,60 +2401,29 @@ function evaluateMatrix(
       counterP2EligibilityInfo(
         effectivePosition
       ).eligible
-        ? `逆主判P2符合特殊資格；${combination}最高0.25注。`
-        : `${route.label}嘅P2正常0注；目前未符合兩種逆主判P2特殊資格。`;
+        ? `逆主判P2特殊資格成立；${combination}最高0.25。`
+        : `逆主判P2正常0。${counterP2EligibilityInfo(
+            effectivePosition
+          ).reason}`;
   } else if (
     route.code ===
       "conflictSecondary" &&
-    effectivePosition !== "P1"
+    effectivePosition === "P1"
   ) {
     cellExplanation =
-      `${route.label}以P1＋Q3為正常劇本；${combination}不符合，所以0注。`;
+      `${route.label}：P1 Q3最高0.5；P1 Q2最高0.25。`;
   } else if (
     route.code ===
-      "transitionReverse" &&
-    effectivePosition === "P2"
+      "transitionReverse"
   ) {
     cellExplanation =
-      counterP2EligibilityInfo(
-        effectivePosition
-      ).eligible
-        ? `包含轉換嘅逆主判P2符合「次判已不再同主判同向＋有效P1順風」；${combination}最高0.25注。`
-        : `包含轉換反向嘅P2正常0注；目前未符合「次判已不再同主判同向＋有效P1順風」特殊資格。`;
+      `主判Transition而逆次判已確認方向，只限Transition層真正P1＋Q3，最高0.25。`;
   } else if (
     route.code ===
-      "transitionReverse" &&
-    !(
-      effectivePosition === "P1" &&
-      effectiveQuality === "Q3" &&
-      checked(
-        "transitionLayerP1"
-      )
-    )
+      "bothTransition"
   ) {
     cellExplanation =
-      `包含轉換反向：正常只做Transition層真正P1＋Q3；P2只有符合「次判已不再同主判同向＋有效P1順風」先可0.25。`;
-  } else if (
-    route.code ===
-      "bothTransition" &&
-    (
-      effectivePosition === "P3" ||
-      effectivePosition === "P4"
-    )
-  ) {
-    cellExplanation =
-      `雙轉換／橫行只做P1／清晰P2邊界；${combination}視為中間／低級位置，0注。`;
-  }
-
-  if (
-    effectiveSetupType === "C" &&
-    !(
-      effectivePosition === "P1" &&
-      effectiveQuality === "Q3"
-    )
-  ) {
-    cellExplanation =
-      `Type C No Sweep只考慮P1＋Q3高質右側確認；目前${combination}＝0注。`;
+      `雙轉換／Range：P1 Q3＝0.5、P1 Q2＝0.25、P2 Q3＝0.25；P3 Q3只限明確邊界測試。`;
   }
 
   return {
@@ -1427,17 +2435,16 @@ function evaluateMatrix(
       route.label,
     routeReason:
       route.reason,
-    marketCap:
-      route.cap,
+    marketCap,
     mode:
       route.code,
     route:
       route.label,
-    size:
-      Math.min(
-        size,
-        route.cap
-      ),
+    rawCellSize:
+      rawCell,
+    size,
+    setupConstraintReason:
+      constrained.reason,
     cellExplanation
   };
 }
@@ -1559,7 +2566,7 @@ function evaluateHardVeto(
     checked("chasedBreakout")
   ) {
     vetoes.push(
-      "P4／Range正中／追價。"
+      "P4／Range中間／追價。"
     );
   }
 
@@ -1567,9 +2574,7 @@ function evaluateHardVeto(
     !baseTrigger.modelCoreValid
   ) {
     vetoes.push(
-      setupResult.effectiveSetupType === "C"
-        ? "No Sweep Setup核心確認失敗：缺少P1 Rejection／右側Micro Structure Break，或者Setup被否定。"
-        : "Setup核心確認失敗：缺少有效Sweep／Reclaim，或者Reclaim被否定。"
+      "Setup核心確認失敗：冇有效Sweep／Reclaim，或者冇有效Breakout＋Acceptance Setup。"
     );
   }
 
@@ -1578,7 +2583,7 @@ function evaluateHardVeto(
     "invalid"
   ) {
     vetoes.push(
-      "Retest快＋深＋強，已否定Setup。"
+      "Retest快＋深＋強，已否定原本Reclaim／Opening Drive。"
     );
   }
 
@@ -1587,7 +2592,7 @@ function evaluateHardVeto(
     "insufficient"
   ) {
     vetoes.push(
-      "第一個真實Target前R:R不足。"
+      "第一個真實障礙前冇最低可接受R:R。"
     );
   }
 
@@ -1600,7 +2605,18 @@ function evaluateHardVeto(
     )
   ) {
     vetoes.push(
-      "違反交易時間或總風險上限。"
+      "違反交易時間或總風險限制。"
+    );
+  }
+
+  if (
+    setupResult.setupVariant ===
+      "p1ReversalSweep" &&
+    setupResult.basePosition !==
+      "P1"
+  ) {
+    vetoes.push(
+      "P1反轉Setup唔係真正P1位置。"
     );
   }
 
@@ -1615,7 +2631,9 @@ function evaluateDecision(
     evaluateMatrix(
       setupResult.effectivePosition,
       setupResult.effectiveQuality,
-      setupResult.effectiveSetupType
+      setupResult.effectiveSetupType,
+      setupResult,
+      baseTrigger
     );
 
   const preferred =
@@ -1645,14 +2663,14 @@ function evaluateDecision(
 
   const reasons = [
     ...setupResult.reasons,
-    `① 主判 × 次判市場關係：${matrix.relation}。`,
-    `② 交易路線：${matrix.routeLabel}。${matrix.routeReason}`,
-    `③ Setup Type：${setupResult.effectiveSetupTypeLabel}。`,
-    `④ P位置：原始${setupResult.basePosition}；執行待遇${setupResult.effectivePosition}。`,
-    `⑤ Q質素：基礎${baseTrigger.quality}；Setup Type修正後${setupResult.effectiveQuality}。`,
-    `⑥ Matrix：${matrix.cellExplanation}`,
-    `⑦ Range修正：${range.explanation}`,
-    `⑧ 大局障礙：${obstacle.explanation}`
+    `① 方向權限／市場關係：${matrix.routeLabel}。${matrix.routeReason}`,
+    `② 市場關係注碼上限：${SIZE_LABELS[matrix.marketCap]}。`,
+    `③ 位置P：原始${setupResult.basePosition}；執行待遇${setupResult.effectivePosition}。`,
+    `④ Setup：${setupResult.setupTemplateLabel}；${setupResult.effectiveSetupTypeLabel}。`,
+    `⑤ Trigger Q：基礎${baseTrigger.quality}；Setup修正後${setupResult.effectiveQuality}。`,
+    `⑥ P × Q／方向Matrix：${matrix.cellExplanation}`,
+    `⑦ Range 25%：${range.explanation}`,
+    `⑧ 第一真實障礙／R:R：${obstacle.explanation}`
   ];
 
   const warnings = [
@@ -1666,7 +2684,11 @@ function evaluateDecision(
     "alignedReverse"
   ) {
     warnings.push(
-      "雙同向反向禁止：即使去到W／D／4H P1大位都唔直接反向；先等Market State改變。"
+      htfP1ReversalExceptionInfo(
+        baseTrigger,
+        setupResult.basePosition,
+        setupResult.effectiveQuality
+      ).reason
     );
   }
 
@@ -1674,20 +2696,10 @@ function evaluateDecision(
     matrix.routeCode ===
     "conflictSecondary"
   ) {
-    const counterInfo =
-      counterP2EligibilityInfo();
-
     warnings.push(
-      `順次判、逆主判：P1＋Q3正常最高0.25；P2只有「次判已不再同主判同向＋有效P1順風」先可0.25。${counterInfo.reason}`
-    );
-  }
-
-  if (
-    matrix.routeCode ===
-    "transitionReverse"
-  ) {
-    warnings.push(
-      "包含轉換反向正常以Transition層真正P1＋Q3為主；若主判仍係趨勢、次判已不再同主判同向＋有效P1順風，P2＋Q3亦可最高0.25。"
+      `順次判、逆主判：P1 Q3最高0.5、P1 Q2最高0.25；P2 Q3要額外資格。${counterP2EligibilityInfo(
+        setupResult.effectivePosition
+      ).reason}`
     );
   }
 
@@ -1696,7 +2708,7 @@ function evaluateDecision(
     "bothTransition"
   ) {
     warnings.push(
-      "雙轉換／橫行只做邊界，中間位不做。"
+      "雙轉換／Range只做邊界；Range中間固定0。"
     );
   }
 
@@ -1709,7 +2721,7 @@ function evaluateDecision(
     )
   ) {
     warnings.push(
-      "Entry zone同HTF真實價格結構有實際空間交集；請重新檢查原始P級是否應列P1。"
+      "Entry zone同HTF真實價格結構有直接交集；重新檢查原始P級是否應列P1。"
     );
   }
 
@@ -1718,14 +2730,31 @@ function evaluateDecision(
       .value === "valid"
   ) {
     warnings.push(
-      "P1順風仍有效：只限P1直接引發第一段反轉＋第一次回調Setup；唔會改Entry P級。"
+      "P1順風只適用於價格觸及P1後第一段真實反應；唔會將實際P2升P1。"
     );
   } else if (
     $("p1BackgroundTailwind")
       .value === "expired"
   ) {
     warnings.push(
-      "舊P1順風已失效：唔可以再借用之前P1作逆主判P2資格。"
+      "舊P1順風已失效：唔可以再借用作逆主判P2或窄義反轉資格。"
+    );
+  }
+
+  if (
+    marketCode(false) === "HSI"
+  ) {
+    warnings.push(
+      "HSI硬時間規則：10:30後唔開新Setup。"
+    );
+  }
+
+  if (
+    marketCode(false) === "UK100" ||
+    marketCode(false) === "GER40"
+  ) {
+    warnings.push(
+      "UK100／GER40：Asia 2B during POR已刪除；POR期間Sweep Asia後要等正式開市Full Repair先屬EU-B。"
     );
   }
 
@@ -1745,7 +2774,7 @@ function evaluateDecision(
     )
   ) {
     warnings.push(
-      "紀律標籤：曾因情緒／信心想加注；最終注碼仍取所有限制中最低值。"
+      "紀律標籤：曾因情緒／信心想加注；最終注碼仍取所有限制最低值。"
     );
   }
 
@@ -1762,7 +2791,7 @@ function evaluateDecision(
     );
   } else {
     reasons.push(
-      `⑨ 最終注碼＝市場關係、Setup Type、P × Q、Range修正、大局障礙所有限制中最低值＝${SIZE_LABELS[finalSize]}。`
+      `⑨ 最終注碼＝方向／市場關係上限、P×Q許可、Range修正、大局障礙限制中最低值＝${SIZE_LABELS[finalSize]}。`
     );
   }
 
@@ -1785,6 +2814,12 @@ function evaluateDecision(
       setupResult.effectiveSetupType,
     setupTypeLabel:
       setupResult.effectiveSetupTypeLabel,
+    setupTemplate:
+      setupResult.setupTemplate,
+    setupTemplateLabel:
+      setupResult.setupTemplateLabel,
+    setupVariant:
+      setupResult.setupVariant,
     marketCap:
       matrix.marketCap,
     matrixMode:
@@ -1873,33 +2908,36 @@ function renderBaseTrigger(trigger) {
 }
 
 function renderAsia2B(result) {
+  const selectedType =
+    setupTypeFromTemplate(false);
+
   $("typeAPanel")
     .classList.toggle(
       "hidden",
-      $("setupType").value !== "A"
+      selectedType !== "A"
     );
 
   $("typeBPanel")
     .classList.toggle(
       "hidden",
-      $("setupType").value !== "B"
+      selectedType !== "B"
     );
 
   $("typeCPanel")
     .classList.toggle(
       "hidden",
-      $("setupType").value !== "C"
-    );
-
-  $("sweepReclaimTriggerFields")
-    .classList.toggle(
-      "hidden",
-      $("setupType").value === "C"
+      selectedType !== "C"
     );
 
   $("effectiveSetupType")
     .textContent =
       result.effectiveSetupTypeLabel;
+
+  $("setupClassification")
+    .textContent =
+      setupTypeLabel(
+        selectedType
+      );
 
   $("asia2BQuality")
     .textContent =
@@ -1930,10 +2968,10 @@ function renderAsia2B(result) {
   grade.textContent =
     result.effectiveQuality === "Q3"
       ? result.triggerPromoted
-        ? "Q3｜Type A由邊緣Q2修正"
+        ? "Q3｜Type A單一邊緣修正"
         : "Q3｜完整高質"
       : result.effectiveQuality === "Q2"
-        ? "Q2｜核心成立但有瑕疵"
+        ? "Q2｜故事成立但有瑕疵"
         : "Q1｜Setup失效";
 
   grade.className =
@@ -1968,7 +3006,8 @@ function renderHardVetoPreview(vetoes) {
 }
 
 function renderDecision(decision) {
-  const timeframes = timeframeValues();
+  const timeframes =
+    timeframeValues();
 
   $("marketRelation").textContent =
     decision.relation;
@@ -1977,13 +3016,24 @@ function renderDecision(decision) {
   $("preferredDirection").textContent =
     decision.preferredDirection;
   $("marketCap").textContent =
-    SIZE_LABELS[decision.marketCap];
+    SIZE_LABELS[
+      decision.marketCap
+    ];
   $("backgroundRelation").textContent =
     decision.backgroundRelation;
   $("priorityNote").textContent =
     decision.priorityNote;
-  $("backgroundRelationNote").textContent =
-    decision.backgroundRelationNote;
+  $("backgroundRelationNote")
+    .textContent =
+      decision.backgroundRelationNote;
+
+  $("resultMarket").textContent =
+    MARKET_CONFIG[
+      marketCode(false)
+    ].label;
+  $("resultSetupTemplate").textContent =
+    currentAsia2B
+      .setupTemplateLabel;
 
   $("resultBackground").textContent =
     `${timeframes.background}－${$("backgroundState").value}`;
@@ -1995,38 +3045,59 @@ function renderDecision(decision) {
     timeframes.entry;
   $("resultRelation").textContent =
     decision.relation;
-  $("resultPreferredDirection").textContent =
-    decision.preferredDirection;
+  $("resultPreferredDirection")
+    .textContent =
+      decision.preferredDirection;
   $("resultBasePosition").textContent =
     currentAsia2B.basePosition;
-  $("resultEffectivePosition").textContent =
-    currentAsia2B.effectivePosition;
+  $("resultEffectivePosition")
+    .textContent =
+      currentAsia2B
+        .effectivePosition;
   $("resultP1Background").textContent =
-    $("p1BackgroundTailwind").value === "valid"
+    $("p1BackgroundTailwind").value ===
+      "valid"
       ? "有｜仍有效"
-      : $("p1BackgroundTailwind").value === "expired"
+      : $("p1BackgroundTailwind").value ===
+          "expired"
         ? "曾有｜已失效"
         : "冇";
   $("resultMarketRoute").textContent =
     decision.marketRoute;
   $("resultSetupType").textContent =
-    currentAsia2B.effectiveSetupTypeLabel;
-  $("resultEffectiveTrigger").textContent =
-    currentAsia2B.effectiveQuality;
+    currentAsia2B
+      .effectiveSetupTypeLabel;
+  $("resultEffectiveTrigger")
+    .textContent =
+      currentAsia2B
+        .effectiveQuality;
   $("resultAsia2B").textContent =
-    currentAsia2B.selectedSetupType === "A"
+    currentAsia2B.selectedSetupType ===
+      "A"
       ? `${currentAsia2B.highQuality ? "Type A高質" : "未達Type A"}｜${currentAsia2B.criteriaCount}/6`
       : "N/A";
   $("resultMarketCap").textContent =
-    SIZE_LABELS[decision.marketCap];
+    SIZE_LABELS[
+      decision.marketCap
+    ];
   $("resultMatrixSize").textContent =
-    SIZE_LABELS[decision.rawMatrixSize];
+    SIZE_LABELS[
+      decision.rawMatrixSize
+    ];
   $("resultRangeSize").textContent =
-    SIZE_LABELS[decision.rangeSize];
+    SIZE_LABELS[
+      decision.rangeSize
+    ];
   $("resultObstacleSize").textContent =
-    `${obstacleDisplayLabel(decision.obstacleState)} → ${SIZE_LABELS[decision.obstacleSize]}`;
+    `${obstacleDisplayLabel(
+      decision.obstacleState
+    )} → ${SIZE_LABELS[
+      decision.obstacleSize
+    ]}`;
   $("finalSize").textContent =
-    SIZE_LABELS[decision.finalSize];
+    SIZE_LABELS[
+      decision.finalSize
+    ];
 
   $("decisionExplanations").innerHTML = [
     renderListBlock(
@@ -2049,7 +3120,9 @@ function renderDecision(decision) {
     )
   ].join("");
 
-  renderHardVetoPreview(decision.hardVetoes);
+  renderHardVetoPreview(
+    decision.hardVetoes
+  );
 }
 
 function updateObstacleNote() {
@@ -2084,28 +3157,38 @@ function updateP1TailwindNote() {
 
   if (value === "valid") {
     $("p1TailwindNote").textContent =
-      "P1順風仍有效：只計P1直接引發第一段反轉＋第一次回調Setup。佢唔改P級；只要主判仍係趨勢、次判已不再同主判同向，逆主判P2＋Q3可最高0.25。";
+      "P1順風仍有效：只限價格觸及P1後第一段真實反應。主判健康時可提供逆主判P2資格；亦係窄義HTF P1 Probe嘅新鮮度條件。永遠唔會將P2升P1。";
     return;
   }
 
   if (value === "expired") {
     $("p1TailwindNote").textContent =
-      "P1順風已失效：完成第一個LH／HL結構循環、轉橫行、關鍵結構被反向Reclaim等之後，唔可以繼續借用舊P1。";
+      "P1順風已失效：完成一段有效回調、次判確認新Trend、冇形成LH／HL而橫行、或者P1被反覆測試消耗後，唔可以再借用。";
     return;
   }
 
   $("p1TailwindNote").textContent =
-    "P1順風＝呢段Move由邊個大位引發；同「Entry zone本身有HTF實際結構重疊」係兩件事。";
+    "P1順風＝價格觸及P1後第一段新鮮反應；Entry zone實際重疊係另一件事。";
 }
 
 function updateInterface() {
-  const timeframes = timeframeValues();
-  const backgroundState = $("backgroundState").value;
-  const mainState = $("mainState").value;
-  const secondaryState = $("secondaryState").value;
-  const position = $("positionLevel").value;
+  const timeframes =
+    timeframeValues();
+
+  const backgroundState =
+    $("backgroundState").value;
+  const mainState =
+    $("mainState").value;
+  const secondaryState =
+    $("secondaryState").value;
+  const position =
+    $("positionLevel").value;
   const selectedSetupType =
-    $("setupType").value;
+    setupTypeFromTemplate(false);
+  const variant =
+    setupVariant(false);
+  const definition =
+    setupDefinition(false);
 
   $("backgroundStateLabel").textContent =
     `大局背景（${timeframes.background}）`;
@@ -2129,11 +3212,19 @@ function updateInterface() {
   $("combinedSecondaryDeployment").textContent =
     combinedDeployment.secondary;
 
-  const info = POSITION_INFO[position];
+  const info =
+    POSITION_INFO[position];
+
   $("positionTitle").textContent =
     `${position}｜${info.title}`;
   $("positionNote").textContent =
     info.note;
+
+  $("setupClassification")
+    .textContent =
+      setupTypeLabel(
+        selectedSetupType
+      );
 
   $("typeAPanel").classList.toggle(
     "hidden",
@@ -2147,11 +3238,77 @@ function updateInterface() {
     "hidden",
     selectedSetupType !== "C"
   );
+
+  const sweepFieldsVisible =
+    variant === "session2B" ||
+    variant === "sweep" ||
+    variant === "p1ReversalSweep";
+
   $("sweepReclaimTriggerFields")
     .classList.toggle(
       "hidden",
-      selectedSetupType === "C"
+      !sweepFieldsVisible
     );
+
+  const breakoutVisible =
+    variant === "breakout" ||
+    variant === "fullRepairAsia" ||
+    variant === "fullRepairPure";
+
+  $("breakoutSetupPanel")
+    .classList.toggle(
+      "hidden",
+      !breakoutVisible
+    );
+
+  const fullRepairVisible =
+    variant === "fullRepairAsia" ||
+    variant === "fullRepairPure";
+
+  $("fullRepairPanel")
+    .classList.toggle(
+      "hidden",
+      !fullRepairVisible
+    );
+
+  $("fullRepairAsiaSweepRow")
+    .classList.toggle(
+      "hidden",
+      variant !==
+        "fullRepairAsia"
+    );
+
+  $("p1NoSweepPanel")
+    .classList.toggle(
+      "hidden",
+      variant !==
+        "p1NoSweep"
+    );
+
+  $("trendPullbackPanel")
+    .classList.toggle(
+      "hidden",
+      variant !==
+        "trendPullback"
+    );
+
+  if (
+    $("typeCVariantNote")
+  ) {
+    $("typeCVariantNote")
+      .textContent =
+        definition.note;
+  }
+
+  if (
+    $("typeALiquidityNote")
+  ) {
+    $("typeALiquidityNote")
+      .textContent =
+        definition.liquidityLabel
+          ? `指定流動性：${definition.liquidityLabel}`
+          : "Type A只限指定市場Session 2B。";
+  }
 
   const rangeActive =
     secondaryState ===
@@ -2168,15 +3325,16 @@ function updateInterface() {
       .value = "favorable";
     $("secondaryRangeNote")
       .textContent =
-        "次判唔係轉換中性，Range 25%修正不適用。";
+        "次判唔係中性Transition／Range，25%修正不適用。";
   } else {
     const side =
       direction() === "Long"
         ? "底部25%"
         : "頂部25%";
+
     $("secondaryRangeNote")
       .textContent =
-        `次判轉換中性：${direction()}優先${side}；唔喺相應25%降一級，真正Range正中＝0。P級本身不變。`;
+        `次判中性Transition／Range：${direction()}只優先${side}；未進入相關25%降一級，Range中間固定0。`;
   }
 
   const route =
@@ -2214,19 +3372,10 @@ function updateInterface() {
       .checked = false;
   }
 
-  const counterP2Info =
-    counterP2EligibilityInfo(
-      position
-    );
-
-  const mainBias =
-    stateBias(mainState);
-
   const showCounterP2 =
-    position === "P2" &&
-    !isTransition(mainState) &&
-    mainBias !== null &&
-    tradeBias() !== mainBias;
+    route.code ===
+      "conflictSecondary" &&
+    position === "P2";
 
   $("counterP2EligibilityNote")
     .classList.toggle(
@@ -2234,10 +3383,46 @@ function updateInterface() {
       !showCounterP2
     );
 
+  $("counterP2WeakBreakRetestRow")
+    .classList.toggle(
+      "hidden",
+      !(
+        showCounterP2 &&
+        isWeak(mainState)
+      )
+    );
+
+  if (
+    !(
+      showCounterP2 &&
+      isWeak(mainState)
+    )
+  ) {
+    $("counterP2WeakBreakRetest")
+      .checked = false;
+  }
+
   if (showCounterP2) {
     $("counterP2EligibilityNote")
       .textContent =
-        counterP2Info.reason;
+        counterP2EligibilityInfo(
+          position
+        ).reason;
+  }
+
+  const showHTFException =
+    route.code ===
+      "alignedReverse";
+
+  $("htfP1ReversalExceptionRow")
+    .classList.toggle(
+      "hidden",
+      !showHTFException
+    );
+
+  if (!showHTFException) {
+    $("htfP1ReversalException")
+      .checked = false;
   }
 
   const showBothTransitionP1 =
@@ -2255,6 +3440,28 @@ function updateInterface() {
     $("bothTransitionMajorP1")
       .checked = false;
   }
+
+  const showBothTransitionP3 =
+    route.code ===
+      "bothTransition" &&
+    position === "P3";
+
+  $("bothTransitionP3TestableRow")
+    .classList.toggle(
+      "hidden",
+      !showBothTransitionP3
+    );
+
+  if (!showBothTransitionP3) {
+    $("bothTransitionP3Testable")
+      .checked = false;
+  }
+
+  $("tradingTimeRuleLabel")
+    .textContent =
+      marketCode(false) === "HSI"
+        ? "HSI 10:30後仍開新Setup／其他市場違反時間規則"
+        : "違反交易時間限制";
 
   updateObstacleNote();
   updateBackgroundOverlapNote();
@@ -2295,18 +3502,24 @@ function optionalNumberFromInput(id) {
 }
 
 function triggerChecklistLines() {
+  const variant =
+    currentBaseTrigger.variant;
+
   return [
-    `Setup Type選擇：${setupTypeLabel($("setupType").value)}`,
+    `Setup：${currentBaseTrigger.setupTemplateLabel}`,
+    `Setup Type選擇：${setupTypeLabel(currentBaseTrigger.selectedSetupType)}`,
     `有效Setup Type：${currentAsia2B.effectiveSetupTypeLabel}`,
-    `有效Sweep：${$("setupType").value === "C" ? "N/A" : yesNo(currentBaseTrigger.validSweep)}`,
-    `有效Reclaim：${$("setupType").value === "C" ? "N/A" : yesNo(currentBaseTrigger.validReclaim)}`,
-    `Sweep／Reclaim質素：${$("setupType").value === "C" ? "N/A" : $("reclaimQuality").selectedOptions[0].textContent}`,
-    `No Sweep P1 Rejection：${$("setupType").value === "C" ? yesNo(currentBaseTrigger.noSweepRejection) : "N/A"}`,
-    `No Sweep Micro Break：${$("setupType").value === "C" ? yesNo(currentBaseTrigger.noSweepMicroBreak) : "N/A"}`,
+    `Setup子類型：${variant}`,
+    `有效Sweep：${yesNo(currentBaseTrigger.validSweep)}`,
+    `有效Reclaim：${yesNo(currentBaseTrigger.validReclaim)}`,
+    `有效Breakout：${yesNo(currentBaseTrigger.validBreakout)}`,
+    `有效Acceptance：${yesNo(currentBaseTrigger.validAcceptance)}`,
+    `第一次Retest：${yesNo(currentBaseTrigger.firstRetest)}`,
+    `微結構／控制權轉移：${yesNo(currentBaseTrigger.microStructureShift)}`,
     `Retest質素：${$("retestQuality").selectedOptions[0].textContent}`,
     `交易空間：${$("tradeSpace").selectedOptions[0].textContent}`,
     `基礎Q：${currentBaseTrigger.quality}`,
-    `Setup Type修正後Q：${currentAsia2B.effectiveQuality}`
+    `Setup修正後Q：${currentAsia2B.effectiveQuality}`
   ];
 }
 
@@ -2317,42 +3530,47 @@ function checklistSummary() {
   const tailwind =
     $("p1BackgroundTailwind").value;
 
+  const counterInfo =
+    counterP2EligibilityInfo(
+      currentAsia2B.effectivePosition
+    );
+
   return [
     `交易日期：${$("tradeDate").value}`,
+    `市場：${MARKET_CONFIG[marketCode(false)].label}`,
+    `品種：${$("symbol").value}`,
+    `核心Setup：${currentAsia2B.setupTemplateLabel}`,
     `大局背景層：${timeframes.background}－${$("backgroundState").value}`,
     `主判斷層：${timeframes.main}－${$("mainState").value}`,
     `次判斷層：${timeframes.secondary}－${$("secondaryState").value}`,
     `入場觸發層：${timeframes.entry}`,
     `交易方向：${direction()}`,
-    `主次關係：${currentDecision.relation}`,
+    `市場關係：${currentDecision.relation}`,
     `交易路線：${currentDecision.marketRoute}`,
-    `交易優先方向：${currentDecision.preferredDirection}`,
-    `優先部署：${combinedDeploymentInfo().priority}`,
-    `次要部署：${combinedDeploymentInfo().secondary}`,
+    `市場關係上限：${SIZE_LABELS[currentDecision.marketCap]}`,
     "",
     `Setup Type：${currentAsia2B.effectiveSetupTypeLabel}`,
     `Type A高質：${currentAsia2B.selectedSetupType === "A" ? yesNo(currentAsia2B.highQuality) : "N/A"}`,
     `Type A條件：${currentAsia2B.selectedSetupType === "A" ? `${currentAsia2B.criteriaCount}/6` : "N/A"}`,
-    `沒有頂底雙邊掃：${currentAsia2B.selectedSetupType === "A" ? yesNo(checked("asia2BNoDoubleSweep")) : "N/A"}`,
     "",
     `大局實際結構重疊：${$("backgroundDirectOverlap").value === "yes" ? "有" : "冇"}`,
     `P1順風：${tailwind === "valid" ? "有｜仍有效" : tailwind === "expired" ? "曾有｜已失效" : "冇"}`,
-    `包含轉換反向P1屬Transition層大位：${yesNo(checked("transitionLayerP1"))}`,
-    `衝突順主判P3可小注：${yesNo(checked("p3ConflictTestable"))}`,
-    `逆主判P2特殊資格：${counterP2EligibilityInfo(currentAsia2B.effectivePosition).eligible ? "有" : "冇"}｜${counterP2EligibilityInfo(currentAsia2B.effectivePosition).reason}`,
-    `雙轉換P1主要邊界：${yesNo(checked("bothTransitionMajorP1"))}`,
+    `逆主判P2資格：${counterInfo.eligible ? "有" : "冇"}｜${counterInfo.reason}`,
+    `窄義HTF P1反轉例外：${yesNo(checked("htfP1ReversalException"))}`,
+    `主判Transition反向P1：${yesNo(checked("transitionLayerP1"))}`,
+    `衝突順主判P3可測試：${yesNo(checked("p3ConflictTestable"))}`,
+    `雙轉換P3可測試：${yesNo(checked("bothTransitionP3Testable"))}`,
     "",
     `原始位置：${currentAsia2B.basePosition}`,
-    `Setup Type後有效位置：${currentAsia2B.effectivePosition}`,
+    `Setup後有效位置：${currentAsia2B.effectivePosition}`,
     "",
     ...triggerChecklistLines(),
     "",
     `次判Range修正：${currentDecision.rangeState}`,
     `Range修正後：${SIZE_LABELS[currentDecision.rangeSize]}`,
     `大局障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
-    `市場關係上限：${SIZE_LABELS[currentDecision.marketCap]}`,
-    `Setup Type＋P × Q：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
-    `大局修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
+    `P×Q／方向Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
+    `障礙修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
     `最終注碼：${SIZE_LABELS[currentDecision.finalSize]}`,
     "",
     `追價：${yesNo(checked("chasedBreakout"))}`,
@@ -2814,13 +4032,25 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.24",
+      "PracticeJournal-V1.25",
     engineVersion:
-      "MasterTradeDecisionMatrix-V3.4-SetupType",
+      "MasterTradeMatrix-AllMarkets-V1",
 
     recordMode:
       recordMode(),
+    marketCode:
+      marketCode(false),
+    marketLabel:
+      MARKET_CONFIG[
+        marketCode(false)
+      ].label,
     symbol,
+    setupTemplate:
+      currentAsia2B.setupTemplate,
+    setupTemplateLabel:
+      currentAsia2B.setupTemplateLabel,
+    setupVariant:
+      currentAsia2B.setupVariant,
 
     backgroundTimeframe:
       timeframes.background,
@@ -2876,8 +4106,24 @@ async function saveDecision(event) {
       counterP2EligibilityInfo(
         currentAsia2B.effectivePosition
       ).eligible,
+    counterP2Basis:
+      counterP2EligibilityInfo(
+        currentAsia2B.effectivePosition
+      ).basis,
+    counterP2WeakBreakRetest:
+      checked(
+        "counterP2WeakBreakRetest"
+      ),
+    htfP1ReversalException:
+      checked(
+        "htfP1ReversalException"
+      ),
     bothTransitionMajorP1:
       checked("bothTransitionMajorP1"),
+    bothTransitionP3Testable:
+      checked(
+        "bothTransitionP3Testable"
+      ),
 
     setupTypeSelected:
       currentAsia2B.selectedSetupType,
@@ -2889,6 +4135,28 @@ async function saveDecision(event) {
       currentBaseTrigger.noSweepRejection,
     noSweepMicroBreak:
       currentBaseTrigger.noSweepMicroBreak,
+    microStructureShift:
+      currentBaseTrigger.microStructureShift,
+    validBreakout:
+      currentBaseTrigger.validBreakout,
+    validAcceptance:
+      currentBaseTrigger.validAcceptance,
+    firstRetest:
+      currentBaseTrigger.firstRetest,
+    breakoutQuality:
+      currentBaseTrigger.breakoutQuality,
+    fullRepairComplete:
+      currentBaseTrigger.fullRepairComplete,
+    fullRepairAsiaSweep:
+      currentBaseTrigger.fullRepairAsiaSweep,
+    fullRepairEntryOutside:
+      currentBaseTrigger.fullRepairEntryOutside,
+    fullRepairAcceptedBackInside:
+      currentBaseTrigger.fullRepairAcceptedBackInside,
+    strongTrendContext:
+      currentBaseTrigger.strongTrendContext,
+    trueStructureRetest:
+      currentBaseTrigger.trueStructureRetest,
 
     triggerModel:
       currentBaseTrigger.model,
@@ -3037,7 +4305,7 @@ async function saveDecision(event) {
 
   renderHistory();
   showToast(
-    "已儲存V3.4 Setup Type紀錄"
+    "已儲存全市場Matrix紀錄"
   );
 }
 
@@ -3253,9 +4521,13 @@ function renderHistory() {
         record.engineVersion
           ? `<span class="history-tag">${escapeHtml(
               record.engineVersion.includes(
-                "V3.4-SetupType"
+                "AllMarkets"
               )
-                ? "Matrix V3.4"
+                ? "All-Market Matrix"
+                : record.engineVersion.includes(
+                    "V3.4-SetupType"
+                  )
+                  ? "Matrix V3.4"
                 : record.engineVersion.includes(
                     "V3.3-SimplifiedDirectionRules"
                   )
@@ -3273,15 +4545,25 @@ function renderHistory() {
 
       const triggerModelTag =
         record.engineVersion?.includes(
-          "V3.4-SetupType"
+          "AllMarkets"
         )
           ? `<span class="history-tag">${escapeHtml(
+              record.setupTemplateLabel ||
               record.setupTypeLabel ||
               setupTypeLabel(
                 record.setupType || "B"
               )
             )}</span>`
           : record.engineVersion?.includes(
+              "V3.4-SetupType"
+            )
+            ? `<span class="history-tag">${escapeHtml(
+                record.setupTypeLabel ||
+                setupTypeLabel(
+                  record.setupType || "B"
+                )
+              )}</span>`
+            : record.engineVersion?.includes(
               "V3.3-SimplifiedDirectionRules"
             )
             ? '<span class="history-tag">精簡方向規則</span>'
@@ -3322,6 +4604,11 @@ function renderHistory() {
               recordModeLabel(
                 record.recordMode
               )
+            )}</span>
+            <span class="history-tag">${escapeHtml(
+              record.marketLabel ||
+              record.marketCode ||
+              "舊版"
             )}</span>
             <span class="history-tag">${escapeHtml(
               record.entryStatus || "未分類"
@@ -3529,6 +4816,20 @@ async function openRecord(recordId) {
       "舊版Matrix"
     )}
     <br>
+    <strong>市場：</strong>
+    ${escapeHtml(
+      record.marketLabel ||
+      record.marketCode ||
+      "舊版未記錄"
+    )}
+    <br>
+    <strong>核心Setup：</strong>
+    ${escapeHtml(
+      record.setupTemplateLabel ||
+      record.setupTemplate ||
+      "舊版未記錄"
+    )}
+    <br>
     <strong>大局背景：</strong>
     ${escapeHtml(
       record.backgroundTimeframe || ""
@@ -3607,10 +4908,16 @@ async function openRecord(recordId) {
           ? "衝突順主判P3可小注"
           : "",
         record.counterP2Eligible
-          ? "逆主判P2特殊資格"
+          ? `逆主判P2特殊資格${record.counterP2Basis ? `（${record.counterP2Basis}）` : ""}`
+          : "",
+        record.htfP1ReversalException
+          ? "窄義HTF P1反轉例外"
           : "",
         record.bothTransitionMajorP1
           ? "雙轉換P1主要邊界"
+          : "",
+        record.bothTransitionP3Testable
+          ? "雙轉換P3可小注"
           : ""
       ].filter(Boolean).join("／") || "無"
     )}
@@ -3683,7 +4990,7 @@ async function openRecord(recordId) {
     "N/A";
   $("editTpPlan").value =
     record.tpPlan ||
-    "1:2食哂";
+    "2R全平";
   $("editProfitR").value =
     Number.isFinite(
       record.profitR
@@ -4021,7 +5328,12 @@ function buildCsv(records) {
     "App版本",
     "Matrix版本",
     "類型",
+    "市場分類",
+    "市場名稱",
     "品種",
+    "核心Setup",
+    "Setup代碼",
+    "Setup子類型",
     "大局背景TF",
     "大局背景狀態",
     "主判TF",
@@ -4033,24 +5345,36 @@ function buildCsv(records) {
     "主次關係",
     "交易路線",
     "交易優先方向",
-    "優先部署",
-    "次要部署",
     "大局方向關係",
     "大局實際結構重疊",
     "P1順風",
     "原始位置",
     "有效位置",
-    "包含轉換反向P1屬Transition層大位",
+    "窄義HTF P1反轉例外",
+    "主判Transition反向P1",
     "衝突順主判P3可小注",
     "逆主判P2特殊資格",
+    "逆主判P2資格基礎",
+    "主判弱勢次結突破首次Retest",
     "雙轉換P1主要邊界",
+    "雙轉換P3可小注",
     "Setup Type選擇",
     "有效Setup Type",
     "No Sweep P1 Rejection",
-    "No Sweep Micro Break",
+    "微結構／控制權轉移",
     "有效Sweep",
     "有效Reclaim",
     "Sweep／Reclaim質素",
+    "有效Breakout",
+    "有效Acceptance",
+    "第一次Retest",
+    "Breakout／Acceptance質素",
+    "Full Repair完整",
+    "Full Repair Asia Sweep",
+    "Full Repair入場POR外",
+    "POR內重新Acceptance",
+    "強趨勢Context",
+    "真正結構Retest",
     "Retest質素",
     "交易空間",
     "基礎Q",
@@ -4058,14 +5382,13 @@ function buildCsv(records) {
     "Type A方向",
     "Type A高質",
     "Type A條件數",
-    "沒有頂底雙邊掃",
     "Type A位置升級",
     "Type A Q升級",
     "次判Range位置",
     "Range修正後",
     "大局障礙",
     "市場關係上限",
-    "Setup Type＋P × Q",
+    "P×Q／方向Matrix",
     "大局修正",
     "最終注碼",
     "入市結果",
@@ -4092,7 +5415,14 @@ function buildCsv(records) {
       record.appVersion || "",
       record.engineVersion || "",
       record.recordMode || "",
+      record.marketCode || "",
+      record.marketLabel || "",
       record.symbol || "",
+      record.setupTemplateLabel ||
+        record.setupTemplate ||
+        "",
+      record.setupTemplate || "",
+      record.setupVariant || "",
       record.backgroundTimeframe || "",
       record.backgroundState || "",
       record.mainTimeframe || "",
@@ -4106,25 +5436,27 @@ function buildCsv(records) {
         record.directionPermission ||
         "",
       record.preferredDirection || "",
-      record.priorityDeployment || "",
-      record.secondaryDeployment || "",
       record.backgroundRelation || "",
-      record.backgroundDirectOverlap === "yes"
+      record.backgroundDirectOverlap ===
+        "yes"
         ? "有"
         : "冇",
-      record.p1BackgroundTailwind === "valid"
+      record.p1BackgroundTailwind ===
+        "valid"
         ? "有｜仍有效"
-        : record.p1BackgroundTailwind === "expired"
+        : record.p1BackgroundTailwind ===
+            "expired"
           ? "曾有｜已失效"
-          : record.p1BackgroundTailwind === "yes"
-            ? "有｜舊版"
-            : "冇",
+          : "冇",
       record.basePosition ||
         record.position ||
         "",
       record.position ||
         record.basePosition ||
         "",
+      record.htfP1ReversalException
+        ? "Yes"
+        : "No",
       record.transitionLayerP1
         ? "Yes"
         : "No",
@@ -4134,33 +5466,62 @@ function buildCsv(records) {
       record.counterP2Eligible
         ? "Yes"
         : "No",
+      record.counterP2Basis || "",
+      record.counterP2WeakBreakRetest
+        ? "Yes"
+        : "No",
       record.bothTransitionMajorP1
+        ? "Yes"
+        : "No",
+      record.bothTransitionP3Testable
         ? "Yes"
         : "No",
       record.setupTypeSelected ||
         record.setupType ||
         "",
-      record.setupType ||
-        "",
+      record.setupType || "",
       record.noSweepRejection
         ? "Yes"
         : "No",
+      record.microStructureShift ||
       record.noSweepMicroBreak
         ? "Yes"
         : "No",
-      record.setupType === "C"
-        ? ""
-        : record.validSweep
-          ? "Yes"
-          : "No",
-      record.setupType === "C"
-        ? ""
-        : record.validReclaim
-          ? "Yes"
-          : "No",
-      record.setupType === "C"
-        ? ""
-        : record.reclaimQuality || "",
+      record.validSweep
+        ? "Yes"
+        : "No",
+      record.validReclaim
+        ? "Yes"
+        : "No",
+      record.reclaimQuality || "",
+      record.validBreakout
+        ? "Yes"
+        : "No",
+      record.validAcceptance
+        ? "Yes"
+        : "No",
+      record.firstRetest
+        ? "Yes"
+        : "No",
+      record.breakoutQuality || "",
+      record.fullRepairComplete
+        ? "Yes"
+        : "No",
+      record.fullRepairAsiaSweep
+        ? "Yes"
+        : "No",
+      record.fullRepairEntryOutside
+        ? "Yes"
+        : "No",
+      record.fullRepairAcceptedBackInside
+        ? "Yes"
+        : "No",
+      record.strongTrendContext
+        ? "Yes"
+        : "No",
+      record.trueStructureRetest
+        ? "Yes"
+        : "No",
       record.retestQuality || "",
       record.tradeSpace || "",
       record.baseTrigger ||
@@ -4169,16 +5530,12 @@ function buildCsv(records) {
       record.trigger ||
         record.baseTrigger ||
         "",
-      record.asia2BLabel ||
-        "",
+      record.asia2BLabel || "",
       record.asia2BHighQuality
         ? "Yes"
         : "No",
       record.asia2BCriteriaCount ??
         "",
-      record.asia2BNoDoubleSweep
-        ? "Yes"
-        : "No",
       record.asia2BPositionPromoted
         ? "Yes"
         : "No",
@@ -4207,9 +5564,7 @@ function buildCsv(records) {
       record.postEntryQ || "",
       record.postEntryAction || "",
       record.tpPlan || "",
-      Number.isFinite(
-        record.profitR
-      )
+      Number.isFinite(record.profitR)
         ? record.profitR
         : "",
       record.reachedRF || "",
@@ -4289,7 +5644,7 @@ function exportCsv() {
 
   downloadBlob(
     blob,
-    `MasterTrade-V3_4-Journal-${new Date()
+    `MasterTrade-AllMarkets-Journal-${new Date()
       .toISOString()
       .slice(0, 10)}.csv`
   );
@@ -4853,7 +6208,7 @@ async function exportBackupZip() {
 
     downloadBlob(
       zipBlob,
-      `MasterTrade-V3_4-Backup-${new Date()
+      `MasterTrade-AllMarkets-Backup-${new Date()
         .toISOString()
         .slice(0, 10)}.zip`
     );
@@ -5183,17 +6538,42 @@ function recordFromCsvRow(row) {
         row,
         "Matrix版本"
       ) ||
-      "MasterTradeDecisionMatrix-V3.4-SetupType",
+      "MasterTradeMatrix-AllMarkets-V1",
     recordMode:
       firstCsvValue(
         row,
         "類型"
       ) ||
       "Practice",
+    marketCode:
+      firstCsvValue(
+        row,
+        "市場分類"
+      ) || "FX",
+    marketLabel:
+      firstCsvValue(
+        row,
+        "市場名稱"
+      ),
     symbol:
       firstCsvValue(
         row,
         "品種"
+      ),
+    setupTemplateLabel:
+      firstCsvValue(
+        row,
+        "核心Setup"
+      ),
+    setupTemplate:
+      firstCsvValue(
+        row,
+        "Setup代碼"
+      ),
+    setupVariant:
+      firstCsvValue(
+        row,
+        "Setup子類型"
       ),
     backgroundTimeframe:
       firstCsvValue(
@@ -5304,6 +6684,14 @@ function recordFromCsvRow(row) {
           "大局P1反轉例外"
         )
       ),
+    htfP1ReversalException:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "窄義HTF P1反轉例外",
+          "大局P1反轉例外"
+        )
+      ),
     basePosition:
       firstCsvValue(
         row,
@@ -5345,6 +6733,11 @@ function recordFromCsvRow(row) {
           "逆主判P2特殊資格"
         )
       ),
+    counterP2Basis:
+      firstCsvValue(
+        row,
+        "逆主判P2資格基礎"
+      ),
     counterP2WeakBreakRetest:
       csvBoolean(
         firstCsvValue(
@@ -5364,6 +6757,13 @@ function recordFromCsvRow(row) {
         firstCsvValue(
           row,
           "雙轉換P1主要邊界"
+        )
+      ),
+    bothTransitionP3Testable:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "雙轉換P3可小注"
         )
       ),
     setupTypeSelected:
@@ -5387,7 +6787,84 @@ function recordFromCsvRow(row) {
       csvBoolean(
         firstCsvValue(
           row,
+          "No Sweep Micro Break",
+          "微結構／控制權轉移"
+        )
+      ),
+    microStructureShift:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "微結構／控制權轉移",
           "No Sweep Micro Break"
+        )
+      ),
+    validBreakout:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "有效Breakout"
+        )
+      ),
+    validAcceptance:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "有效Acceptance"
+        )
+      ),
+    firstRetest:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "第一次Retest"
+        )
+      ),
+    breakoutQuality:
+      firstCsvValue(
+        row,
+        "Breakout／Acceptance質素"
+      ),
+    fullRepairComplete:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "Full Repair完整"
+        )
+      ),
+    fullRepairAsiaSweep:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "Full Repair Asia Sweep"
+        )
+      ),
+    fullRepairEntryOutside:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "Full Repair入場POR外"
+        )
+      ),
+    fullRepairAcceptedBackInside:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "POR內重新Acceptance"
+        )
+      ),
+    strongTrendContext:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "強趨勢Context"
+        )
+      ),
+    trueStructureRetest:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "真正結構Retest"
         )
       ),
     triggerModel,
@@ -6307,19 +7784,19 @@ function liveRouteLabel(value) {
     healthyAligned:
       "雙健康同向｜順共同方向",
     weakAligned:
-      "同向有弱勢｜順共同方向",
+      "同向含弱勢／轉換｜順共同方向",
     alignedReverse:
-      "雙同向｜反共同方向禁止",
+      "反共同方向｜正常0／窄義P1例外",
     conflictMain:
       "方向衝突｜順主判、逆次判",
     conflictSecondary:
-      "方向衝突｜順次判、逆主判",
+      "順次判、逆主判",
     transitionConfirmed:
       "包含轉換｜順已確認方向",
     transitionReverse:
-      "包含轉換｜反向部署",
+      "主判Transition｜逆次判已確認方向",
     bothTransition:
-      "雙轉換／橫行｜只做邊界"
+      "雙轉換／Range｜只做邊界"
   };
 
   return labels[value] || value;
@@ -6331,7 +7808,7 @@ function liveRouteCap(value) {
     weakAligned: 0.5,
     alignedReverse: 0,
     conflictMain: 0.5,
-    conflictSecondary: 0.25,
+    conflictSecondary: 0.5,
     transitionConfirmed: 0.5,
     transitionReverse: 0.25,
     bothTransition: 0.5
@@ -6344,15 +7821,21 @@ function recalculateLiveDecision() {
   const routeCode =
     $("liveMarketRoute").value;
 
-  const marketCap =
-    liveRouteCap(routeCode);
+  const definition =
+    setupDefinition(true);
+
+  const variant =
+    setupVariant(true);
 
   const selectedSetupType =
-    $("liveSetupType").value;
+    setupTypeFromTemplate(true);
 
   const typeAQualified =
     selectedSetupType === "A" &&
-    checked("liveTypeAQualified");
+    isDesignatedTypeASetup(true) &&
+    checked(
+      "liveTypeAQualified"
+    );
 
   const effectiveSetupType =
     selectedSetupType === "A" &&
@@ -6372,11 +7855,25 @@ function recalculateLiveDecision() {
       selectedSetupType !== "C"
     );
 
+  $("liveSetupClassification")
+    .textContent =
+      setupTypeLabel(
+        selectedSetupType
+      );
+
   $("liveEffectiveSetupType")
     .textContent =
       setupTypeLabel(
         effectiveSetupType
       );
+
+  if (
+    $("liveTypeCNote")
+  ) {
+    $("liveTypeCNote")
+      .textContent =
+        definition.note;
+  }
 
   const basePosition =
     $("livePosition").value;
@@ -6397,7 +7894,9 @@ function recalculateLiveDecision() {
   if (
     effectiveSetupType === "A" &&
     effectiveQuality === "Q2" &&
-    checked("liveTypeAQ2EdgeOnly")
+    checked(
+      "liveTypeAQ2EdgeOnly"
+    )
   ) {
     effectiveQuality = "Q3";
   }
@@ -6435,12 +7934,8 @@ function recalculateLiveDecision() {
   }
 
   const showCounterP2 =
-    (
-      routeCode ===
-        "conflictSecondary" ||
-      routeCode ===
-        "transitionReverse"
-    ) &&
+    routeCode ===
+      "conflictSecondary" &&
     effectivePosition === "P2";
 
   $("liveCounterP2BasisRow")
@@ -6453,6 +7948,37 @@ function recalculateLiveDecision() {
     $("liveCounterP2Basis")
       .value = "none";
   }
+
+  const counterP2Eligible =
+    showCounterP2 &&
+    $("liveCounterP2Basis").value !==
+      "none";
+
+  const showHTFException =
+    routeCode ===
+      "alignedReverse";
+
+  $("liveHTFP1ReversalExceptionRow")
+    .classList.toggle(
+      "hidden",
+      !showHTFException
+    );
+
+  if (!showHTFException) {
+    $("liveHTFP1ReversalException")
+      .checked = false;
+  }
+
+  const htfExceptionEligible =
+    showHTFException &&
+    checked(
+      "liveHTFP1ReversalException"
+    ) &&
+    (
+      basePosition === "P1" ||
+      basePosition === "P2"
+    ) &&
+    effectiveQuality === "Q3";
 
   const showBothTransitionP1 =
     routeCode ===
@@ -6470,12 +7996,32 @@ function recalculateLiveDecision() {
       .checked = false;
   }
 
-  const counterP2Eligible =
-    showCounterP2 &&
-    $("liveP1Tailwind").value ===
-      "valid" &&
-    $("liveCounterP2Basis").value ===
-      "secondaryNotAligned";
+  const showBothTransitionP3 =
+    routeCode ===
+      "bothTransition" &&
+    effectivePosition === "P3";
+
+  $("liveBothTransitionP3TestableRow")
+    .classList.toggle(
+      "hidden",
+      !showBothTransitionP3
+    );
+
+  if (!showBothTransitionP3) {
+    $("liveBothTransitionP3Testable")
+      .checked = false;
+  }
+
+  let marketCap =
+    liveRouteCap(routeCode);
+
+  if (
+    routeCode ===
+      "alignedReverse" &&
+    htfExceptionEligible
+  ) {
+    marketCap = 0.25;
+  }
 
   let matrixSize =
     Math.min(
@@ -6497,17 +8043,47 @@ function recalculateLiveDecision() {
           bothTransitionMajorP1:
             checked(
               "liveBothTransitionMajorP1"
-            )
+            ),
+          bothTransitionP3Testable:
+            checked(
+              "liveBothTransitionP3Testable"
+            ),
+          htfP1ReversalEligible:
+            htfExceptionEligible,
+          basePosition
         }
       )
     );
 
   if (
-    effectiveSetupType === "C" &&
-    !(
-      effectivePosition === "P1" &&
-      effectiveQuality === "Q3"
-    )
+    effectiveSetupType === "C"
+  ) {
+    if (
+      variant === "breakout" ||
+      variant === "fullRepairAsia" ||
+      variant === "fullRepairPure"
+    ) {
+      if (
+        basePosition !== "P1" &&
+        basePosition !== "P2"
+      ) {
+        matrixSize = 0;
+      }
+    } else if (
+      variant === "p1NoSweep"
+    ) {
+      if (
+        basePosition !== "P1"
+      ) {
+        matrixSize = 0;
+      }
+    }
+  }
+
+  if (
+    variant ===
+      "p1ReversalSweep" &&
+    basePosition !== "P1"
   ) {
     matrixSize = 0;
   }
@@ -6565,7 +8141,7 @@ function recalculateLiveDecision() {
     effectivePosition === "P4"
   ) {
     vetoes.push(
-      "P4／Range正中＝0注。"
+      "P4／Range中間＝0注。"
     );
   }
 
@@ -6581,7 +8157,7 @@ function recalculateLiveDecision() {
     obstacle === "insufficient"
   ) {
     vetoes.push(
-      "第一真實Target前R:R不足。"
+      "第一真實障礙前R:R不足。"
     );
   }
 
@@ -6610,8 +8186,9 @@ function recalculateLiveDecision() {
 
   $("liveMarketCap").textContent =
     SIZE_LABELS[marketCap];
-  $("liveEffectivePosition").textContent =
-    effectivePosition;
+  $("liveEffectivePosition")
+    .textContent =
+      effectivePosition;
   $("liveEffectiveQ").textContent =
     effectiveQuality;
   $("liveResultCap").textContent =
@@ -6627,65 +8204,81 @@ function recalculateLiveDecision() {
 
   const relationNotes = {
     healthyAligned:
-      "雙健康同向只做共同方向；P1／P2＋Q3最高1注，反向禁止。",
+      "雙健康同向：P1／P2 Q3最高1。",
     weakAligned:
-      "同向但有弱勢仍只做共同方向；最高0.5注。",
+      "同向含弱勢／轉換：P1／P2 Q3最高0.5。",
     alignedReverse:
-      "雙同向反共同方向禁止；P1大位都唔直接反向。",
+      "反共同方向正常0；只有窄義HTF P1例外可0.25 Probe。",
     conflictMain:
-      "方向衝突順主判優先；P1／高質P2＋Q3最高0.5。",
+      "衝突順主判：P1／P2 Q3最高0.5。",
     conflictSecondary:
-      "順次判、逆主判：P1＋Q3正常0.25；P2＋Q3只有次判已不再同主判同向＋有效P1順風先可0.25。",
+      "逆主判：P1 Q3最高0.5、Q2最高0.25；P2 Q3要額外資格。",
     transitionConfirmed:
-      "包含轉換可順已確認方向；P1／P2＋Q3最高0.5。",
+      "包含轉換順已確認方向：最高0.5。",
     transitionReverse:
-      "包含轉換反向正常以Transition層真正P1＋Q3為主；若主判仍係趨勢、次判已不再同主判同向＋有效P1順風，P2＋Q3亦可0.25。",
+      "主判Transition而逆次判已確認方向：只限真正P1 Q3，最高0.25。",
     bothTransition:
-      "雙轉換／橫行只做邊界；中間位不做。"
+      "雙轉換／Range只做邊界；P1 Q3 0.5、P2 Q3 0.25。"
   };
 
   $("liveRelationNote").textContent =
     relationNotes[routeCode] || "";
 
   const notes = [
-    `市場關係／交易路線：${liveRouteLabel(routeCode)}。`,
-    `Setup Type：${setupTypeLabel(effectiveSetupType)}。`,
+    `市場：${MARKET_CONFIG[
+      marketCode(true)
+    ].label}。`,
+    `Setup：${definition.label}。`,
+    `方向／市場關係：${liveRouteLabel(routeCode)}。`,
     selectedSetupType === "A" &&
       !typeAQualified
-      ? "Type A未確認高質資格，今次自動按Type B處理。"
-      : "",
+      ? isDesignatedTypeASetup(true)
+        ? "Type A未確認高質資格，按Type B處理。"
+        : "呢個唔係指定Type A Session 2B；按Type B處理。"
+      : `Setup Type：${setupTypeLabel(effectiveSetupType)}。`,
     basePosition !==
       effectivePosition
       ? "Type A：原始P3獲P2-effective待遇。"
       : `位置：${effectivePosition}。`,
     effectiveSetupType === "A" &&
       $("liveTriggerQuality").value === "Q2" &&
-      checked("liveTypeAQ2EdgeOnly")
-      ? "Type A：Q2唯一問題係Sweep／Reclaim邊緣，修正至Q3。"
+      checked(
+        "liveTypeAQ2EdgeOnly"
+      )
+      ? "Type A：Q2唯一問題係Sweep／Reclaim邊緣，獲Q3待遇。"
       : `Q：${effectiveQuality}。`,
-    effectiveSetupType === "C"
-      ? "Type C：只限P1＋Q3高質右側確認。"
-      : "",
     showCounterP2
       ? counterP2Eligible
-        ? "逆主判P2特殊資格已確認：次判已不再同主判同向＋P1順風仍有效，P2＋Q3最高0.25。"
-        : "逆主判P2正常0；要同時確認次判已不再同主判同向，而且P1順風仍有效。"
+        ? `逆主判P2資格：${$("liveCounterP2Basis").selectedOptions[0].textContent}。`
+        : "逆主判P2未有額外資格，正常0。"
+      : "",
+    showHTFException
+      ? htfExceptionEligible
+        ? "窄義HTF P1反轉例外成立：最高0.25 Probe。"
+        : "反共同方向正常0；例外未完整。"
       : "",
     rangeState === "outside"
-      ? "次判轉換中性：唔喺相應頂／底25%，降一級。"
+      ? "Range未進入相關25%：降一級。"
       : rangeState === "middle"
-        ? "次判Range正中：0注。"
-        : rangeState === "favorable"
-          ? "次判轉換中性：位於相應25%，不降級。"
-          : "",
+        ? "Range中間：0注。"
+        : "",
     obstacle === "near"
-      ? "Entry Obstacle壓縮空間：降一級。"
+      ? "第一真實障礙壓縮空間：降一級。"
       : obstacle === "inside"
-        ? "已處大局障礙區內：套P1/P2專用上限。"
+        ? "身處重大障礙區：套Continuation專用上限。"
         : obstacle === "insufficient"
-          ? "第一真實Target前R:R不足：0注。"
-          : "Target Obstacle前已有完整最低R:R：唔影響Entry注碼。"
+          ? "第一障礙前R:R不足：0注。"
+          : "第一障礙前有完整R:R：唔降注。"
   ].filter(Boolean);
+
+  if (
+    marketCode(true) === "UK100" ||
+    marketCode(true) === "GER40"
+  ) {
+    notes.push(
+      "EU規則：Asia 2B during POR唔係獨立Setup。"
+    );
+  }
 
   if (
     vetoes.length > 0
@@ -6704,7 +8297,6 @@ function recalculateLiveDecision() {
         )
         .join("")}</ul>`;
 }
-
 
 function setupTabs() {
   document
@@ -6813,11 +8405,27 @@ function populateSelects() {
         );
       });
   });
+
+  populateSetupTemplateSelect(
+    $("marketCode").value,
+    "setupTemplate"
+  );
+
+  populateSetupTemplateSelect(
+    $("liveMarketCode").value,
+    "liveSetupTemplate"
+  );
+
+  applySetupTemplate(false);
+  applySetupTemplate(true);
 }
 
-function syncTypeACriteriaFromChecklist(eventTargetId = "") {
+function syncTypeACriteriaFromChecklist(
+  eventTargetId = ""
+) {
   if (
-    $("setupType").value !== "A"
+    setupTypeFromTemplate(false) !==
+    "A"
   ) {
     return;
   }
@@ -6825,13 +8433,17 @@ function syncTypeACriteriaFromChecklist(eventTargetId = "") {
   if (
     checked("asia2BCleanSweep")
   ) {
-    $("validSweep").checked = true;
+    $("validSweep").checked =
+      true;
   }
 
   if (
     checked("asia2BReclaimBreak")
   ) {
-    $("validReclaim").checked = true;
+    $("validReclaim").checked =
+      true;
+    $("microStructureShift")
+      .checked = true;
   }
 
   if (
@@ -6842,9 +8454,12 @@ function syncTypeACriteriaFromChecklist(eventTargetId = "") {
   }
 }
 
-function syncTypeACriteriaFromQ(eventTargetId = "") {
+function syncTypeACriteriaFromQ(
+  eventTargetId = ""
+) {
   if (
-    $("setupType").value !== "A"
+    setupTypeFromTemplate(false) !==
+    "A"
   ) {
     return;
   }
@@ -6854,9 +8469,20 @@ function syncTypeACriteriaFromQ(eventTargetId = "") {
       false;
   }
 
-  if (!checked("validReclaim")) {
-    $("asia2BReclaimBreak").checked =
-      false;
+  if (
+    !checked("validReclaim") ||
+    !checked("microStructureShift")
+  ) {
+    $("asia2BReclaimBreak")
+      .checked = false;
+  } else if (
+    eventTargetId ===
+      "validReclaim" ||
+    eventTargetId ===
+      "microStructureShift"
+  ) {
+    $("asia2BReclaimBreak")
+      .checked = true;
   }
 
   if (
@@ -6884,6 +8510,26 @@ function resetAllToDefaultsExceptDate() {
   $("tradeDate").value =
     preservedTradeDate;
 
+  $("marketCode").value =
+    "FX";
+  $("liveMarketCode").value =
+    "FX";
+
+  populateSetupTemplateSelect(
+    "FX",
+    "setupTemplate",
+    "fx_liquidity_sweep"
+  );
+
+  populateSetupTemplateSelect(
+    "FX",
+    "liveSetupTemplate",
+    "fx_liquidity_sweep"
+  );
+
+  applySetupTemplate(false);
+  applySetupTemplate(true);
+
   $("timeframePreset").value =
     "fx";
   applyTimeframePreset("fx");
@@ -6895,6 +8541,10 @@ function resetAllToDefaultsExceptDate() {
   $("secondaryState").value =
     "轉換中－偏跌";
 
+  $("marketTimeRuleNote")
+    .textContent =
+      MARKET_CONFIG.FX.timeRule;
+
   clearPendingImage();
 
   recalculateLiveDecision();
@@ -6905,7 +8555,126 @@ function resetAllToDefaultsExceptDate() {
   );
 }
 
+function syncTradeSpaceAndObstacle(
+  source
+) {
+  if (source === "tradeSpace") {
+    const value =
+      $("tradeSpace").value;
+
+    if (value === "short") {
+      $("obstacleState").value =
+        "near";
+    } else if (
+      value === "insufficient"
+    ) {
+      $("obstacleState").value =
+        "insufficient";
+    } else if (
+      $("obstacleState").value ===
+        "near" ||
+      $("obstacleState").value ===
+        "insufficient"
+    ) {
+      $("obstacleState").value =
+        "far";
+    }
+  } else {
+    const value =
+      $("obstacleState").value;
+
+    if (value === "near") {
+      $("tradeSpace").value =
+        "short";
+    } else if (
+      value === "insufficient"
+    ) {
+      $("tradeSpace").value =
+        "insufficient";
+    } else if (
+      value === "far" &&
+      (
+        $("tradeSpace").value ===
+          "short" ||
+        $("tradeSpace").value ===
+          "insufficient"
+      )
+    ) {
+      $("tradeSpace").value =
+        "full";
+    }
+  }
+}
+
 function setupEvents() {
+  $("liveMarketCode")
+    .addEventListener(
+      "change",
+      () => {
+        applyMarketPreset(
+          $("liveMarketCode").value,
+          true
+        );
+        recalculateLiveDecision();
+      }
+    );
+
+  $("liveSetupTemplate")
+    .addEventListener(
+      "change",
+      () => {
+        applySetupTemplate(true);
+        recalculateLiveDecision();
+      }
+    );
+
+  $("marketCode")
+    .addEventListener(
+      "change",
+      () => {
+        applyMarketPreset(
+          $("marketCode").value,
+          false
+        );
+        recalculate();
+      }
+    );
+
+  $("setupTemplate")
+    .addEventListener(
+      "change",
+      () => {
+        applySetupTemplate(false);
+        recalculate();
+      }
+    );
+
+  $("setupType")
+    .addEventListener(
+      "change",
+      () => {
+        if (
+          setupDefinition(false)
+            .manualType
+        ) {
+          applySetupTemplate(false);
+        }
+      }
+    );
+
+  $("liveSetupType")
+    .addEventListener(
+      "change",
+      () => {
+        if (
+          setupDefinition(true)
+            .manualType
+        ) {
+          applySetupTemplate(true);
+        }
+      }
+    );
+
   $("liveDecisionForm")
     .addEventListener(
       "input",
@@ -6963,6 +8732,7 @@ function setupEvents() {
   [
     "validSweep",
     "validReclaim",
+    "microStructureShift",
     "retestQuality"
   ].forEach((id) => {
     $(id).addEventListener(
@@ -6973,6 +8743,24 @@ function setupEvents() {
     );
   });
 
+
+  $("tradeSpace")
+    .addEventListener(
+      "change",
+      () =>
+        syncTradeSpaceAndObstacle(
+          "tradeSpace"
+        )
+    );
+
+  $("obstacleState")
+    .addEventListener(
+      "change",
+      () =>
+        syncTradeSpaceAndObstacle(
+          "obstacleState"
+        )
+    );
 
   $("decisionForm")
     .addEventListener(
@@ -7259,7 +9047,30 @@ function initialize() {
   $("tradeDate").value =
     localDateString();
 
-  applyTimeframePreset("fx");
+  $("marketCode").value =
+    "FX";
+  $("liveMarketCode").value =
+    "FX";
+
+  populateSetupTemplateSelect(
+    "FX",
+    "setupTemplate",
+    "fx_liquidity_sweep"
+  );
+
+  populateSetupTemplateSelect(
+    "FX",
+    "liveSetupTemplate",
+    "fx_liquidity_sweep"
+  );
+
+  applySetupTemplate(false);
+  applySetupTemplate(true);
+
+  applyMarketPreset(
+    "FX",
+    false
+  );
 
   $("backgroundState").value =
     "轉換中－中性";

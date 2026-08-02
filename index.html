@@ -17,9 +17,9 @@
     <div>
       <p class="eyebrow">MASTER TRADE</p>
       <h1>Master Trade System</h1>
-      <p class="header-subtitle">Decision Matrix V3.4｜Setup Type＋精簡方向規則版</p>
+      <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.24</span>
+    <span class="version-badge">V1.25</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -33,13 +33,32 @@
 
     <section id="live" class="tab-panel active">
       <article class="card live-hero">
-        <p class="eyebrow">LIVE DECISION MATRIX V3.4</p>
-        <h2>Setup Type＋精簡方向規則版</h2>
-        <p class="large-rule">市場關係 → Setup Type → P → Q → Range／P1順風 → 大局障礙 → 最終注碼</p>
-        <p class="muted">雙同向只做共同方向；Setup Type A有P／Q特殊待遇，Type B冇升級，Type C只限P1＋高質右側確認。</p>
+        <p class="eyebrow">ALL-MARKET LIVE MATRIX</p>
+        <h2>HSI／UK100／GER40／外匯／黃金整合版</h2>
+        <p class="large-rule">方向權限 → 市場關係上限 → P → Setup → Q → 第一真實障礙／R:R → 最終注碼</p>
+        <p class="muted">Setup唔會創造方向權限；最終注碼由方向／市場關係、P×Q、Range及障礙限制取最低。</p>
       </article>
 
       <form id="liveDecisionForm" novalidate>
+        <article class="card live-step">
+          <div class="live-step-title"><span>市場</span><h2>市場＋核心Setup</h2></div>
+          <label>
+            市場
+            <select id="liveMarketCode">
+              <option value="HSI">HSI</option>
+              <option value="UK100">UK100</option>
+              <option value="GER40">GER40</option>
+              <option value="FX" selected>外匯</option>
+              <option value="XAU">黃金</option>
+            </select>
+          </label>
+          <label>
+            Setup
+            <select id="liveSetupTemplate"></select>
+          </label>
+          <p id="liveSetupTemplateNote" class="state-note"></p>
+        </article>
+
         <article class="card live-step">
           <div class="live-step-title"><span>STEP 1</span><h2>主判 × 次判｜市場關係／交易路線</h2></div>
           <label>
@@ -47,9 +66,9 @@
             <select id="liveMarketRoute">
               <option value="healthyAligned">A｜雙健康同向｜順共同方向｜Max 1注</option>
               <option value="weakAligned">B｜同向有弱勢｜順共同方向｜Max 0.5注</option>
-              <option value="alignedReverse">C｜雙同向｜反共同方向｜禁止</option>
+              <option value="alignedReverse">C｜反共同方向｜正常0／窄義P1例外0.25</option>
               <option value="conflictMain">D｜方向衝突｜順主判、逆次判｜Max 0.5注</option>
-              <option value="conflictSecondary">E｜方向衝突｜順次判、逆主判｜Max 0.25注</option>
+              <option value="conflictSecondary">E｜順次判、逆主判｜P1 Max 0.5／P2 Max 0.25</option>
               <option value="transitionConfirmed">F｜包含轉換｜順已確認方向｜Max 0.5注</option>
               <option value="transitionReverse">G｜包含轉換｜反向部署｜Max 0.25注</option>
               <option value="bothTransition">H｜雙轉換／橫行｜只做邊界｜Max 0.5注</option>
@@ -66,10 +85,11 @@
           <label>
             入場模式
             <select id="liveSetupType">
-              <option value="A">Type A｜高質 OPR／Asia 2B</option>
-              <option value="B" selected>Type B｜普通 Sweep &amp; Reclaim</option>
-              <option value="C">Type C｜No Sweep</option>
+              <option value="A">Type A｜高質Session 2B</option>
+              <option value="B" selected>Type B｜普通Sweep＋Reclaim</option>
+              <option value="C">Type C｜Breakout／No Sweep</option>
             </select>
+            <small>市場Setup會自動分類；「自訂」先可手動選Type。</small>
           </label>
 
           <div id="liveTypeAPanel" class="conditional-panel hidden">
@@ -84,8 +104,10 @@
           </div>
 
           <div id="liveTypeCPanel" class="conditional-panel hidden">
-            <p>Type C冇Sweep：只做P1＋高質右側確認；P2／P3直接0。</p>
+            <p id="liveTypeCNote">Breakout／Full Repair可以係原生P2；普通No-Sweep反轉只限真正P1。</p>
           </div>
+
+          <p><strong>分類：</strong> <span id="liveSetupClassification">Type B</span></p>
 
           <div class="result-lines compact">
             <div><span>有效Setup Type</span><strong id="liveEffectiveSetupType">Type B</strong></div>
@@ -118,10 +140,18 @@
               逆主判P2特殊資格
               <select id="liveCounterP2Basis">
                 <option value="none">冇｜P2正常0注</option>
-                <option value="secondaryNotAligned">次判已不再同主判同向＋P1順風仍有效</option>
+                <option value="healthyTailwind">主判健康＋有效P1順風</option>
+                <option value="weakBreakRetest">主判弱勢＋主判次結突破＋首次Retest</option>
               </select>
             </label>
-            <p class="state-note">唔需要主判次結先被突破。P1順風只開P2＋Q3嘅0.25資格，唔會將P2升P1。</p>
+            <p class="state-note">P1順風唔升P；弱勢路線要主判次結突破＋第一次回測。</p>
+          </div>
+
+          <div id="liveHTFP1ReversalExceptionRow" class="conditional-panel hidden">
+            <label class="toggle-row">
+              <input id="liveHTFP1ReversalException" type="checkbox">
+              <span><strong>窄義HTF P1反轉例外完整成立</strong><small>Daily／Weekly P1＋原生至少P2＋Q3＋Sweep／Reclaim／微結構轉向＋第一段新鮮反應；最高0.25 Probe。</small></span>
+            </label>
           </div>
 
           <div id="liveTransitionLayerP1Row" class="conditional-panel hidden">
@@ -142,6 +172,13 @@
             <label class="toggle-row">
               <input id="liveBothTransitionMajorP1" type="checkbox">
               <span><strong>雙轉換P1屬清晰主要Range邊界</strong></span>
+            </label>
+          </div>
+
+          <div id="liveBothTransitionP3TestableRow" class="conditional-panel hidden">
+            <label class="toggle-row">
+              <input id="liveBothTransitionP3Testable" type="checkbox">
+              <span><strong>雙轉換P3係清晰可測試Range邊界</strong><small>只影響P3＋Q3嘅0.25／0。</small></span>
             </label>
           </div>
 
@@ -232,10 +269,10 @@
 
     <section id="rulebook" class="tab-panel">
       <article class="card rulebook-hero">
-        <p class="eyebrow">MASTER TRADE DECISION MATRIX V3.4</p>
+        <p class="eyebrow">ALL-MARKET MASTER TRADE MATRIX</p>
         <h2>完整規則版</h2>
-        <p class="large-rule">大局背景 → 主判／次判市場關係 → Setup Type → P位置 → Q質素 → Range修正 → P1順風／大局障礙 → 最終注碼</p>
-        <p class="muted">方向規則已整合入主判 × 次判市場關係：雙同向只順共同方向；衝突／包含轉換／雙轉換按各自劇本分級；大局障礙只可以限制／降級。</p>
+        <p class="large-rule">方向權限 → 市場關係上限 → P位置 → Setup → Q質素 → 第一真實障礙／R:R → 最終注碼</p>
+        <p class="muted">全市場共用同一流程；大局只可限制方向、目標、注碼或否決空間不足，唔可以單獨加注。</p>
       </article>
 
       <button id="quickNavToggle" class="quick-nav-toggle" type="button" aria-expanded="false" aria-controls="rulebookQuickNav">章節</button>
@@ -279,6 +316,23 @@
           </label>
 
           <label>
+            市場分類
+            <select id="marketCode">
+              <option value="HSI">HSI</option>
+              <option value="UK100">UK100</option>
+              <option value="GER40">GER40</option>
+              <option value="FX" selected>外匯</option>
+              <option value="XAU">黃金</option>
+            </select>
+          </label>
+
+          <label>
+            核心Setup
+            <select id="setupTemplate"></select>
+          </label>
+          <p id="setupTemplateNote" class="state-note"></p>
+
+          <label>
             品種
             <input id="symbol" type="text" value="EURUSD" autocomplete="off" autocapitalize="characters">
           </label>
@@ -290,8 +344,10 @@
           <label>
             快速配置
             <select id="timeframePreset">
-              <option value="fx" selected>外匯／黃金短線</option>
-              <option value="hsi1m">HSI 1分鐘交易</option>
+              <option value="hsi">HSI｜4H／1H／15M／1M</option>
+              <option value="eu">UK100／GER40｜4H／1H／15M／5M</option>
+              <option value="fx" selected>外匯｜D／4H／1H／15M</option>
+              <option value="xau">黃金｜D／4H／1H／15M</option>
               <option value="custom">自訂</option>
             </select>
           </label>
@@ -319,8 +375,9 @@
           </div>
 
           <p class="muted">
-            功能層可以按交易週期自行修改。核心注碼矩陣由「主判斷 × 次判斷」決定；大局背景只可限制、降級或取消交易。
+            大局只可限制方向、目標、注碼或否決空間不足；唔可以單獨提高注碼。
           </p>
+          <p id="marketTimeRuleNote" class="state-note"></p>
         </article>
 
         <article id="rbMarketState" class="card rulebook-anchor">
@@ -400,48 +457,79 @@
         </article>
 
         <article id="rbSetupType" class="card two-b-card rulebook-anchor">
-          <h2>Setup Type｜入場模式</h2>
-          <p class="muted">Setup Type只評執行模式Edge；P評位置、Q評確認質素，三者唔重複計分。</p>
+          <h2>Setup類型｜市場故事</h2>
+          <p class="muted">Setup唔會創造方向權限；P評位置，Q評Trigger。UK100／GER40嘅Asia 2B during POR已刪除。</p>
 
           <label>
             Setup Type
             <select id="setupType">
-              <option value="A">Type A｜高質 OPR／Asia 2B</option>
-              <option value="B" selected>Type B｜普通 Sweep &amp; Reclaim</option>
-              <option value="C">Type C｜No Sweep</option>
+              <option value="A">Type A｜高質Session 2B</option>
+              <option value="B" selected>Type B｜普通Sweep＋Reclaim</option>
+              <option value="C">Type C｜Breakout／No Sweep</option>
             </select>
+            <small>市場Setup會自動分類；揀「自訂」先可手動修改。</small>
           </label>
+          <p><strong>分類：</strong> <span id="setupClassification">Type B</span></p>
 
           <div id="typeAPanel" class="conditional-panel hidden">
             <label>
-              OPR／Asia 2B方向
+              指定Session 2B方向
               <select id="asia2BType">
-                <option value="asiaTop">洗OPR／亞洲盤頂2B｜偏Short</option>
-                <option value="asiaBottom">洗OPR／亞洲盤底2B｜偏Long</option>
+                <option value="asiaTop">Sweep指定Session頂｜偏Short</option>
+                <option value="asiaBottom">Sweep指定Session底｜偏Long</option>
               </select>
             </label>
+            <p id="typeALiquidityNote" class="state-note"></p>
 
             <div id="asia2BChecklist">
-              <label class="toggle-row"><input id="asia2BClearLiquidity" type="checkbox"><span>OPR／Asia High／Low係明確流動性池</span></label>
+              <label class="toggle-row"><input id="asia2BClearLiquidity" type="checkbox"><span>指定Session H／L係明確流動性池</span></label>
               <label class="toggle-row"><input id="asia2BCleanSweep" type="checkbox"><span>Sweep乾淨，唔係反覆穿插</span></label>
               <label class="toggle-row"><input id="asia2BReclaimBreak" type="checkbox"><span>Reclaim收復關鍵位並破微結構</span></label>
               <label class="toggle-row"><input id="asia2BWeakRetest" type="checkbox"><span>Retest明顯較慢、較弱</span></label>
-              <label class="toggle-row"><input id="asia2BVolumeSupport" type="checkbox"><span>Reclaim有成交量／RVOL支持</span></label>
+              <label class="toggle-row"><input id="asia2BVolumeSupport" type="checkbox"><span>Volume／RVOL支持（只作輔助）</span></label>
               <label class="toggle-row"><input id="asia2BNoDoubleSweep" type="checkbox"><span>沒有頂底雙邊掃</span></label>
             </div>
 
-            <p class="state-note">方向一致＋5／6或以上先正式屬Type A。未達標會自動按Type B普通Sweep-Reclaim處理。</p>
-            <p class="state-note">一致性修正：勾選「Sweep乾淨」「Reclaim破微結構」「Retest明顯較弱」會同步對應Q欄；Q欄改成相反判斷亦會取消相關Type A條件，避免同一證據互相矛盾。</p>
+            <p class="state-note">方向一致＋5／6或以上先屬高質Type A。只有HSI OPR、FX／XAU Asia／OPR、EU正式開市後POR 2B有特殊待遇。</p>
           </div>
 
           <div id="typeBPanel" class="conditional-panel">
-            <p><strong>Type B：</strong>普通Swing、PDH／PDL、結構高低位等Sweep &amp; Reclaim；冇任何P／Q特殊升級。</p>
+            <p><strong>Type B：</strong>普通Liquidity Sweep＋Reclaim；冇自動P／Q升級。</p>
           </div>
 
           <div id="typeCPanel" class="conditional-panel hidden">
-            <p><strong>Type C：</strong>冇真正Liquidity Sweep，只考慮P1＋高質右側確認。</p>
-            <label class="toggle-row"><input id="noSweepRejection" type="checkbox"><span>真正P1位置有明顯Rejection</span></label>
-            <label class="toggle-row"><input id="noSweepMicroBreak" type="checkbox"><span>有明確右側Micro Structure Break／轉向確認</span></label>
+            <p id="typeCVariantNote"><strong>Type C：</strong>按Breakout、Full Repair或No-Sweep子類型評估。</p>
+
+            <div id="breakoutSetupPanel" class="conditional-panel hidden">
+              <label class="toggle-row"><input id="validBreakout" type="checkbox"><span>有效Breakout／Opening Drive</span></label>
+              <label class="toggle-row"><input id="validAcceptance" type="checkbox"><span>突破後有Acceptance</span></label>
+              <label class="toggle-row"><input id="firstRetest" type="checkbox"><span>第一次Retest／首次回測</span></label>
+              <label>
+                Breakout／Acceptance質素
+                <select id="breakoutQuality">
+                  <option value="strong">乾淨／有Follow-through</option>
+                  <option value="ordinary" selected>有效但只屬合格</option>
+                  <option value="negated">重新Acceptance返原Range／被否定</option>
+                </select>
+              </label>
+            </div>
+
+            <div id="fullRepairPanel" class="conditional-panel hidden">
+              <label class="toggle-row"><input id="fullRepairComplete" type="checkbox"><span>正式開市後已完整修復整個POR</span></label>
+              <label id="fullRepairAsiaSweepRow" class="toggle-row hidden"><input id="fullRepairAsiaSweep" type="checkbox"><span>POR期間已Sweep Asia H／L</span></label>
+              <label class="toggle-row"><input id="fullRepairEntryOutside" type="checkbox"><span>成交前重新Reclaim POR外側邊界；入場位喺POR外</span></label>
+              <label class="toggle-row"><input id="fullRepairAcceptedBackInside" type="checkbox"><span>已喺POR內重新形成Acceptance｜勾選即失效</span></label>
+            </div>
+
+            <div id="p1NoSweepPanel" class="conditional-panel hidden">
+              <label class="toggle-row"><input id="noSweepRejection" type="checkbox"><span>真正P1位置有明顯Rejection</span></label>
+            </div>
+
+            <div id="trendPullbackPanel" class="conditional-panel hidden">
+              <label class="toggle-row"><input id="strongTrendContext" type="checkbox"><span>強趨勢Context成立</span></label>
+              <label class="toggle-row"><input id="trueStructureRetest" type="checkbox"><span>Pullback回到真正結構</span></label>
+              <label class="toggle-row"><input id="trendFirstRetest" type="checkbox"><span>第一次受控Retest</span></label>
+            </div>
           </div>
 
           <div class="result-lines compact">
@@ -451,12 +539,12 @@
             <div><span>Q待遇</span><strong id="asia2BTriggerEffect">無特殊待遇</strong></div>
           </div>
 
-          <p class="muted">Type A可令原始P3獲P2-effective待遇；Q2只有喺唯一問題係Sweep／Reclaim質素邊緣時先可升Q3。Type B無升級；Type C只限P1。</p>
+          <p class="muted">Type A可令原始P3獲P2-effective待遇；Q2只限單一Sweep／Reclaim邊緣先可獲Q3待遇。Breakout／Full Repair係原生P2，唔係Type A升級。</p>
         </article>
 
         <article id="rbPosition" class="card rulebook-anchor">
-          <h2>位置P評級｜HTF實際重疊 vs P1順風</h2>
-          <p class="muted">P只評Entry zone本身。大局實際重疊可以影響P級；P1順風只影響方向權重／特殊可交易性，永遠唔會將P2升P1。</p>
+          <h2>位置P｜方向例外／逆主判資格</h2>
+          <p class="muted">P只評Entry zone。Session線、Fib同Setup名稱唔會自動升P；隱藏Fib後裸圖仍會畫出先算真實結構。</p>
 
           <label>
             原始入場位置
@@ -475,7 +563,7 @@
             大局實際結構重疊
             <select id="backgroundDirectOverlap">
               <option value="no" selected>冇｜Entry zone本身冇HTF真實結構交集</option>
-              <option value="yes">有｜Entry zone本身同HTF真實價格結構有空間交集</option>
+              <option value="yes">有｜Entry zone同HTF真實價格結構直接重疊</option>
             </select>
           </label>
           <p id="backgroundOverlapNote" class="state-note"></p>
@@ -484,32 +572,47 @@
             P1順風
             <select id="p1BackgroundTailwind">
               <option value="no" selected>冇</option>
-              <option value="valid">有｜仍有效：P1直接引發第一段反轉＋第一次回調Setup</option>
-              <option value="expired">曾經有，但已失效／超出第一個結構循環</option>
+              <option value="valid">有｜仍有效：價格觸及P1後第一段真實反應</option>
+              <option value="expired">曾有，但已失效／被反覆消耗</option>
             </select>
           </label>
           <p id="p1TailwindNote" class="state-note"></p>
 
-          <label id="transitionLayerP1Row" class="toggle-row hidden">
-            <input id="transitionLayerP1" type="checkbox">
-            <span><strong>包含轉換反向｜呢個P1係Transition層真正大位</strong><small>只有確認後，P1＋Q3先按0.25反向試單。</small></span>
-          </label>
-
-          <label id="p3ConflictTestableRow" class="toggle-row hidden">
-            <input id="p3ConflictTestable" type="checkbox">
-            <span><strong>衝突順主判｜P3屬可接受小注測試位</strong><small>只影響P3＋Q3嘅0.25／0選擇；預設保守為0。</small></span>
+          <label id="counterP2WeakBreakRetestRow" class="toggle-row hidden">
+            <input id="counterP2WeakBreakRetest" type="checkbox">
+            <span><strong>主判弱勢逆向P2資格</strong><small>主判次結有效突破＋第一次Retest。</small></span>
           </label>
 
           <p id="counterP2EligibilityNote" class="state-note hidden"></p>
 
+          <label id="htfP1ReversalExceptionRow" class="toggle-row hidden">
+            <input id="htfP1ReversalException" type="checkbox">
+            <span><strong>窄義HTF P1反轉例外完整成立</strong><small>Daily／Weekly P1＋原生至少P2＋Q3＋Sweep／Reclaim／微結構轉向＋第一段新鮮反應；最高0.25 Probe。</small></span>
+          </label>
+
+          <label id="transitionLayerP1Row" class="toggle-row hidden">
+            <input id="transitionLayerP1" type="checkbox">
+            <span><strong>主判Transition反向｜呢個P1係真正Transition層大位</strong><small>P1＋Q3先可0.25 Probe。</small></span>
+          </label>
+
+          <label id="p3ConflictTestableRow" class="toggle-row hidden">
+            <input id="p3ConflictTestable" type="checkbox">
+            <span><strong>衝突順主判｜P3屬可接受小注測試位</strong><small>只影響P3＋Q3嘅0.25／0。</small></span>
+          </label>
+
           <label id="bothTransitionMajorP1Row" class="toggle-row hidden">
             <input id="bothTransitionMajorP1" type="checkbox">
-            <span><strong>雙轉換P1屬清晰主要區間邊界</strong><small>P1＋Q3一般0.25；清晰主要邊界可到0.5。</small></span>
+            <span><strong>雙轉換P1屬清晰主要Range邊界</strong><small>P1 Q3按0.5；Q2按0.25。</small></span>
+          </label>
+
+          <label id="bothTransitionP3TestableRow" class="toggle-row hidden">
+            <input id="bothTransitionP3Testable" type="checkbox">
+            <span><strong>雙轉換P3係清晰可測試Range邊界</strong><small>P3 Q3可0.25；否則0。</small></span>
           </label>
         </article>
 
         <article id="rbTriggerModel" class="card trigger-model-card rulebook-anchor">
-          <h2>Q質素｜按Setup Type評確認</h2>
+          <h2>Trigger質素Q</h2>
 
           <div id="sweepReclaimTriggerFields">
             <label class="toggle-row">
@@ -519,7 +622,7 @@
 
             <label class="toggle-row">
               <input id="validReclaim" type="checkbox">
-              <span><strong>有效Reclaim</strong><small>收復關鍵位／破Micro Structure，而且冇立即失敗。</small></span>
+              <span><strong>有效Reclaim</strong><small>收復關鍵位，而且冇立即被吞。</small></span>
             </label>
 
             <label>
@@ -532,18 +635,23 @@
             </label>
           </div>
 
+          <label class="toggle-row">
+            <input id="microStructureShift" type="checkbox">
+            <span><strong>破微結構／清晰控制權轉移</strong><small>Q3核心之一；缺少通常最多Q2。</small></span>
+          </label>
+
           <label>
             Retest質素
             <select id="retestQuality">
               <option value="weak">明顯較弱｜受控</option>
-              <option value="imperfect" selected>有瑕疵但核心仍成立｜稍快／稍深／稍強</option>
-              <option value="invalid">快＋深＋強｜已否定Setup</option>
+              <option value="imperfect" selected>有一項瑕疵但故事仍成立</option>
+              <option value="invalid">快＋深＋強｜否定Setup</option>
             </select>
           </label>
 
           <div class="principle-box">
-            <strong>Price Action優先過Volume。</strong>
-            <span>價格推進效率 → 深度 → K線力度 → 時間 → Volume。Volume唔再獨立加分。</span>
+            <strong>Retest判斷優先次序</strong>
+            <span>價格推進效率 → 深度 → K線及Sequence力度 → 所需時間 → Volume。低Volume唔可以救快速、深、有效率Retest。</span>
           </div>
         </article>
 
@@ -601,7 +709,7 @@
           <h2>五項硬性否決</h2>
 
           <p class="muted">
-            V3.4 Hard Veto按Setup Type判核心確認：Type A／B睇Sweep-Reclaim，Type C睇P1 Rejection＋Micro Break；Retest否定Setup或R:R不足都直接0。
+            五個Hard Veto：P4／Range中間／追價；冇有效Sweep-Reclaim或Breakout Setup；Retest快深強；第一障礙前R:R不足；違反時間／風險。
           </p>
 
           <label class="toggle-row">
@@ -611,7 +719,7 @@
 
           <label class="toggle-row">
             <input id="violatesTradingTime" type="checkbox">
-            <span>違反交易時間限制</span>
+            <span id="tradingTimeRuleLabel">違反交易時間限制</span>
           </label>
 
           <label class="toggle-row">
@@ -631,9 +739,11 @@
         </article>
 
         <article id="rbDecisionResult" class="card result-card rulebook-anchor">
-          <h2>Master Trade Decision Matrix V3.4｜完整判斷</h2>
+          <h2>All-Market Master Trade Matrix｜完整判斷</h2>
 
           <div class="result-lines">
+            <div><span>市場</span><strong id="resultMarket"></strong></div>
+            <div><span>核心Setup</span><strong id="resultSetupTemplate"></strong></div>
             <div><span>大局背景</span><strong id="resultBackground"></strong></div>
             <div><span>主判斷</span><strong id="resultMain"></strong></div>
             <div><span>次判斷</span><strong id="resultSecondary"></strong></div>
@@ -646,9 +756,9 @@
             <div><span>Setup Type後有效位置</span><strong id="resultEffectivePosition"></strong></div>
             <div><span>P1順風</span><strong id="resultP1Background"></strong></div>
             <div><span>Q質素</span><strong id="resultEffectiveTrigger"></strong></div>
-            <div><span>Type A／2B</span><strong id="resultAsia2B"></strong></div>
+            <div><span>Type A／Session 2B</span><strong id="resultAsia2B"></strong></div>
             <div><span>市場關係上限</span><strong id="resultMarketCap"></strong></div>
-            <div><span>Setup Type＋P × Q</span><strong id="resultMatrixSize"></strong></div>
+            <div><span>P×Q／方向Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>Range修正</span><strong id="resultRangeSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
           </div>
@@ -714,8 +824,9 @@
           <label>
             TP計劃
             <select id="tpPlan">
-              <option value="1:2食哂">1:2 食哂</option>
-              <option value="1:2食半留半">1:2 食半留半</option>
+              <option value="2R全平">固定2R全平｜統計優先</option>
+              <option value="70%於2R＋30%試3R">70%於2R＋30%試3R</option>
+              <option value="50%於2R＋50%Runner">50%於2R＋50% Runner</option>
             </select>
           </label>
 
@@ -839,143 +950,185 @@
 
     <section id="rules" class="tab-panel">
       <article class="card">
-        <p class="eyebrow">MASTER TRADE DECISION MATRIX V3.4</p>
-        <h2>Setup Type＋精簡方向規則版</h2>
-        <p class="large-rule">大局背景 → 主判 × 次判市場關係 → Setup Type → P位置 → Q質素 → Range位置修正 → P1順風／大局障礙 → 最終注碼</p>
+        <p class="eyebrow">ALL-MARKET MASTER TRADE MATRIX</p>
+        <h2>HSI／UK100／GER40／外匯／黃金整合版</h2>
+        <p class="large-rule">方向權限 → 市場關係及上限 → P位置 → Setup → Q質素 → 第一真實障礙及R:R → 最終注碼</p>
+        <p>最終注碼由方向／市場關係上限、P×Q許可、Range修正及大局障礙限制取最低。Setup唔會創造方向權限。</p>
+      </article>
+
+      <article class="card">
+        <h2>今次刪除／保留</h2>
+        <p><strong>已刪除：</strong>UK100／GER40「Asia 2B during POR」作為獨立Setup。</p>
+        <p><strong>保留：</strong>HSI OPR 2B、FX／XAU Asia／OPR 2B、EU正式開市後POR 2B、EU-B Asia Sweep＋POR Full Repair、EU-C Pure POR Full Repair。</p>
+      </article>
+
+      <article class="card">
+        <h2>市場時間框架</h2>
+        <div class="matrix-table-wrap">
+          <table class="matrix-table">
+            <thead><tr><th>市場</th><th>大局</th><th>主判</th><th>次判</th><th>Trigger</th></tr></thead>
+            <tbody>
+              <tr><td>HSI</td><td>4H</td><td>1H</td><td>15M</td><td>1M</td></tr>
+              <tr><td>UK100／GER40</td><td>4H</td><td>1H</td><td>15M</td><td>5M／1M</td></tr>
+              <tr><td>外匯／黃金</td><td>Daily</td><td>4H</td><td>1H</td><td>15M／5M／1M</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>大局只可限制方向、目標、注碼或否決空間不足；唔可以單獨提高注碼。</p>
       </article>
 
       <article class="card">
         <h2>Market State硬規則</h2>
-        <p class="large-rule">主結未實收穿，一律仍屬原趨勢，最多降成弱勢。</p>
+        <p class="large-rule">未有實收有效突破主結，一律仍當弱勢；主結被破只代表舊趨勢失效，未有新LH＋LL或HL＋HH前唔可以直接判新健康趨勢。</p>
         <ul>
-          <li>Wick穿主結 → 唔算Transition。</li>
-          <li>Sweep主結後收返 → 唔算Transition。</li>
-          <li>次結破／深回調 → 最多弱勢。</li>
-          <li>只有有效實收穿主結，先由Trend進入Transition，再判偏升／中性／偏跌。</li>
+          <li>健康升／跌：清晰HH＋HL或LH＋LL，主結完整，推進有Follow-through。</li>
+          <li>弱升／跌：主結未破，但回調變深、次結可能失守、推進質素下降。</li>
+          <li>轉換：舊趨勢主結已有效失守，但新方向未完成Trend確認；偏向只影響優先方向。</li>
         </ul>
       </article>
 
       <article class="card">
-        <h2>主判 × 次判方向規則</h2>
+        <h2>主結／次結</h2>
+        <p><strong>主結：</strong>有效突破＋Acceptance＋延續會令原趨勢失效。候選回調通常要約50%深度、或約10支K以上清晰橫行兼兩頂兩底，之後再突破回調前高／低確認HL／LH。</p>
+        <p><strong>次結：</strong>重要局部工作結構；失守令Trend變得不健康，但單獨唔足以否定整個趨勢。</p>
+      </article>
+
+      <article class="card">
+        <h2>方向權限／市場關係</h2>
         <ul>
-          <li><strong>雙同向：</strong>只做共同方向。雙健康最高1；同向有弱勢最高0.5；反向固定0。</li>
-          <li><strong>方向衝突：</strong>順主判優先，P1／高質P2＋Q3最高0.5；順次判逆主判P1＋Q3正常最高0.25。</li>
-          <li><strong>逆主判P2：</strong>正常0；只要主判仍係趨勢、次判已不再同主判同向，而且P1順風仍有效，P2＋Q3可最高0.25。唔需要主判次結先被突破。</li>
-          <li><strong>包含轉換：</strong>順已確認方向P1／P2＋Q3最高0.5；反向正常以Transition層真正P1＋Q3為主。若主判仍係趨勢、次判已不再同主判同向＋有效P1順風，P2＋Q3亦可0.25。</li>
-          <li><strong>雙轉換／橫行：</strong>只做邊界，中間0。</li>
+          <li><strong>雙健康同向：</strong>最高1注。</li>
+          <li><strong>同向但含弱勢／轉換：</strong>最高0.5注。</li>
+          <li><strong>衝突但順主判：</strong>P1／P2＋右側確認，最高0.5注。</li>
+          <li><strong>順次判、逆主判：</strong>P1 Q3最高0.5；P1 Q2最高0.25；P2 Q3一般最高0.25。</li>
+          <li><strong>逆主判P2：</strong>主判健康要有效P1順風；主判弱勢要主判次結突破＋第一次Retest。</li>
+          <li><strong>雙轉換／Range：</strong>只做邊界；Range中間固定0。</li>
         </ul>
+      </article>
+
+      <article class="card">
+        <h2>窄義HTF P1反轉例外</h2>
+        <p>原本方向權限為0時，只有Daily／Weekly清晰P1、原生至少P2、Q3右側反轉、Sweep＋Reclaim＋微結構轉向、第一段反應仍新鮮、空間足夠，先可最高0.25 Probe。</p>
+        <p>Type A P3→P2-effective唔會創造呢個方向權限。</p>
+      </article>
+
+      <article class="card">
+        <h2>Range 25%</h2>
+        <ul>
+          <li>次判中性轉換／Range：Long只考慮底25%；Short只考慮頂25%。</li>
+          <li>未進入相關25%：注碼降一級，1 → 0.5 → 0.25 → 0。</li>
+          <li>Range中間固定0；內部工作線突破唔代表整個Range失效。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>P位置</h2>
+        <ul>
+          <li><strong>P1：</strong>W／D主要支持阻力、大局／主判主結、大型Range頂底、改變主判狀態嘅突破回測、次判主結與HTF主要結構重疊。</li>
+          <li><strong>P2：</strong>次判主結、主判次結、重要Range邊界、Breakout＋Acceptance＋第一次Retest、Swap、Impulse Origin、主要結構＋Session Liquidity。</li>
+          <li><strong>P3：</strong>次判次結、Trigger主結、Session H/L＋普通結構、0.618＋普通Swap、低TF Range邊界、指定POR／OPR／Asia工作線。</li>
+          <li><strong>P4：</strong>Range中間、純Fib、冇Setup優勢嘅純Session線、追價、障礙極近、冇真實結構。</li>
+        </ul>
+        <p class="large-rule">隱藏Fib後，裸圖仍然會唔會畫出呢個位置？</p>
       </article>
 
       <article class="card">
         <h2>Setup Type</h2>
-        <h3>Type A｜高質OPR／Asia 2B</h3>
-        <p>方向一致＋現有6項評分5／6或以上。原始P3可獲P2-effective待遇；P2唔升P1；P4救唔到。</p>
-        <p>Q2只有唯一問題係Sweep／Reclaim質素邊緣，而且2B足以確認該部分，先可Q2 → Q3。Retest強、空間不足、Setup被否定都救唔到。</p>
-
-        <h3>Type B｜普通Sweep &amp; Reclaim</h3>
-        <p>普通Swing、PDH／PDL、結構高低位Sweep等。冇任何P／Q特殊升級。</p>
-
-        <h3>Type C｜No Sweep</h3>
-        <p>冇Liquidity Sweep，只考慮P1＋高質右側確認：P1 Rejection＋Micro Structure Break＋Weak Retest＋合理空間。P2／P3普通No-Sweep Setup＝0。</p>
-      </article>
-
-      <article class="card">
-        <h2>P位置｜大局實際重疊 vs P1順風</h2>
-        <p><strong>大局實際重疊＝我依家喺邊入場。</strong> Entry zone本身同HTF真實價格結構有空間交集，可以直接影響P級。</p>
-        <p><strong>P1順風＝呢段Move由邊個大位引發。</strong> 只影響第一段反轉＋第一次回調Setup嘅方向權重，永遠唔會將P2升P1。</p>
-        <p>裸K測試：Hide晒Fib、OPR、Asia、Mon H/L、PDH／PDL後，仍會獨立畫出該區，先算真實結構。</p>
-      </article>
-
-      <article class="card">
-        <h2>P1順風有效期</h2>
-        <p>只計P1直接引發嘅第一段反轉＋第一次回調Setup。</p>
-        <p>完成有效回調、正式確認新趨勢、第一個LH／HL循環完成、轉橫行、或者關鍵結構被反向Reclaim後，P1順風失效。</p>
+        <h3>Type A｜高質Session 2B</h3>
+        <p>只包括HSI OPR 2B、FX／XAU Asia／OPR 2B、UK100／GER40正式開市後POR 2B。原始P3可獲P2-effective；Q2只有唯一瑕疵係Sweep／Reclaim邊緣先可獲Q3待遇。</p>
+        <h3>Type B｜普通Sweep＋Reclaim</h3>
+        <p>PDH／PDL、Mon H/L、普通Swing及非指定Session Sweep；冇自動P／Q升級。</p>
+        <h3>Type C｜Breakout／No Sweep</h3>
+        <p>有效Breakout＋Acceptance＋第一次Retest可構成原生P2；No-Sweep反轉只限真正P1；強趨勢Pullback只限真實結構。</p>
       </article>
 
       <article class="card">
         <h2>Q質素</h2>
-        <p>取消Trigger加分證據逐項計分，避免Double Counting。</p>
         <ul>
-          <li><strong>Type A／B Q3：</strong>Reclaim有效、Retest明顯弱、Setup冇即時被否定、第一真實目標有合理空間。</li>
-          <li><strong>Q2：</strong>核心仍成立，但Retest稍快／深／強、Reclaim一般或結構確認未完整。</li>
-          <li><strong>Q1：</strong>Reclaim失敗、Retest快＋深＋強到否定Setup、反方向Micro Structure主動建立、或者空間不足。</li>
-          <li><strong>Type C：</strong>改睇P1 Rejection、右側Micro Break、Weak Retest同空間。</li>
+          <li><strong>Q3：</strong>有效Sweep或Breakout、有效Reclaim／Acceptance、微結構或控制權轉移、Retest明顯較弱、第一障礙前空間足夠。</li>
+          <li><strong>Q2：</strong>故事仍成立，但Retest稍快／深、Reclaim一般、Follow-through普通、Acceptance只屬合格或空間略受壓。</li>
+          <li><strong>Q1：</strong>核心失效、Reclaim被吞、Retest快深強、重新Acceptance返原Range、第一障礙前冇最低R:R或追價。</li>
         </ul>
-        <p class="large-rule">價格推進效率 → 深度 → K線力度 → 時間 → Volume</p>
-      </article>
-
-      <article class="card">
-        <h2>次判轉換中性｜Range 25%修正</h2>
-        <ul>
-          <li>Long喺底25% → 正常Matrix；唔喺底25% → 降一級。</li>
-          <li>Short喺頂25% → 正常Matrix；唔喺頂25% → 降一級。</li>
-          <li>真正Range正中／P4 → 0。</li>
-        </ul>
-        <p>Range修正只改Size，唔改P級。</p>
+        <p class="large-rule">價格推進效率 → 深度 → K線及Sequence力度 → 所需時間 → Volume</p>
       </article>
 
       <article class="card">
         <h2>基本Matrix</h2>
         <div class="matrix-table-wrap">
           <table class="matrix-table">
-            <thead><tr><th>市場關係</th><th>P1 Q3</th><th>P2 Q3</th><th>P1/P2 Q2</th><th>P3 Q3</th><th>P3 Q2</th></tr></thead>
+            <thead><tr><th>市場關係</th><th>P1 Q3</th><th>P1 Q2</th><th>P2 Q3</th><th>P2 Q2</th><th>P3 Q3</th></tr></thead>
             <tbody>
-              <tr><td>雙健康同向</td><td>1</td><td>1</td><td>0.5</td><td>0.5</td><td>0.25</td></tr>
-              <tr><td>同向有弱勢／包含轉換順已確認方向</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25</td><td>0</td></tr>
-              <tr><td>衝突｜順主判</td><td>0.5</td><td>0.5</td><td>0.25</td><td>0.25／0</td><td>0</td></tr>
-              <tr><td>逆主判</td><td>Q3＝0.25</td><td>正常0／特殊0.25</td><td>0</td><td>0</td><td>0</td></tr>
-              <tr><td>包含轉換｜P1反向</td><td>Q3＝0.25</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-              <tr><td>雙轉換／橫行</td><td>0.25～0.5</td><td>Q3＝0.25</td><td>0</td><td>0</td><td>0</td></tr>
+              <tr><td>健康同向</td><td>1</td><td>0.5</td><td>1</td><td>0.5</td><td>0.5</td></tr>
+              <tr><td>同向含弱勢／轉換</td><td>0.5</td><td>0.25</td><td>0.5</td><td>0.25</td><td>0.25／0</td></tr>
+              <tr><td>衝突順主判</td><td>0.5</td><td>0.25</td><td>0.5</td><td>0.25</td><td>0.25／0</td></tr>
+              <tr><td>逆主判</td><td>0.5</td><td>0.25</td><td>特殊0.25</td><td>通常0</td><td>0</td></tr>
+              <tr><td>雙轉換／Range</td><td>0.5</td><td>0.25</td><td>0.25</td><td>0</td><td>0.25／0</td></tr>
             </tbody>
           </table>
         </div>
-        <p>Type A可將原始P3按P2-effective執行，但仍受市場關係上限限制。Type C只限P1＋Q3。</p>
       </article>
 
       <article class="card">
-        <h2>大局障礙｜Entry vs Target</h2>
+        <h2>HSI Matrix</h2>
         <ul>
-          <li><strong>Entry Obstacle：</strong>第一真實障礙太近。RR不足＝0；仍可交易但空間明顯壓縮＝降一級。</li>
-          <li><strong>Target Obstacle：</strong>到障礙前已有完整最低RR，例如2R；唔影響Entry注碼，只影響TP、Runner同突破預期。</li>
-          <li><strong>已處障礙區內仍順向延伸：</strong>P1 Q3最多0.5；P2 Q3最多0.25；P3／P4為0。</li>
+          <li><strong>HSI-A：</strong>OPR H/L 2B｜高質P3可P2-E。</li>
+          <li><strong>HSI-B：</strong>普通結構Sweep｜無自動升級。</li>
+          <li><strong>HSI-C：</strong>Breakout＋Acceptance＋First Retest｜原生P2，改變1H狀態可P1。</li>
+          <li><strong>時間：</strong>10:30後唔開新Setup。</li>
         </ul>
       </article>
 
       <article class="card">
-        <h2>Limit Entry／第二次確認</h2>
+        <h2>UK100／GER40 EU POR Matrix</h2>
+        <p>UTC+8圖表：夏令POR 14:00–15:00；冬令15:00–16:00。正式現貨開市後先執行。</p>
         <ul>
-          <li>Retest變深但仍弱 → Hold。</li>
-          <li>Retest變深＋強，Q3降Q2但未Invalid → 回Entry／BE附近考慮減半。</li>
-          <li>Thesis Invalid → 即時走，唔等BE。</li>
-          <li>第一個Retest變強 → 放棄第一次Limit，等原P1／P2再做第二次右側確認；新Trigger可重新評Q3。</li>
+          <li><strong>EU-A：</strong>開市後POR H/L 2B｜高質P3可P2-E。</li>
+          <li><strong>EU-B：</strong>Asia Sweep＋POR Full Repair｜突破POR外側、Acceptance、第一次弱Retest；原生P2。</li>
+          <li><strong>EU-C：</strong>Pure POR Full Repair｜冇Asia Sweep都可以；原生P2。</li>
+          <li>價格喺POR內重新Acceptance，Full Repair失效。</li>
+        </ul>
+        <p><strong>確認度：</strong>EU-B ＞ EU-C ＞ EU-A；<strong>頻率：</strong>EU-A ＞ EU-C ＞ EU-B。</p>
+      </article>
+
+      <article class="card">
+        <h2>外匯／黃金 Matrix</h2>
+        <ul>
+          <li><strong>FX／XAU-A：</strong>Asia／OPR 2B｜高質P3可P2-E。</li>
+          <li><strong>FX-B／XAU-B：</strong>普通Liquidity／HTF結構＋Session Sweep｜P由真實結構決定。</li>
+          <li><strong>FX／XAU-C：</strong>Breakout＋Acceptance＋First Retest｜原生P2；改變主判狀態可P1。</li>
+          <li><strong>FX-D：</strong>只限Daily／4H P1、主判弱化、次判Sweep＋Reclaim＋右側反轉、第一段反應新鮮。</li>
+          <li>黃金高速Retest、延伸段追價、固定點數SL都唔合格。</li>
         </ul>
       </article>
 
       <article class="card">
-        <h2>五項Hard Veto</h2>
+        <h2>第一真實障礙／Hard Veto</h2>
+        <ul>
+          <li>障礙遠、有完整R:R：正常Matrix。</li>
+          <li>障礙近但仍達最低R:R：降一級，TP放障礙前。</li>
+          <li>第一障礙前空間不足：0注。</li>
+          <li>身處重大障礙區Continuation：P1 Q3最多0.5；P2 Q3最多0.25；P3／P4為0。</li>
+        </ul>
         <ol>
-          <li>P4／Range正中／追價</li>
-          <li>Setup核心確認失敗</li>
-          <li>Retest快＋深＋強到否定Setup</li>
-          <li>第一真實目標前RR不足</li>
-          <li>違反交易時間／總風險上限</li>
+          <li>P4／Range中間／追價</li>
+          <li>冇有效Sweep-Reclaim或Breakout Setup</li>
+          <li>Retest快、深、強到否定Setup</li>
+          <li>第一真實目標前冇最低R:R</li>
+          <li>違反交易時間或總風險限制</li>
         </ol>
       </article>
 
       <article class="card">
-        <h2>V3.4最核心十句</h2>
-        <ol>
-          <li>雙同向只做共同方向，禁止反向。</li>
-          <li>衝突／轉換市場先容許反向劇本，但反向位置要求更高、注碼更低。</li>
-          <li>主結未實收穿，一律最多只係弱勢；實收穿先叫轉換。</li>
-          <li>Type A高質OPR／Asia 2B可令P3獲P2-effective待遇。</li>
-          <li>普通Sweep-Reclaim無任何特殊升級。</li>
-          <li>No Sweep只考慮P1＋高質右側確認。</li>
-          <li>P1順風唔升P，只負責第一段反轉＋第一次回調Setup嘅方向權重。</li>
-          <li>次判轉換中性時，Long優先底25%、Short優先頂25%；唔喺相應區域降一級。</li>
-          <li>大局實際重疊＝你依家喺邊入；P1順風＝呢段Move由邊度引發。</li>
-          <li>P決定位置、Setup Type決定模式Edge、Q決定執行質素；三者唔重複計分。</li>
-        </ol>
+        <h2>Limit／Post-entry／TP</h2>
+        <ul>
+          <li>Limit掛出後，落去入場位方式會重新改變Entry-time Q；位置愈深唔代表Trigger愈好。</li>
+          <li>Retest深但仍弱：Hold；深兼強但未Invalid：返Entry／BE附近減半；故事失效：即時Exit。</li>
+          <li>現階段統計優先固定2R全平。Runner只限健康同向、P1／P2、Q3、前方冇重大障礙及最高級Setup。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>最終核心</h2>
+        <p class="large-rule">方向決定可唔可以做；P決定喺邊度做；Setup決定市場故事；Q決定Trigger是否合格；障礙決定值唔值得做；最低一層決定最終注碼。</p>
       </article>
     </section>
   </main>
@@ -1059,8 +1212,11 @@
       <label>
         TP計劃
         <select id="editTpPlan">
-          <option value="1:2食哂">1:2 食哂</option>
-          <option value="1:2食半留半">1:2 食半留半</option>
+          <option value="2R全平">固定2R全平｜統計優先</option>
+          <option value="70%於2R＋30%試3R">70%於2R＋30%試3R</option>
+          <option value="50%於2R＋50%Runner">50%於2R＋50% Runner</option>
+          <option value="1:2食哂">舊版｜1:2食哂</option>
+          <option value="1:2食半留半">舊版｜1:2食半留半</option>
         </select>
       </label>
 

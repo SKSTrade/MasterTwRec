@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-24-reset-all-defaults";
+const CACHE_NAME = "master-trade-system-v1-25-all-market-matrix";
 const ASSETS = [
   "./",
   "./index.html",
