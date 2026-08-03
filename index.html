@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.26.1</span>
+    <span class="version-badge">V1.26.2</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -611,7 +611,7 @@
             <div><span>Q待遇</span><strong id="asia2BTriggerEffect">無特殊待遇</strong></div>
           </div>
 
-          <p class="muted">Type A可令原始P3獲P2-effective待遇；Q2只限單一Sweep／Reclaim邊緣先可獲Q3待遇。Breakout／Full Repair係原生P2，唔係Type A升級。</p>
+          <p class="muted">Type A可令原始P3獲P2-effective；EU-B／EU-C完整Full Repair係原生P2；完整EU-D亦可令普通P3獲P2-effective。三者都唔會將實際P2升P1，亦唔會重複加分。</p>
         </article>
 
         <article id="rbPosition" class="card rulebook-anchor">
@@ -1045,7 +1045,7 @@
         <p class="eyebrow">EU OPENING速查</p>
         <h2>UK100／GER40</h2>
         <p><strong>EU-A</strong> POR 2B｜<strong>EU-B</strong> Asia Sweep＋Full Repair｜<strong>EU-C</strong> Pure Full Repair｜<strong>EU-D</strong> Asia Sweep＋開市後破結構。</p>
-        <p class="muted">開市前Asia 2B唔入場；EU-D嘅Asia Sweep唔會升P。</p>
+        <p class="muted">開市前Asia 2B唔入場；完整EU-D可令普通P3獲P2-effective，但原生P2／P1唔會再升級。</p>
       </article>
 
       <article class="card">
@@ -1131,7 +1131,7 @@
         <h3>Type B｜普通Sweep＋Reclaim</h3>
         <p>PDH／PDL、Mon H/L、普通Swing及非指定Session Sweep；冇自動P／Q升級。</p>
         <h3>Type C｜Breakout／No Sweep</h3>
-        <p>有效Breakout＋Acceptance＋第一次Retest可構成原生P2；No-Sweep反轉只限真正P1；強趨勢Pullback只限真實結構。</p>
+        <p>EU-B／EU-C嘅Breakout＋Acceptance＋第一次Retest係原生P2；EU-D普通P3可因完整Asia Sweep＋Post-open Confirmation取得P2-effective，而真實15M／1H Breakout／Swap維持原生P2或P1。No-Sweep反轉只限真正P1。</p>
       </article>
 
       <article class="card">
@@ -1175,11 +1175,13 @@
         <p>UTC+8圖表：夏令POR 14:00–15:00；冬令15:00–16:00。正式現貨開市後先執行。</p>
         <ul>
           <li><strong>EU-A：</strong>開市後POR H/L 2B｜高質P3可P2-E。</li>
-          <li><strong>EU-B：</strong>Asia Sweep＋POR Full Repair｜突破POR外側、Acceptance、第一次弱Retest；原生P2。</li>
-          <li><strong>EU-C：</strong>Pure POR Full Repair｜冇Asia Sweep都可以；原生P2。</li>
-          <li>價格喺POR內重新Acceptance，Full Repair失效。</li>
+          <li><strong>EU-B：</strong>Asia Sweep＋POR Full Repair｜另一邊Breakout＋Acceptance＋首次Retest＝原生P2。</li>
+          <li><strong>EU-C：</strong>Pure POR Full Repair｜同樣由Breakout結構形成原生P2。</li>
+          <li><strong>EU-D：</strong>Asia Sweep＋Post-open Confirmation｜只有微結構＋普通位置時，P3 → P2-effective；實際突破15M／1H真實結構就維持原生P2，甚至P1。</li>
+          <li><strong>禁止重複計分：</strong>EU-D取得P2-effective後，唔再因Asia Sweep升Q、Opening Drive再升P、或者0.618再加一次。</li>
+          <li>只有Asia Sweep而冇正式開市後確認＝唔入場；價格喺POR內重新Acceptance，Full Repair失效。</li>
         </ul>
-        <p><strong>確認度：</strong>EU-B ＞ EU-C ＞ EU-A；<strong>頻率：</strong>EU-A ＞ EU-C ＞ EU-B。</p>
+        <p><strong>P來源只能揀一種：</strong>原生P1／P2，或者P3經完整EU-D取得P2-effective。</p>
       </article>
 
       <article class="card">

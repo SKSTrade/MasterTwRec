@@ -222,7 +222,7 @@ const SETUP_DEFINITIONS = {
     label: "EU-D｜Asia Sweep＋Post-open Confirmation",
     type: "C",
     variant: "postOpenConfirmation",
-    note: "Asia Sweep只係背景；正式開市後破結構＋第一次弱Retest先入場。Asia Sweep唔升P。"
+    note: "Asia Sweep＋正式開市後Opening Drive確認＋第一次弱Retest形成完整EU-D。普通P3可獲P2-effective；若實際突破15M／1H真實結構，按原生P2甚至P1。唔重複升P或升Q。"
   },
   fx_session_2b: {
     marketGroup: "FX",
@@ -1129,6 +1129,22 @@ function setupTypeLabel(code) {
   return labels[code] || code;
 }
 
+function positionTreatmentLabel(
+  treatment,
+  basePosition = "",
+  effectivePosition = ""
+) {
+  if (treatment === "nativeP2") {
+    return `${basePosition || "P3"} → 原生P2`;
+  }
+
+  if (treatment === "p2Effective") {
+    return `${basePosition || "P3"} → P2-effective`;
+  }
+
+  return `原生${effectivePosition || basePosition || "未記錄"}`;
+}
+
 function evaluateBaseTrigger() {
   const selectedSetupType =
     setupTypeFromTemplate(false);
@@ -1715,6 +1731,9 @@ function evaluateAsia2B(baseTrigger) {
     baseTrigger.quality;
 
   let positionPromoted = false;
+  let nativeP2Applied = false;
+  let positionTreatment =
+    "native";
   let triggerPromoted = false;
 
   const reasons = [];
@@ -1778,6 +1797,8 @@ function evaluateAsia2B(baseTrigger) {
     ) {
       effectivePosition = "P2";
       positionPromoted = true;
+      positionTreatment =
+        "p2Effective";
       reasons.push(
         "高質Type A Session 2B：原始P3獲P2-effective待遇；原始P級仍記P3。"
       );
@@ -1823,34 +1844,90 @@ function evaluateAsia2B(baseTrigger) {
   if (
     effectiveSetupType === "C"
   ) {
+    const setupCoreValid =
+      baseTrigger.modelCoreValid &&
+      baseTrigger.quality !== "Q1";
+
     if (
-      variant === "breakout" ||
       variant === "fullRepairAsia" ||
       variant === "fullRepairPure"
     ) {
+      if (
+        setupCoreValid &&
+        basePosition === "P3"
+      ) {
+        effectivePosition = "P2";
+        nativeP2Applied = true;
+        positionTreatment =
+          "nativeP2";
+        reasons.push(
+          "EU-B／EU-C完整Full Repair已創造Breakout＋Acceptance＋首次Retest結構：即使原先揀P3，最終按原生P2處理。"
+        );
+      } else if (
+        basePosition === "P1" ||
+        basePosition === "P2"
+      ) {
+        reasons.push(
+          `EU-B／EU-C按實際結構維持${basePosition}；Full Repair唔會將P2再升P1。`
+        );
+      } else if (
+        basePosition === "P4"
+      ) {
+        warnings.push(
+          "EU-B／EU-C唔可以救P4；完整Full Repair亦要有可交易位置。"
+        );
+      }
+
       reasons.push(
-        "Breakout／Full Repair Setup：有效Breakout＋Acceptance＋第一次Retest可構成原生P2；唔係Type A升級。"
+        "Asia Sweep只增加EU-B故事完整性，唔會額外升P或升Q。"
       );
     } else if (
-      variant === "postOpenConfirmation"
+      variant ===
+        "postOpenConfirmation"
+    ) {
+      if (
+        setupCoreValid &&
+        basePosition === "P3"
+      ) {
+        effectivePosition = "P2";
+        positionPromoted = true;
+        positionTreatment =
+          "p2Effective";
+        reasons.push(
+          "完整EU-D＝Asia Sweep＋正式開市後Opening Drive確認＋第一次弱Retest：普通P3獲P2-effective待遇。"
+        );
+      } else if (
+        basePosition === "P2" ||
+        basePosition === "P1"
+      ) {
+        reasons.push(
+          `EU-D實際入場已有真實Breakout／Swap結構：維持原生${basePosition}，唔會再加一級。`
+        );
+      } else if (
+        basePosition === "P4"
+      ) {
+        warnings.push(
+          "EU-D唔可以救P4。"
+        );
+      }
+
+      reasons.push(
+        "EU-D只可揀一種P來源：原生P1／P2，或者原始P3取得P2-effective；Asia Sweep、Opening Drive同0.618唔可以逐項重複計分。"
+      );
+      reasons.push(
+        "EU-D嘅P2-effective只處理位置待遇；唔會因Asia Sweep額外升Q，亦唔會創造方向權限。"
+      );
+    } else if (
+      variant === "breakout"
     ) {
       reasons.push(
-        "EU-D：Asia Sweep唔升P，按實際結構評級。"
+        "Breakout＋Acceptance＋第一次Retest可構成原生P2；實際改變主判狀態時可按P1。"
       );
     } else {
       reasons.push(
         "No-Sweep Setup：只限真正P1、有效Breakout首次Retest或強趨勢回到真實結構。"
       );
     }
-  }
-
-  if (
-    definition.nativeP2 &&
-    basePosition === "P3"
-  ) {
-    warnings.push(
-      "你揀嘅Setup本身屬Breakout＋Acceptance＋首次Retest原生P2；目前仍選P3，請重新檢查位置分級。App唔會自動升P。"
-    );
   }
 
   const sessionLabel =
@@ -1899,6 +1976,8 @@ function evaluateAsia2B(baseTrigger) {
       baseTrigger.quality,
     effectiveQuality,
     positionPromoted,
+    nativeP2Applied,
+    positionTreatment,
     triggerPromoted,
     reasons,
     warnings
@@ -2343,20 +2422,44 @@ function applySetupMatrixConstraint(
     variant === "fullRepairPure"
   ) {
     if (
-      basePosition === "P1" ||
-      basePosition === "P2"
+      effectivePosition === "P1" ||
+      effectivePosition === "P2"
     ) {
       return {
         size,
         reason:
-          "Breakout／Full Repair原生P1／P2位置有效。"
+          setupResult.nativeP2Applied
+            ? "EU-B／EU-C完整Full Repair按原生P2處理。"
+            : "Breakout／Full Repair原生P1／P2位置有效。"
       };
     }
 
     return {
       size: 0,
       reason:
-        "Breakout＋Acceptance＋First Retest應屬原生P2／P1；P3／P4位置不部署。"
+        "Breakout／Full Repair未形成可交易原生P2／P1，或者實際位置係P4。"
+    };
+  }
+
+  if (
+    variant ===
+      "postOpenConfirmation"
+  ) {
+    const allowed =
+      effectivePosition === "P1" ||
+      effectivePosition === "P2";
+
+    return {
+      size:
+        allowed
+          ? size
+          : 0,
+      reason:
+        allowed
+          ? setupResult.positionPromoted
+            ? "完整EU-D：原始P3獲P2-effective待遇。"
+            : `EU-D按實際結構維持原生${effectivePosition}。`
+          : "EU-D必須係原生P1／P2，或者由完整Setup將P3取得P2-effective；P4不做。"
     };
   }
 
@@ -3370,9 +3473,11 @@ function renderAsia2B(result) {
 
   $("asia2BPositionEffect")
     .textContent =
-      result.positionPromoted
-        ? `${result.basePosition} → ${result.effectivePosition}-effective`
-        : `維持${result.basePosition}`;
+      positionTreatmentLabel(
+        result.positionTreatment,
+        result.basePosition,
+        result.effectivePosition
+      );
 
   $("asia2BTriggerEffect")
     .textContent =
@@ -4118,6 +4223,11 @@ function checklistSummary() {
     "",
     `原始位置：${currentAsia2B.basePosition}`,
     `Setup後有效位置：${currentAsia2B.effectivePosition}`,
+    `P待遇來源：${positionTreatmentLabel(
+      currentAsia2B.positionTreatment,
+      currentAsia2B.basePosition,
+      currentAsia2B.effectivePosition
+    )}`,
     "",
     ...triggerChecklistLines(),
     "",
@@ -4587,9 +4697,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26.1",
+      "PracticeJournal-V1.26.2",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1.1.1-SimplifiedUI",
+      "MasterTradeMatrix-AllMarkets-V1.1.2-EUDP2Effective",
 
     recordMode:
       recordMode(),
@@ -4767,6 +4877,10 @@ async function saveDecision(event) {
       currentAsia2B.structureOverlap,
     asia2BPositionPromoted:
       currentAsia2B.positionPromoted,
+    nativeP2Applied:
+      currentAsia2B.nativeP2Applied,
+    positionTreatment:
+      currentAsia2B.positionTreatment,
     asia2BTriggerPromoted:
       currentAsia2B.triggerPromoted,
 
@@ -5540,6 +5654,22 @@ async function openRecord(recordId) {
     <strong>有效位置待遇：</strong>
     ${escapeHtml(effectivePosition)}
     <br>
+    <strong>P待遇來源：</strong>
+    ${escapeHtml(
+      positionTreatmentLabel(
+        record.positionTreatment ||
+          (
+            record.nativeP2Applied
+              ? "nativeP2"
+              : record.asia2BPositionPromoted
+                ? "p2Effective"
+                : "native"
+          ),
+        basePosition,
+        effectivePosition
+      )
+    )}
+    <br>
     <strong>Q質素：</strong>
     ${escapeHtml(effectiveTrigger)}
     <br>
@@ -6042,7 +6172,9 @@ function buildCsv(records) {
     "Type A方向",
     "Type A高質",
     "Type A條件數",
-    "Type A位置升級",
+    "P2-effective待遇",
+    "原生P2套用",
+    "P待遇來源",
     "Type A Q升級",
     "次判Range位置",
     "Range修正後",
@@ -6254,6 +6386,17 @@ function buildCsv(records) {
       record.asia2BPositionPromoted
         ? "Yes"
         : "No",
+      record.nativeP2Applied
+        ? "Yes"
+        : "No",
+      record.positionTreatment ||
+        (
+          record.nativeP2Applied
+            ? "nativeP2"
+            : record.asia2BPositionPromoted
+              ? "p2Effective"
+              : "native"
+        ),
       record.asia2BTriggerPromoted
         ? "Yes"
         : "No",
@@ -7880,6 +8023,43 @@ function recordFromCsvRow(row) {
           "Asia2B條件數"
         )
       ) ?? 0,
+    asia2BPositionPromoted:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "P2-effective待遇",
+          "Type A位置升級"
+        )
+      ),
+    nativeP2Applied:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "原生P2套用"
+        )
+      ),
+    positionTreatment:
+      firstCsvValue(
+        row,
+        "P待遇來源"
+      ) || (
+        csvBoolean(
+          firstCsvValue(
+            row,
+            "原生P2套用"
+          )
+        )
+          ? "nativeP2"
+          : csvBoolean(
+              firstCsvValue(
+                row,
+                "P2-effective待遇",
+                "Type A位置升級"
+              )
+            )
+            ? "p2Effective"
+            : "native"
+      ),
     asia2BNoDoubleSweep:
       csvBoolean(
         firstCsvValue(
@@ -8795,16 +8975,6 @@ function recalculateLiveDecision() {
   const basePosition =
     $("livePosition").value;
 
-  let effectivePosition =
-    basePosition;
-
-  if (
-    effectiveSetupType === "A" &&
-    basePosition === "P3"
-  ) {
-    effectivePosition = "P2";
-  }
-
   let effectiveQuality =
     $("liveTriggerQuality").value;
 
@@ -8816,6 +8986,62 @@ function recalculateLiveDecision() {
     )
   ) {
     effectiveQuality = "Q3";
+  }
+
+  let effectivePosition =
+    basePosition;
+
+  let livePositionTreatment =
+    "native";
+
+  if (
+    effectiveSetupType === "A" &&
+    basePosition === "P3"
+  ) {
+    effectivePosition = "P2";
+    livePositionTreatment =
+      "p2Effective";
+  }
+
+  const liveOpeningFresh =
+    !euOpeningVariant ||
+    $("liveOpeningDriveStatus")
+      .value !== "expired";
+
+  const liveSetupCoreUsable =
+    effectiveQuality !== "Q1" &&
+    liveOpeningFresh;
+
+  if (
+    (
+      variant === "fullRepairAsia" ||
+      variant === "fullRepairPure"
+    ) &&
+    basePosition === "P3" &&
+    liveSetupCoreUsable
+  ) {
+    effectivePosition = "P2";
+    livePositionTreatment =
+      "nativeP2";
+  }
+
+  const liveEuDQualified =
+    euD &&
+    liveSetupCoreUsable &&
+    checked(
+      "liveEuDConfirmed"
+    ) &&
+    !checked(
+      "liveEuDPreOpenEntry"
+    );
+
+  if (
+    liveEuDQualified &&
+    basePosition === "P3"
+  ) {
+    effectivePosition = "P2";
+    livePositionTreatment =
+      "p2Effective";
   }
 
   const showTransitionP1 =
@@ -8978,11 +9204,13 @@ function recalculateLiveDecision() {
     if (
       variant === "breakout" ||
       variant === "fullRepairAsia" ||
-      variant === "fullRepairPure"
+      variant === "fullRepairPure" ||
+      variant ===
+        "postOpenConfirmation"
     ) {
       if (
-        basePosition !== "P1" &&
-        basePosition !== "P2"
+        effectivePosition !== "P1" &&
+        effectivePosition !== "P2"
       ) {
         matrixSize = 0;
       }
@@ -9351,10 +9579,15 @@ function recalculateLiveDecision() {
         ? "Type A未確認高質資格，按Type B處理。"
         : "呢個唔係指定Type A Session 2B；按Type B處理。"
       : `Setup Type：${setupTypeLabel(effectiveSetupType)}。`,
-    basePosition !==
-      effectivePosition
-      ? "Type A：原始P3獲P2-effective待遇。"
-      : `位置：${effectivePosition}。`,
+    livePositionTreatment ===
+      "nativeP2"
+      ? "EU-B／EU-C：完整Full Repair形成真實Breakout＋Acceptance＋首次Retest，按原生P2處理。"
+      : livePositionTreatment ===
+          "p2Effective"
+        ? euD
+          ? "EU-D：完整Asia Sweep＋Post-open Confirmation令原始P3獲P2-effective待遇。"
+          : "Type A：原始P3獲P2-effective待遇。"
+        : `位置：${effectivePosition}。`,
     effectiveSetupType === "A" &&
       $("liveTriggerQuality").value === "Q2" &&
       checked(
@@ -9363,7 +9596,10 @@ function recalculateLiveDecision() {
       ? "Type A：Q2唯一問題係Sweep／Reclaim邊緣，獲Q3待遇。"
       : `Q：${effectiveQuality}。`,
     euD
-      ? "EU-D：Asia Sweep冇P升級；P完全由實際結構決定。"
+      ? basePosition === "P1" ||
+        basePosition === "P2"
+        ? `EU-D已有真實Breakout／Swap位置：維持原生${basePosition}，唔再升級。`
+        : "EU-D只可用P3→P2-effective一次；Asia Sweep、Opening Drive同0.618唔可以逐項重複計分，亦唔會額外升Q或創造方向權限。"
       : "",
     euOpeningVariant
       ? $("liveOpeningDriveStatus")

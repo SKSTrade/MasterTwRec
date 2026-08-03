@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.26.1",
+  "name": "Master Trade System V1.26.2",
   "short_name": "Master Trade",
-  "description": "All-market Master Trade Matrix with a simplified EU-D and obstacle interface, journal and image backup.",
+  "description": "Simplified all-market Master Trade Matrix with updated EU-B/EU-C native P2 and EU-D P3-to-P2-effective treatment without double counting.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
