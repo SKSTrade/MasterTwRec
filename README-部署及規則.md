@@ -1,49 +1,81 @@
-# Master Trade System V1.26.4｜EU專屬分類＋Type A原因提示
+# Master Trade System V1.26.5｜逆弱主判P2第二條權限
 
-## EU-B／EU-D顯示
+## 原有路徑A保留
 
-EU-B同EU-D唔再顯示成普通「Type C｜Breakout／No Sweep」，改為：
+> 弱主判  
+> → 主判近端次結／工作結構有效逆向突破＋Acceptance  
+> → 第一次Retest  
+> → P2／合格P2-effective＋Q3  
+> → 逆主判方向最高0.25注
 
-- EU-B｜Asia Sweep＋Full Repair
-- EU-D｜Asia Sweep＋Post-open Confirmation
+呢條仍然係最乾淨版本。
 
-內部Matrix待遇保持原規則：
+## 新增路徑B
 
-- EU-B完整Full Repair＝原生P2
-- EU-D普通P3＋完整開市後確認＝P2-effective
-- EU-D實際15M／1H Breakout／Swap＝原生P2，甚至P1
-- 唔會錯誤套用一般Type A Q2→Q3待遇
-- 唔會重複升P或升Q
-- 仍然唔創造方向權限
+> 弱主判  
+> → 健康反方向次判  
+> → 全新、獨立高質Session催化  
+> → P2／合格P2-effective＋Q3  
+> → 最高0.25注
 
-## 自訂Setup點解6／6仍未達Type A
+路徑B全部條件：
 
-Type A有兩層Gate：
+1. 主判只可以係弱勢，健康主判唔適用。
+2. 主判近端次結／工作結構已被逆向有效突破，有Acceptance，而且價格仍未Reclaim返去。
+3. 次判已經係健康反方向趨勢，唔只係轉換偏向。
+4. 今次係全新、獨立Session催化，唔係繼續借用已過期嘅路徑A故事。
+5. Setup必須係：
+   - EU-B Full Repair；
+   - 高質EU-D Asia Sweep＋Post-open Confirmation；
+   - 高質指定Session Setup；
+   - 或手動確認嘅其他同級開市後Sweep／Reclaim Setup。
+6. 實際位置至少P2或合格P2-effective。
+7. Entry-time必須Q3；Q2固定0注。
+8. 去主判主結／第一硬障礙至少1.5R，最好接近2R。
+9. 未處於次判成熟逆向腿尾段。
+10. 未貼近主判主結／第一硬障礙。
 
-1. 核心Setup身份必須係指定市場Session 2B
-2. 方向一致，而且六項質素至少符合5項
+全部成立：
 
-指定Type A：
+> 最高0.25注，永遠唔升到0.5。
 
-- HSI OPR H／L 2B
-- FX／XAU Asia／OPR 2B
-- UK100／GER40正式開市後POR H／L 2B（EU-A）
+## 點解唔全面放寬
 
-「自訂｜按實際Setup分類」唔係指定Type A身份。因此手動揀Type A兼勾滿6／6，仍然按Type B處理。
+唔會改成：
 
-介面會直接顯示：
+> 弱主判＋健康次判＋任何P2 Q3＝0.25
 
-> 未達A｜6／6｜核心Setup身份唔屬指定Type A｜按Type B
+原因係次判可以喺主判回調中段反覆轉向，咁樣會重新造成過度交易。
 
-## V1.26.3功能保留
+真正新增嘅權限係：
 
-紀錄庫批量選取及一拼刪除保持不變。
+> 健康逆向次判已成立，再由一個全新Session流動性事件重新啟動趨勢。
 
-## 資料保存
+## App實作
 
-LocalStorage Key維持 `masterTradePracticeJournalV1Records`。
+Rulebook：
 
-圖片IndexedDB維持：
+- 逆弱主判P2權限可以揀路徑A或路徑B。
+- 路徑B會逐項檢查次判健康、工作結構突破維持、新Session催化、Setup身份、Q3、至少1.5R、未到成熟腿尾及未貼近主判主結。
+- EU-B／EU-D／高質指定Session Setup會由App識別。
+- 其他同級Setup必須手動確認。
+- 原始P3經EU-D／Type A取得P2-effective亦可使用路徑B。
+- 市場Matrix仍然固定最高0.25。
 
-- DB：`masterTradePracticeJournalImages`
-- Store：`chartImages`
+Live Decision：
+
+- 新增「路徑B｜弱主判＋健康次判＋新Session確認」。
+- 必須完整勾選全部條件先會取得0.25。
+
+## 其他功能保留
+
+- EU-B／EU-D專屬分類顯示
+- EU-D P3→P2-effective規則
+- 紀錄庫批量選取及刪除
+- 左下角Default
+- 本機紀錄及圖片
+
+
+## CSV
+
+V1.26.5 CSV共119欄，新增路徑B資格、Setup識別、障礙距離及成熟度欄位；舊CSV仍保留兼容匯入。

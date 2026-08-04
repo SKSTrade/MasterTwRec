@@ -1105,7 +1105,7 @@ function combinedDeploymentInfo() {
       priority:
         "順次判、逆主判：P1＋Q3最高0.5；P1＋Q2最高0.25。",
       secondary:
-        "P2＋Q3一般最高0.25，但主判健康要有效P1順風；主判弱勢要主判次結突破＋首次Retest。"
+        "P2／P2-E＋Q3最高0.25。主判健康要有效P1順風；主判弱勢可用路徑A次結首次Retest，或路徑B健康次判＋新Session獨立確認。"
     },
     transitionConfirmed: {
       priority:
@@ -1211,6 +1211,21 @@ function positionTreatmentLabel(
   }
 
   return `原生${effectivePosition || basePosition || "未記錄"}`;
+}
+
+function counterP2BasisLabel(basis) {
+  const labels = {
+    healthyTailwind:
+      "主判健康＋有效P1順風",
+    weakBreakRetest:
+      "路徑A｜弱主判次結突破＋首次Retest",
+    weakFreshSession:
+      "路徑B｜健康次判＋新Session獨立確認",
+    none:
+      "冇"
+  };
+
+  return labels[basis] || basis || "冇";
 }
 
 function evaluateBaseTrigger() {
@@ -2280,8 +2295,120 @@ function matrixCell(
   return 0;
 }
 
+function numericInputValue(id) {
+  const raw =
+    String($(id).value || "")
+      .trim();
+
+  if (raw === "") {
+    return null;
+  }
+
+  const value = Number(raw);
+
+  return Number.isFinite(value)
+    ? value
+    : null;
+}
+
+function freshSessionSetupInfo(
+  setupResult = null,
+  baseTrigger = null
+) {
+  const resolvedSetup =
+    setupResult ||
+    currentAsia2B;
+
+  const resolvedTrigger =
+    baseTrigger ||
+    currentBaseTrigger;
+
+  const code =
+    resolvedSetup?.setupTemplate ||
+    setupTemplateCode(false);
+
+  const definition =
+    SETUP_DEFINITIONS[code] || {};
+
+  const effectiveQuality =
+    resolvedSetup?.effectiveQuality ||
+    "Q1";
+
+  const coreValid =
+    resolvedTrigger?.modelCoreValid ===
+      true;
+
+  const openingStatus =
+    resolvedTrigger?.openingDriveStatus ||
+    "fresh";
+
+  const openingFresh =
+    openingStatus === "fresh";
+
+  const autoRecognized =
+    code ===
+      "eu_asia_full_repair" ||
+    code ===
+      "eu_asia_post_open" ||
+    (
+      definition.designatedTypeA &&
+      resolvedSetup?.highQuality ===
+        true
+    );
+
+  const manualEquivalent =
+    checked(
+      "counterP2WeakEquivalentSessionSetup"
+    );
+
+  const recognized =
+    autoRecognized ||
+    manualEquivalent;
+
+  let label =
+    "未確認新Session同級Setup";
+
+  if (
+    code === "eu_asia_full_repair"
+  ) {
+    label =
+      "EU-B｜Asia Sweep＋Full Repair";
+  } else if (
+    code === "eu_asia_post_open"
+  ) {
+    label =
+      "EU-D｜Asia Sweep＋Post-open Confirmation";
+  } else if (
+    definition.designatedTypeA &&
+    resolvedSetup?.highQuality
+  ) {
+    label =
+      `${definition.label}｜高質Session Setup`;
+  } else if (manualEquivalent) {
+    label =
+      "手動確認｜其他同級高質開市後Setup";
+  }
+
+  return {
+    code,
+    label,
+    recognized,
+    autoRecognized,
+    manualEquivalent,
+    coreValid,
+    effectiveQuality,
+    openingFresh:
+      autoRecognized
+        ? openingFresh
+        : true
+  };
+}
+
 function counterP2EligibilityInfo(
-  positionOverride = null
+  positionOverride = null,
+  qualityOverride = null,
+  baseTriggerOverride = null,
+  setupResultOverride = null
 ) {
   const route =
     marketRouteInfo();
@@ -2289,9 +2416,25 @@ function counterP2EligibilityInfo(
   const mainState =
     $("mainState").value;
 
+  const secondaryState =
+    $("secondaryState").value;
+
   const position =
     positionOverride ||
     $("positionLevel").value;
+
+  const setupResult =
+    setupResultOverride ||
+    currentAsia2B;
+
+  const baseTrigger =
+    baseTriggerOverride ||
+    currentBaseTrigger;
+
+  const quality =
+    qualityOverride ||
+    setupResult?.effectiveQuality ||
+    "Q1";
 
   if (
     route.code !==
@@ -2302,7 +2445,20 @@ function counterP2EligibilityInfo(
       eligible: false,
       basis: "none",
       reason:
-        "逆主判P2特殊資格目前不適用。"
+        "逆主判P2特殊資格目前不適用。",
+      missing: []
+    };
+  }
+
+  if (quality !== "Q3") {
+    return {
+      eligible: false,
+      basis: "none",
+      reason:
+        "逆主判P2兩條路徑都只接受Entry-time Q3；Q2固定0注。",
+      missing: [
+        "Entry-time必須Q3"
+      ]
     };
   }
 
@@ -2318,7 +2474,8 @@ function counterP2EligibilityInfo(
         basis:
           "healthyTailwind",
         reason:
-          "主判健康＋有效P1順風＋P2＋Q3：逆主判P2最高0.25。"
+          "主判健康＋有效P1順風＋P2／P2-E＋Q3：逆主判方向最高0.25。",
+        missing: []
       };
     }
 
@@ -2326,24 +2483,148 @@ function counterP2EligibilityInfo(
       eligible: false,
       basis: "none",
       reason:
-        "主判健康：逆向P2必須有仍有效P1順風。"
+        "主判健康：逆向P2必須有仍有效P1順風；新增路徑B唔適用健康主判。",
+      missing: [
+        "有效P1順風"
+      ]
     };
   }
 
   if (
     isWeak(mainState)
   ) {
+    const path =
+      $("counterP2WeakPermissionPath")
+        .value;
+
     if (
-      checked(
-        "counterP2WeakBreakRetest"
-      )
+      path === "weakBreakRetest"
     ) {
       return {
         eligible: true,
         basis:
           "weakBreakRetest",
         reason:
-          "主判弱勢＋主判次結有效突破＋首次Retest＋P2＋Q3：最高0.25。"
+          "路徑A成立：弱主判＋主判次結有效突破／Acceptance＋第一次Retest＋P2／P2-E＋Q3，最高0.25。",
+        missing: []
+      };
+    }
+
+    if (
+      path === "weakFreshSession"
+    ) {
+      const setupInfo =
+        freshSessionSetupInfo(
+          setupResult,
+          baseTrigger
+        );
+
+      const obstacleR =
+        numericInputValue(
+          "counterP2WeakHardObstacleR"
+        );
+
+      const checks = [
+        {
+          ok:
+            isHealthy(
+              secondaryState
+            ),
+          text:
+            "次判必須係健康反方向趨勢"
+        },
+        {
+          ok:
+            checked(
+              "counterP2WeakWorkStructureHeld"
+            ),
+          text:
+            "主判近端次結／工作結構已突破、Acceptance，而且未Reclaim"
+        },
+        {
+          ok:
+            checked(
+              "counterP2WeakIndependentSession"
+            ),
+          text:
+            "今次必須係全新、獨立Session催化"
+        },
+        {
+          ok:
+            setupInfo.recognized,
+          text:
+            "Setup必須係EU-B／高質EU-D／其他同級開市後Setup"
+        },
+        {
+          ok:
+            setupInfo.coreValid,
+          text:
+            "Session Setup核心確認必須完整"
+        },
+        {
+          ok:
+            setupInfo.openingFresh,
+          text:
+            "Opening／Session故事必須仍然新鮮"
+        },
+        {
+          ok:
+            obstacleR !== null &&
+            obstacleR >= 1.5,
+          text:
+            "去主判主結／第一硬障礙至少1.5R"
+        },
+        {
+          ok:
+            checked(
+              "counterP2WeakNotMatureLeg"
+            ),
+          text:
+            "唔可以處於次判成熟逆向腿尾段"
+        },
+        {
+          ok:
+            checked(
+              "counterP2WeakNotNearMainStructure"
+            ),
+          text:
+            "唔可以貼近主判主結／第一硬障礙"
+        }
+      ];
+
+      const missing =
+        checks
+          .filter(
+            (item) =>
+              !item.ok
+          )
+          .map(
+            (item) =>
+              item.text
+          );
+
+      if (missing.length === 0) {
+        return {
+          eligible: true,
+          basis:
+            "weakFreshSession",
+          reason:
+            `路徑B成立：弱主判＋健康逆向次判＋${setupInfo.label}重新啟動趨勢＋P2／P2-E＋Q3＋硬障礙${obstacleR.toFixed(2)}R；最高0.25，永遠唔升0.5。`,
+          missing: [],
+          setupInfo,
+          obstacleR
+        };
+      }
+
+      return {
+        eligible: false,
+        basis:
+          "weakFreshSession",
+        reason:
+          `路徑B未完整：${missing.join("；")}。`,
+        missing,
+        setupInfo,
+        obstacleR
       };
     }
 
@@ -2351,7 +2632,10 @@ function counterP2EligibilityInfo(
       eligible: false,
       basis: "none",
       reason:
-        "主判弱勢：逆向P2要先有主判次結有效突破＋第一次Retest。"
+        "主判弱勢：請揀路徑A「主判次結首次Retest」或路徑B「健康次判＋新Session獨立確認」。",
+      missing: [
+        "未選擇逆弱主判P2權限路徑"
+      ]
     };
   }
 
@@ -2359,7 +2643,8 @@ function counterP2EligibilityInfo(
     eligible: false,
     basis: "none",
     reason:
-      "主判唔係健康／弱勢Trend，逆主判P2資格不適用。"
+      "主判唔係健康／弱勢Trend，逆主判P2資格不適用。",
+    missing: []
   };
 }
 
@@ -2433,7 +2718,8 @@ function currentMatrixOptions(
   effectivePosition = null,
   baseTrigger = null,
   effectiveQuality = "Q1",
-  basePosition = null
+  basePosition = null,
+  setupResult = null
 ) {
   const originalPosition =
     basePosition ||
@@ -2459,7 +2745,10 @@ function currentMatrixOptions(
       ),
     counterP2Eligible:
       counterP2EligibilityInfo(
-        effectivePosition
+        effectivePosition,
+        effectiveQuality,
+        trigger,
+        setupResult
       ).eligible,
     bothTransitionMajorP1:
       checked(
@@ -2644,7 +2933,8 @@ function evaluateMatrix(
       effectivePosition,
       baseTrigger,
       effectiveQuality,
-      resolvedSetup.basePosition
+      resolvedSetup.basePosition,
+      resolvedSetup
     );
 
   let marketCap =
@@ -2706,11 +2996,25 @@ function evaluateMatrix(
   ) {
     cellExplanation =
       counterP2EligibilityInfo(
-        effectivePosition
+        effectivePosition,
+        effectiveQuality,
+        baseTrigger ||
+          currentBaseTrigger,
+        resolvedSetup
       ).eligible
-        ? `逆主判P2特殊資格成立；${combination}最高0.25。`
+        ? `逆主判P2特殊資格成立；${combination}最高0.25。${counterP2EligibilityInfo(
+            effectivePosition,
+            effectiveQuality,
+            baseTrigger ||
+              currentBaseTrigger,
+            resolvedSetup
+          ).reason}`
         : `逆主判P2正常0。${counterP2EligibilityInfo(
-            effectivePosition
+            effectivePosition,
+            effectiveQuality,
+            baseTrigger ||
+              currentBaseTrigger,
+            resolvedSetup
           ).reason}`;
   } else if (
     route.code ===
@@ -3304,8 +3608,11 @@ function evaluateDecision(
     "conflictSecondary"
   ) {
     warnings.push(
-      `順次判、逆主判：P1 Q3最高0.5、P1 Q2最高0.25；P2 Q3要額外資格。${counterP2EligibilityInfo(
-        setupResult.effectivePosition
+      `順次判、逆主判：P1 Q3最高0.5、P1 Q2最高0.25；P2／P2-E Q3要額外資格。${counterP2EligibilityInfo(
+        setupResult.effectivePosition,
+        setupResult.effectiveQuality,
+        baseTrigger,
+        setupResult
       ).reason}`
     );
   }
@@ -3887,6 +4194,96 @@ function updateP1TailwindNote() {
     "P1順風＝價格觸及P1後第一段新鮮反應；Entry zone實際重疊係另一件事。";
 }
 
+function updateCounterP2PermissionUI(
+  effectivePosition = null,
+  effectiveQuality = null,
+  baseTrigger = null,
+  setupResult = null
+) {
+  const route =
+    marketRouteInfo();
+
+  const mainState =
+    $("mainState").value;
+
+  const resolvedPosition =
+    effectivePosition ||
+    $("positionLevel").value;
+
+  const showCounterP2 =
+    route.code ===
+      "conflictSecondary" &&
+    resolvedPosition === "P2";
+
+  $("counterP2EligibilityNote")
+    .classList.toggle(
+      "hidden",
+      !showCounterP2
+    );
+
+  const showWeakPanel =
+    showCounterP2 &&
+    isWeak(mainState);
+
+  $("counterP2WeakPermissionPanel")
+    .classList.toggle(
+      "hidden",
+      !showWeakPanel
+    );
+
+  if (!showWeakPanel) {
+    $("counterP2WeakPermissionPath")
+      .value = "none";
+  }
+
+  const selectedPath =
+    $("counterP2WeakPermissionPath")
+      .value;
+
+  $("counterP2WeakBreakRetest")
+    .checked =
+      selectedPath ===
+      "weakBreakRetest";
+
+  const showFreshPanel =
+    showWeakPanel &&
+    selectedPath ===
+      "weakFreshSession";
+
+  $("counterP2WeakFreshSessionPanel")
+    .classList.toggle(
+      "hidden",
+      !showFreshPanel
+    );
+
+  if (showFreshPanel) {
+    const setupInfo =
+      freshSessionSetupInfo(
+        setupResult,
+        baseTrigger
+      );
+
+    $("counterP2WeakFreshSessionSetupNote")
+      .textContent =
+        setupInfo.autoRecognized
+          ? `App自動識別：${setupInfo.label}。仍要Q3、健康逆向次判、工作結構突破維持、至少1.5R及未到成熟腿尾。`
+          : setupInfo.manualEquivalent
+            ? "已手動確認其他同級高質開市後Setup；仍要其餘全部條件成立。"
+            : "目前核心Setup唔係App自動識別嘅EU-B／高質EU-D／高質Session Setup；只有真正同級Setup先可手動勾選。";
+  }
+
+  if (showCounterP2) {
+    $("counterP2EligibilityNote")
+      .textContent =
+        counterP2EligibilityInfo(
+          resolvedPosition,
+          effectiveQuality,
+          baseTrigger,
+          setupResult
+        ).reason;
+  }
+}
+
 function updateInterface() {
   const timeframes =
     timeframeValues();
@@ -4126,44 +4523,6 @@ function updateInterface() {
       .checked = false;
   }
 
-  const showCounterP2 =
-    route.code ===
-      "conflictSecondary" &&
-    position === "P2";
-
-  $("counterP2EligibilityNote")
-    .classList.toggle(
-      "hidden",
-      !showCounterP2
-    );
-
-  $("counterP2WeakBreakRetestRow")
-    .classList.toggle(
-      "hidden",
-      !(
-        showCounterP2 &&
-        isWeak(mainState)
-      )
-    );
-
-  if (
-    !(
-      showCounterP2 &&
-      isWeak(mainState)
-    )
-  ) {
-    $("counterP2WeakBreakRetest")
-      .checked = false;
-  }
-
-  if (showCounterP2) {
-    $("counterP2EligibilityNote")
-      .textContent =
-        counterP2EligibilityInfo(
-          position
-        ).reason;
-  }
-
   const showHTFException =
     route.code ===
       "alignedReverse";
@@ -4235,6 +4594,13 @@ function recalculate() {
       currentAsia2B
     );
 
+  updateCounterP2PermissionUI(
+    currentAsia2B.effectivePosition,
+    currentAsia2B.effectiveQuality,
+    currentBaseTrigger,
+    currentAsia2B
+  );
+
   renderBaseTrigger(currentBaseTrigger);
   renderAsia2B(currentAsia2B);
   renderDecision(currentDecision);
@@ -4285,7 +4651,10 @@ function checklistSummary() {
 
   const counterInfo =
     counterP2EligibilityInfo(
-      currentAsia2B.effectivePosition
+      currentAsia2B.effectivePosition,
+      currentAsia2B.effectiveQuality,
+      currentBaseTrigger,
+      currentAsia2B
     );
 
   return [
@@ -4309,6 +4678,13 @@ function checklistSummary() {
     `大局實際結構重疊：${$("backgroundDirectOverlap").value === "yes" ? "有" : "冇"}`,
     `P1順風：${tailwind === "valid" ? "有｜仍有效" : tailwind === "expired" ? "曾有｜已失效" : "冇"}`,
     `逆主判P2資格：${counterInfo.eligible ? "有" : "冇"}｜${counterInfo.reason}`,
+    `逆弱主判路徑：${$("counterP2WeakPermissionPath").value}`,
+    `路徑B工作結構突破維持：${yesNo(checked("counterP2WeakWorkStructureHeld"))}`,
+    `路徑B獨立Session催化：${yesNo(checked("counterP2WeakIndependentSession"))}`,
+    `路徑B其他同級Setup：${yesNo(checked("counterP2WeakEquivalentSessionSetup"))}`,
+    `路徑B硬障礙距離：${numericInputValue("counterP2WeakHardObstacleR") ?? "N/A"}R`,
+    `路徑B未到成熟腿尾：${yesNo(checked("counterP2WeakNotMatureLeg"))}`,
+    `路徑B未貼近主判主結：${yesNo(checked("counterP2WeakNotNearMainStructure"))}`,
     `窄義HTF P1反轉例外：${yesNo(checked("htfP1ReversalException"))}`,
     `主判Transition反向P1：${yesNo(checked("transitionLayerP1"))}`,
     `衝突順主判P3可測試：${yesNo(checked("p3ConflictTestable"))}`,
@@ -4779,6 +5155,15 @@ async function saveDecision(event) {
 
   const timeframes =
     timeframeValues();
+
+  const counterP2Info =
+    counterP2EligibilityInfo(
+      currentAsia2B.effectivePosition,
+      currentAsia2B.effectiveQuality,
+      currentBaseTrigger,
+      currentAsia2B
+    );
+
   const recordId =
     crypto.randomUUID
       ? crypto.randomUUID()
@@ -4790,9 +5175,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26.4",
+      "PracticeJournal-V1.26.5",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1.1.2-EUDP2Effective",
+      "MasterTradeMatrix-AllMarkets-V1.1.3-WeakMainFreshSession",
 
     recordMode:
       recordMode(),
@@ -4861,16 +5246,42 @@ async function saveDecision(event) {
     p3Testable:
       checked("p3ConflictTestable"),
     counterP2Eligible:
-      counterP2EligibilityInfo(
-        currentAsia2B.effectivePosition
-      ).eligible,
+      counterP2Info.eligible,
     counterP2Basis:
-      counterP2EligibilityInfo(
-        currentAsia2B.effectivePosition
-      ).basis,
+      counterP2Info.basis,
+    counterP2Reason:
+      counterP2Info.reason,
+    counterP2WeakPermissionPath:
+      $("counterP2WeakPermissionPath").value,
     counterP2WeakBreakRetest:
       checked(
         "counterP2WeakBreakRetest"
+      ),
+    counterP2WeakWorkStructureHeld:
+      checked(
+        "counterP2WeakWorkStructureHeld"
+      ),
+    counterP2WeakIndependentSession:
+      checked(
+        "counterP2WeakIndependentSession"
+      ),
+    counterP2WeakEquivalentSessionSetup:
+      checked(
+        "counterP2WeakEquivalentSessionSetup"
+      ),
+    counterP2WeakFreshSessionSetup:
+      counterP2Info.setupInfo?.label || "",
+    counterP2WeakHardObstacleR:
+      numericInputValue(
+        "counterP2WeakHardObstacleR"
+      ),
+    counterP2WeakNotMatureLeg:
+      checked(
+        "counterP2WeakNotMatureLeg"
+      ),
+    counterP2WeakNotNearMainStructure:
+      checked(
+        "counterP2WeakNotNearMainStructure"
       ),
     htfP1ReversalException:
       checked(
@@ -6000,7 +6411,7 @@ async function openRecord(recordId) {
           ? "衝突順主判P3可小注"
           : "",
         record.counterP2Eligible
-          ? `逆主判P2特殊資格${record.counterP2Basis ? `（${record.counterP2Basis}）` : ""}`
+          ? `逆主判P2特殊資格（${counterP2BasisLabel(record.counterP2Basis)}）`
           : "",
         record.htfP1ReversalException
           ? "窄義HTF P1反轉例外"
@@ -6012,6 +6423,42 @@ async function openRecord(recordId) {
           ? "雙轉換P3可小注"
           : ""
       ].filter(Boolean).join("／") || "無"
+    )}
+    <br>
+    <strong>逆主判P2資格原因：</strong>
+    ${escapeHtml(
+      record.counterP2Reason ||
+      (
+        record.counterP2Eligible
+          ? counterP2BasisLabel(
+              record.counterP2Basis
+            )
+          : "冇／舊版未記錄"
+      )
+    )}
+    <br>
+    <strong>路徑B資料：</strong>
+    ${escapeHtml(
+      record.counterP2Basis ===
+        "weakFreshSession" ||
+      record.counterP2WeakPermissionPath ===
+        "weakFreshSession"
+        ? [
+            record.counterP2WeakFreshSessionSetup ||
+              "其他同級Setup",
+            Number.isFinite(
+              record.counterP2WeakHardObstacleR
+            )
+              ? `${record.counterP2WeakHardObstacleR}R`
+              : "障礙R未記錄",
+            record.counterP2WeakNotMatureLeg
+              ? "未到成熟腿尾"
+              : "成熟度未確認",
+            record.counterP2WeakNotNearMainStructure
+              ? "未貼近主判主結"
+              : "主結距離未確認"
+          ].join("／")
+        : "N/A"
     )}
     <br>
     <strong>原始位置：</strong>
@@ -6486,7 +6933,16 @@ function buildCsv(records) {
     "衝突順主判P3可小注",
     "逆主判P2特殊資格",
     "逆主判P2資格基礎",
+    "逆主判P2資格原因",
+    "逆弱主判P2權限路徑",
     "主判弱勢次結突破首次Retest",
+    "路徑B主判工作結構突破維持",
+    "路徑B獨立Session催化",
+    "路徑B其他同級Setup",
+    "路徑B識別Setup",
+    "路徑B硬障礙R",
+    "路徑B未到成熟腿尾",
+    "路徑B未貼近主判主結",
     "雙轉換P1主要邊界",
     "雙轉換P3可小注",
     "Setup Type選擇",
@@ -6625,7 +7081,30 @@ function buildCsv(records) {
         ? "Yes"
         : "No",
       record.counterP2Basis || "",
+      record.counterP2Reason || "",
+      record.counterP2WeakPermissionPath || "",
       record.counterP2WeakBreakRetest
+        ? "Yes"
+        : "No",
+      record.counterP2WeakWorkStructureHeld
+        ? "Yes"
+        : "No",
+      record.counterP2WeakIndependentSession
+        ? "Yes"
+        : "No",
+      record.counterP2WeakEquivalentSessionSetup
+        ? "Yes"
+        : "No",
+      record.counterP2WeakFreshSessionSetup || "",
+      Number.isFinite(
+        record.counterP2WeakHardObstacleR
+      )
+        ? record.counterP2WeakHardObstacleR
+        : "",
+      record.counterP2WeakNotMatureLeg
+        ? "Yes"
+        : "No",
+      record.counterP2WeakNotNearMainStructure
         ? "Yes"
         : "No",
       record.bothTransitionMajorP1
@@ -7977,11 +8456,77 @@ function recordFromCsvRow(row) {
         row,
         "逆主判P2資格基礎"
       ),
+    counterP2Reason:
+      firstCsvValue(
+        row,
+        "逆主判P2資格原因"
+      ),
+    counterP2WeakPermissionPath:
+      firstCsvValue(
+        row,
+        "逆弱主判P2權限路徑"
+      ) || (
+        csvBoolean(
+          firstCsvValue(
+            row,
+            "主判弱勢次結突破首次Retest"
+          )
+        )
+          ? "weakBreakRetest"
+          : "none"
+      ),
     counterP2WeakBreakRetest:
       csvBoolean(
         firstCsvValue(
           row,
           "主判弱勢次結突破首次Retest"
+        )
+      ),
+    counterP2WeakWorkStructureHeld:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "路徑B主判工作結構突破維持"
+        )
+      ),
+    counterP2WeakIndependentSession:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "路徑B獨立Session催化"
+        )
+      ),
+    counterP2WeakEquivalentSessionSetup:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "路徑B其他同級Setup"
+        )
+      ),
+    counterP2WeakFreshSessionSetup:
+      firstCsvValue(
+        row,
+        "路徑B識別Setup"
+      ),
+    counterP2WeakHardObstacleR:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "路徑B硬障礙R"
+        )
+      ),
+    counterP2WeakNotMatureLeg:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "路徑B未到成熟腿尾"
+        )
+      ),
+    counterP2WeakNotNearMainStructure:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "路徑B未貼近主判主結"
         )
       ),
     counterP1Q2Special:
@@ -9459,10 +10004,158 @@ function recalculateLiveDecision() {
       .value = "none";
   }
 
-  const counterP2Eligible =
+  const liveCounterBasis =
+    $("liveCounterP2Basis").value;
+
+  const showLiveFreshSession =
     showCounterP2 &&
-    $("liveCounterP2Basis").value !==
-      "none";
+    liveCounterBasis ===
+      "weakFreshSession";
+
+  $("liveWeakFreshSessionPanel")
+    .classList.toggle(
+      "hidden",
+      !showLiveFreshSession
+    );
+
+  const liveFreshObstacleR =
+    numericInputValue(
+      "liveWeakFreshHardObstacleR"
+    );
+
+  const liveFreshSessionEligible =
+    showLiveFreshSession &&
+    effectiveQuality === "Q3" &&
+    checked(
+      "liveWeakFreshWorkStructureHeld"
+    ) &&
+    checked(
+      "liveWeakFreshSecondaryHealthy"
+    ) &&
+    checked(
+      "liveWeakFreshIndependentSession"
+    ) &&
+    liveFreshObstacleR !== null &&
+    liveFreshObstacleR >= 1.5 &&
+    checked(
+      "liveWeakFreshNotMatureLeg"
+    ) &&
+    checked(
+      "liveWeakFreshNotNearMainStructure"
+    );
+
+  const healthyTailwindEligible =
+    showCounterP2 &&
+    liveCounterBasis ===
+      "healthyTailwind" &&
+    $("liveP1Tailwind").value ===
+      "valid" &&
+    effectiveQuality === "Q3";
+
+  const weakBreakRetestEligible =
+    showCounterP2 &&
+    liveCounterBasis ===
+      "weakBreakRetest" &&
+    effectiveQuality === "Q3";
+
+  const counterP2Eligible =
+    healthyTailwindEligible ||
+    weakBreakRetestEligible ||
+    liveFreshSessionEligible;
+
+  let liveCounterP2Reason =
+    "逆主判P2未有額外資格，正常0。";
+
+  if (healthyTailwindEligible) {
+    liveCounterP2Reason =
+      "主判健康＋有效P1順風＋P2／P2-E＋Q3：最高0.25。";
+  } else if (
+    weakBreakRetestEligible
+  ) {
+    liveCounterP2Reason =
+      "路徑A成立：弱主判次結突破／Acceptance＋首次Retest＋P2／P2-E＋Q3，最高0.25。";
+  } else if (
+    liveFreshSessionEligible
+  ) {
+    liveCounterP2Reason =
+      `路徑B成立：弱主判＋健康逆向次判＋新Session獨立高質確認＋${liveFreshObstacleR.toFixed(2)}R空間，最高0.25，永遠唔升0.5。`;
+  } else if (
+    showLiveFreshSession
+  ) {
+    const missing = [];
+
+    if (
+      effectiveQuality !== "Q3"
+    ) {
+      missing.push("Entry-time必須Q3");
+    }
+
+    if (
+      !checked(
+        "liveWeakFreshWorkStructureHeld"
+      )
+    ) {
+      missing.push("主判工作結構突破維持");
+    }
+
+    if (
+      !checked(
+        "liveWeakFreshSecondaryHealthy"
+      )
+    ) {
+      missing.push("次判健康逆向趨勢");
+    }
+
+    if (
+      !checked(
+        "liveWeakFreshIndependentSession"
+      )
+    ) {
+      missing.push("全新獨立Session Setup");
+    }
+
+    if (
+      liveFreshObstacleR === null ||
+      liveFreshObstacleR < 1.5
+    ) {
+      missing.push("硬障礙至少1.5R");
+    }
+
+    if (
+      !checked(
+        "liveWeakFreshNotMatureLeg"
+      )
+    ) {
+      missing.push("未到成熟腿尾");
+    }
+
+    if (
+      !checked(
+        "liveWeakFreshNotNearMainStructure"
+      )
+    ) {
+      missing.push("未貼近主判主結");
+    }
+
+    liveCounterP2Reason =
+      `路徑B未完整：${missing.join("；")}。`;
+  } else if (
+    showCounterP2 &&
+    liveCounterBasis ===
+      "healthyTailwind" &&
+    $("liveP1Tailwind").value !==
+      "valid"
+  ) {
+    liveCounterP2Reason =
+      "主判健康路線未有仍有效P1順風。";
+  } else if (
+    showCounterP2 &&
+    liveCounterBasis !== "none" &&
+    effectiveQuality !== "Q3"
+  ) {
+    liveCounterP2Reason =
+      "逆主判P2所有路徑都只接受Q3；Q2固定0。";
+  }
 
   const showHTFException =
     routeCode ===
@@ -9974,9 +10667,7 @@ function recalculateLiveDecision() {
           .textContent
       : "",
     showCounterP2
-      ? counterP2Eligible
-        ? `逆主判P2資格：${$("liveCounterP2Basis").selectedOptions[0].textContent}。`
-        : "逆主判P2未有額外資格，正常0。"
+      ? liveCounterP2Reason
       : "",
     showHTFException
       ? htfExceptionEligible
