@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-26-3-bulk-record-delete";
+const CACHE_NAME = "master-trade-system-v1-26-4-eu-classification-type-a-reason";
 const ASSETS = [
   "./",
   "./index.html",

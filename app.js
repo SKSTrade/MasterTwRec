@@ -205,6 +205,7 @@ const SETUP_DEFINITIONS = {
     marketGroup: "EU",
     label: "EU-B｜Asia Sweep＋POR Full Repair",
     type: "C",
+    classificationLabel: "EU-B｜Asia Sweep＋Full Repair",
     variant: "fullRepairAsia",
     nativeP2: true,
     note: "POR期間Sweep Asia邊界後，正式開市完整修復POR、突破外側邊界、Acceptance及第一次弱Retest。原生P2。"
@@ -221,6 +222,7 @@ const SETUP_DEFINITIONS = {
     marketGroup: "EU",
     label: "EU-D｜Asia Sweep＋Post-open Confirmation",
     type: "C",
+    classificationLabel: "EU-D｜Asia Sweep＋Post-open Confirmation",
     variant: "postOpenConfirmation",
     note: "Asia Sweep＋正式開市後Opening Drive確認＋第一次弱Retest形成完整EU-D。普通P3可獲P2-effective；若實際突破15M／1H真實結構，按原生P2甚至P1。唔重複升P或升Q。"
   },
@@ -292,7 +294,7 @@ const SETUP_DEFINITIONS = {
     type: "B",
     variant: "sweep",
     manualType: true,
-    note: "自訂Setup預設按Type B。Type A只有指定市場Session 2B先有效；UK100／GER40嘅Asia 2B during POR已刪除。"
+    note: "自訂Setup預設按Type B。手動揀Type A只係候選；核心Setup本身仍必須係指定Session 2B。即使6／6，自訂Setup亦唔會取得Type A。"
   }
 };
 
@@ -506,7 +508,24 @@ function applySetupTemplate(
   const typeSelect =
     $(typeId);
 
+  resetSetupTypeOptionLabels(
+    typeSelect
+  );
+
   if (!definition.manualType) {
+    const typeOption =
+      typeSelect.querySelector(
+        `option[value="${definition.type}"]`
+      );
+
+    if (
+      typeOption &&
+      definition.classificationLabel
+    ) {
+      typeOption.textContent =
+        definition.classificationLabel;
+    }
+
     typeSelect.value =
       definition.type;
   }
@@ -531,8 +550,8 @@ function applySetupTemplate(
 
   if ($(typeLabelId)) {
     $(typeLabelId).textContent =
-      setupTypeLabel(
-        typeSelect.value
+      setupClassificationLabel(
+        live
       );
   }
 }
@@ -1130,6 +1149,52 @@ function setupTypeLabel(code) {
   };
 
   return labels[code] || code;
+}
+
+function setupClassificationLabel(
+  live = false,
+  typeOverride = null
+) {
+  const definition =
+    setupDefinition(live);
+
+  const type =
+    typeOverride ||
+    setupTypeFromTemplate(live);
+
+  if (
+    !definition.manualType &&
+    type === definition.type &&
+    definition.classificationLabel
+  ) {
+    return definition.classificationLabel;
+  }
+
+  return setupTypeLabel(type);
+}
+
+function resetSetupTypeOptionLabels(
+  select
+) {
+  const labels = {
+    A: "Type A｜高質Session 2B",
+    B: "Type B｜普通Sweep＋Reclaim",
+    C: "Type C｜Breakout／No Sweep"
+  };
+
+  Object.entries(labels).forEach(
+    ([value, label]) => {
+      const option =
+        select.querySelector(
+          `option[value="${value}"]`
+        );
+
+      if (option) {
+        option.textContent =
+          label;
+      }
+    }
+  );
 }
 
 function positionTreatmentLabel(
@@ -1772,6 +1837,29 @@ function evaluateAsia2B(baseTrigger) {
     directionMatches &&
     criteriaCount >= 5;
 
+  let typeAQualificationReason =
+    "N/A";
+
+  if (
+    selectedSetupType === "A"
+  ) {
+    if (!designatedTypeA) {
+      typeAQualificationReason =
+        "核心Setup身份唔屬指定Type A";
+    } else if (!directionMatches) {
+      typeAQualificationReason =
+        "2B方向同交易方向唔一致";
+    } else if (
+      criteriaCount < 5
+    ) {
+      typeAQualificationReason =
+        `只符合${criteriaCount}/6項，未達5項`;
+    } else {
+      typeAQualificationReason =
+        `指定Setup＋方向一致＋${criteriaCount}/6`;
+    }
+  }
+
   let effectiveSetupType =
     selectedSetupType;
 
@@ -1954,7 +2042,8 @@ function evaluateAsia2B(baseTrigger) {
     selectedSetupType,
     effectiveSetupType,
     effectiveSetupTypeLabel:
-      setupTypeLabel(
+      setupClassificationLabel(
+        false,
         effectiveSetupType
       ),
     setupTemplate:
@@ -1972,6 +2061,7 @@ function evaluateAsia2B(baseTrigger) {
         ? criteriaCount
         : 0,
     highQuality,
+    typeAQualificationReason,
     structureOverlap: false,
     basePosition,
     effectivePosition,
@@ -3462,8 +3552,8 @@ function renderAsia2B(result) {
 
   $("setupClassification")
     .textContent =
-      setupTypeLabel(
-        selectedType
+      setupClassificationLabel(
+        false
       );
 
   $("asia2BQuality")
@@ -3471,7 +3561,7 @@ function renderAsia2B(result) {
       result.selectedSetupType === "A"
         ? result.highQuality
           ? `高質｜${result.criteriaCount}/6`
-          : `未達A｜${result.criteriaCount}/6｜按Type B`
+          : `未達A｜${result.criteriaCount}/6｜${result.typeAQualificationReason}｜按Type B`
         : "N/A";
 
   $("asia2BPositionEffect")
@@ -3848,8 +3938,8 @@ function updateInterface() {
 
   $("setupClassification")
     .textContent =
-      setupTypeLabel(
-        selectedSetupType
+      setupClassificationLabel(
+        false
       );
 
   $("typeAPanel").classList.toggle(
@@ -4700,7 +4790,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26.3",
+      "PracticeJournal-V1.26.4",
     engineVersion:
       "MasterTradeMatrix-AllMarkets-V1.1.2-EUDP2Effective",
 
@@ -9199,13 +9289,14 @@ function recalculateLiveDecision() {
 
   $("liveSetupClassification")
     .textContent =
-      setupTypeLabel(
-        selectedSetupType
+      setupClassificationLabel(
+        true
       );
 
   $("liveEffectiveSetupType")
     .textContent =
-      setupTypeLabel(
+      setupClassificationLabel(
+        true,
         effectiveSetupType
       );
 

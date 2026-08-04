@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.26.3",
+  "name": "Master Trade System V1.26.4",
   "short_name": "Master Trade",
-  "description": "Simplified all-market Master Trade Matrix with multi-select record-library deletion, EU-D P2-effective rules, journal and image backup.",
+  "description": "Simplified all-market Master Trade Matrix with dedicated EU-B/EU-D classification labels, explicit Type A eligibility reasons, batch record deletion, journal and image backup.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
