@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.26.2</span>
+    <span class="version-badge">V1.26.3</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1034,6 +1034,28 @@
               <option value="Skip">Skip</option>
             </select>
           </label>
+        </div>
+
+        <div class="history-selection-entry">
+          <button id="historySelectModeToggle" class="secondary-button compact-button" type="button">
+            選取多個紀錄
+          </button>
+        </div>
+
+        <div id="historyBulkActions" class="history-bulk-actions hidden" aria-live="polite">
+          <strong id="historySelectedCount">已選 0 筆</strong>
+          <div class="history-bulk-buttons">
+            <button id="historySelectAllFiltered" class="secondary-button compact-button" type="button">
+              全選目前結果
+            </button>
+            <button id="historyClearSelection" class="secondary-button compact-button" type="button" disabled>
+              清除選取
+            </button>
+            <button id="historyDeleteSelected" class="danger-button compact-button" type="button" disabled>
+              刪除已選
+            </button>
+          </div>
+          <p class="state-note">選取模式下，點擊紀錄卡會勾選／取消；完成後按「刪除已選」。</p>
         </div>
       </article>
 

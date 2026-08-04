@@ -1248,3 +1248,94 @@ dialog::backdrop {
     font-size: 0.78rem;
   }
 }
+
+
+.history-selection-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.history-bulk-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.history-bulk-actions > strong {
+  font-size: 0.92rem;
+}
+
+.history-bulk-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.history-bulk-buttons button {
+  width: auto;
+}
+
+.history-card {
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.history-card.selection-mode {
+  padding-left: 58px;
+}
+
+.history-card.selection-mode:hover {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+}
+
+.history-card.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.history-select-indicator {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, var(--border));
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--primary-text);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.history-card.selected .history-select-indicator {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .history-selection-entry {
+    justify-content: stretch;
+  }
+
+  .history-selection-entry button {
+    width: 100%;
+  }
+
+  .history-bulk-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .history-bulk-buttons .danger-button {
+    grid-column: 1 / -1;
+  }
+}

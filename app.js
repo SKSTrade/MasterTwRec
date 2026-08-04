@@ -329,6 +329,9 @@ let currentAsia2B = null;
 let currentDecision = null;
 let activeRecordId = null;
 let suppressPresetChange = false;
+let historySelectionMode = false;
+const selectedHistoryRecordIds = new Set();
+let currentFilteredHistoryIds = [];
 
 let pendingImageBlobs = [];
 let pendingImageUrls = [];
@@ -4697,7 +4700,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26.2",
+      "PracticeJournal-V1.26.3",
     engineVersion:
       "MasterTradeMatrix-AllMarkets-V1.1.2-EUDP2Effective",
 
@@ -5064,6 +5067,205 @@ function safeSizeLabel(value) {
     `${value ?? 0}注`;
 }
 
+function updateHistoryBulkControls() {
+  const selectedCount =
+    selectedHistoryRecordIds.size;
+
+  $("historyBulkActions")
+    .classList.toggle(
+      "hidden",
+      !historySelectionMode
+    );
+
+  $("historySelectModeToggle")
+    .textContent =
+      historySelectionMode
+        ? "取消選取模式"
+        : "選取多個紀錄";
+
+  $("historySelectModeToggle")
+    .setAttribute(
+      "aria-pressed",
+      historySelectionMode
+        ? "true"
+        : "false"
+    );
+
+  $("historySelectedCount")
+    .textContent =
+      `已選 ${selectedCount} 筆`;
+
+  $("historyClearSelection")
+    .disabled =
+      selectedCount === 0;
+
+  $("historyDeleteSelected")
+    .disabled =
+      selectedCount === 0;
+
+  $("historySelectAllFiltered")
+    .disabled =
+      currentFilteredHistoryIds.length === 0;
+
+  const everyFilteredSelected =
+    currentFilteredHistoryIds.length > 0 &&
+    currentFilteredHistoryIds.every(
+      (id) =>
+        selectedHistoryRecordIds.has(id)
+    );
+
+  $("historySelectAllFiltered")
+    .textContent =
+      everyFilteredSelected
+        ? "取消目前結果"
+        : "全選目前結果";
+}
+
+function setHistorySelectionMode(enabled) {
+  historySelectionMode =
+    Boolean(enabled);
+
+  if (!historySelectionMode) {
+    selectedHistoryRecordIds.clear();
+  }
+
+  renderHistory();
+}
+
+function toggleHistoryRecordSelection(
+  recordId
+) {
+  if (
+    selectedHistoryRecordIds.has(
+      recordId
+    )
+  ) {
+    selectedHistoryRecordIds.delete(
+      recordId
+    );
+  } else {
+    selectedHistoryRecordIds.add(
+      recordId
+    );
+  }
+
+  renderHistory();
+}
+
+function toggleSelectAllFilteredHistory() {
+  if (
+    currentFilteredHistoryIds.length === 0
+  ) {
+    return;
+  }
+
+  const everyFilteredSelected =
+    currentFilteredHistoryIds.every(
+      (id) =>
+        selectedHistoryRecordIds.has(id)
+    );
+
+  currentFilteredHistoryIds.forEach(
+    (id) => {
+      if (everyFilteredSelected) {
+        selectedHistoryRecordIds.delete(
+          id
+        );
+      } else {
+        selectedHistoryRecordIds.add(
+          id
+        );
+      }
+    }
+  );
+
+  renderHistory();
+}
+
+function clearHistorySelection() {
+  selectedHistoryRecordIds.clear();
+  renderHistory();
+}
+
+async function deleteSelectedHistoryRecords() {
+  const records =
+    loadRecords();
+
+  const validSelectedIds =
+    new Set(
+      records
+        .filter(
+          (record) =>
+            selectedHistoryRecordIds.has(
+              record.id
+            )
+        )
+        .map(
+          (record) =>
+            record.id
+        )
+    );
+
+  const selectedCount =
+    validSelectedIds.size;
+
+  if (selectedCount === 0) {
+    showToast(
+      "請先選取要刪除嘅紀錄"
+    );
+    return;
+  }
+
+  const confirmed = confirm(
+    `確定一拼刪除 ${selectedCount} 筆紀錄？相關文字同全部圖片都會永久刪除。`
+  );
+
+  if (!confirmed) return;
+
+  const remaining =
+    records.filter(
+      (record) =>
+        !validSelectedIds.has(
+          record.id
+        )
+    );
+
+  saveRecords(remaining);
+
+  const imageDeleteResults =
+    await Promise.allSettled(
+      [...validSelectedIds].map(
+        (recordId) =>
+          deleteImages(recordId)
+      )
+    );
+
+  const imageDeleteFailures =
+    imageDeleteResults.filter(
+      (result) =>
+        result.status === "rejected"
+    ).length;
+
+  selectedHistoryRecordIds.clear();
+  historySelectionMode = false;
+  renderHistory();
+
+  if (imageDeleteFailures > 0) {
+    console.error(
+      "Some record images could not be deleted:",
+      imageDeleteResults
+    );
+    showToast(
+      `已刪除 ${selectedCount} 筆文字紀錄；有 ${imageDeleteFailures} 筆圖片清理失敗`
+    );
+    return;
+  }
+
+  showToast(
+    `已一拼刪除 ${selectedCount} 筆紀錄`
+  );
+}
+
 function renderHistory() {
   const allRecords = loadRecords();
 
@@ -5205,12 +5407,40 @@ function renderHistory() {
       );
     });
 
+  currentFilteredHistoryIds =
+    filtered.map(
+      (record) =>
+        record.id
+    );
+
+  const existingRecordIds =
+    new Set(
+      allRecords.map(
+        (record) =>
+          record.id
+      )
+    );
+
+  [...selectedHistoryRecordIds]
+    .forEach((recordId) => {
+      if (
+        !existingRecordIds.has(
+          recordId
+        )
+      ) {
+        selectedHistoryRecordIds.delete(
+          recordId
+        );
+      }
+    });
+
   const list =
     $("historyList");
 
   if (filtered.length === 0) {
     list.innerHTML =
       '<article class="card empty-state">未有符合篩選條件嘅紀錄</article>';
+    updateHistoryBulkControls();
     return;
   }
 
@@ -5315,11 +5545,30 @@ function renderHistory() {
         recordTradeDate(record) ||
         "未記錄日期";
 
+      const isSelected =
+        selectedHistoryRecordIds.has(
+          record.id
+        );
+
+      const selectionControl =
+        historySelectionMode
+          ? `
+            <span
+              class="history-select-indicator"
+              aria-hidden="true"
+            >${isSelected ? "✓" : ""}</span>
+          `
+          : "";
+
       return `
         <article
-          class="card history-card"
+          class="card history-card${isSelected ? " selected" : ""}${historySelectionMode ? " selection-mode" : ""}"
           data-record-id="${escapeHtml(record.id)}"
+          role="${historySelectionMode ? "checkbox" : "button"}"
+          aria-checked="${historySelectionMode ? String(isSelected) : "false"}"
+          tabindex="0"
         >
+          ${selectionControl}
           <div class="history-top">
             <strong>${escapeHtml(record.symbol)}</strong>
             <strong>${escapeHtml(profitText)}</strong>
@@ -5393,15 +5642,42 @@ function renderHistory() {
       "[data-record-id]"
     )
     .forEach((card) => {
+      const activateCard = () => {
+        const recordId =
+          card.dataset.recordId;
+
+        if (historySelectionMode) {
+          toggleHistoryRecordSelection(
+            recordId
+          );
+          return;
+        }
+
+        openRecord(recordId);
+      };
+
       card.addEventListener(
         "click",
-        () => {
-          openRecord(
-            card.dataset.recordId
-          );
+        activateCard
+      );
+
+      card.addEventListener(
+        "keydown",
+        (event) => {
+          if (
+            event.key !== "Enter" &&
+            event.key !== " "
+          ) {
+            return;
+          }
+
+          event.preventDefault();
+          activateCard();
         }
       );
     });
+
+  updateHistoryBulkControls();
 }
 
 function clearRecordImageDisplay() {
@@ -10178,6 +10454,34 @@ function setupEvents() {
     .addEventListener(
       "change",
       renderHistory
+    );
+
+  $("historySelectModeToggle")
+    .addEventListener(
+      "click",
+      () => {
+        setHistorySelectionMode(
+          !historySelectionMode
+        );
+      }
+    );
+
+  $("historySelectAllFiltered")
+    .addEventListener(
+      "click",
+      toggleSelectAllFilteredHistory
+    );
+
+  $("historyClearSelection")
+    .addEventListener(
+      "click",
+      clearHistorySelection
+    );
+
+  $("historyDeleteSelected")
+    .addEventListener(
+      "click",
+      deleteSelectedHistoryRecords
     );
 
   $("exportCsv")
