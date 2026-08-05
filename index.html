@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.26.5</span>
+    <span class="version-badge">V1.26.6</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -162,7 +162,7 @@
               逆主判P2特殊資格
               <select id="liveCounterP2Basis">
                 <option value="none">冇｜P2正常0注</option>
-                <option value="healthyTailwind">主判健康＋有效P1順風</option>
+                <option value="p1Tailwind">P1順風｜健康／弱主判均適用</option>
                 <option value="weakBreakRetest">路徑A｜弱主判次結突破＋首次Retest</option>
                 <option value="weakFreshSession">路徑B｜弱主判＋健康次判＋新Session確認</option>
               </select>
@@ -200,7 +200,7 @@
               </label>
             </div>
 
-            <p class="state-note">兩條弱主判路徑都只限P2／P2-E＋Q3，最高0.25；永遠唔升0.5。</p>
+            <p class="state-note">P1順風、路徑A、路徑B三者任一成立即可；全部只限P2／P2-E＋Q3，最高0.25。多條同時成立都唔疊加，永遠唔升0.5。</p>
           </div>
 
           <div id="liveHTFP1ReversalExceptionRow" class="conditional-panel hidden">
@@ -685,10 +685,15 @@
           <p id="p1TailwindNote" class="state-note"></p>
 
           <div id="counterP2WeakPermissionPanel" class="conditional-panel hidden">
+            <div class="principle-box">
+              <strong>P1順風會自動優先判定</strong>
+              <span>上方P1順風仍有效＋P2／P2-E＋Entry-time Q3，即可取得逆主判最高0.25；健康或弱主判都適用，唔需要再揀路徑A／B。</span>
+            </div>
+
             <label>
-              逆弱主判P2權限路徑
+              冇有效P1順風時｜逆弱主判備用路徑
               <select id="counterP2WeakPermissionPath">
-                <option value="none" selected>冇｜P2正常0注</option>
+                <option value="none" selected>冇額外路徑｜P1順風有效仍會自動取得資格</option>
                 <option value="weakBreakRetest">路徑A｜主判次結突破＋Acceptance＋首次Retest</option>
                 <option value="weakFreshSession">路徑B｜健康次判＋新Session獨立確認</option>
               </select>
@@ -1196,10 +1201,10 @@
           <li><strong>同向但含弱勢／轉換：</strong>最高0.5注。</li>
           <li><strong>衝突但順主判：</strong>P1／P2＋右側確認，最高0.5注。</li>
           <li><strong>順次判、逆主判：</strong>P1 Q3最高0.5；P1 Q2最高0.25；P2／P2-E Q3最高0.25。</li>
-          <li><strong>主判健康P2：</strong>必須有仍有效P1順風。</li>
+          <li><strong>P1順風路徑：</strong>健康或弱主判都適用；仍有效P1順風＋P2／P2-E＋Q3＝最高0.25。</li>
           <li><strong>弱主判路徑A：</strong>主判次結／工作結構突破＋Acceptance＋第一次Retest。</li>
           <li><strong>弱主判路徑B：</strong>健康逆向次判＋全新獨立高質Session Setup＋至少1.5R＋未到成熟腿尾／未貼近主判主結。</li>
-          <li><strong>兩條弱主判路徑：</strong>只限P2／P2-E＋Q3，最高0.25，永遠唔升0.5。</li>
+          <li><strong>三條資格：</strong>任一成立即可；多條同時成立唔疊加，最高0.25，永遠唔升0.5。</li>
           <li><strong>雙轉換／Range：</strong>只做邊界；Range中間固定0。</li>
         </ul>
       </article>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-26-5-weak-main-fresh-session";
+const CACHE_NAME = "master-trade-system-v1-26-6-p1-tailwind-any-trend-main";
 const ASSETS = [
   "./",
   "./index.html",

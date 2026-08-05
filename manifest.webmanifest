@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.26.5",
+  "name": "Master Trade System V1.26.6",
   "short_name": "Master Trade",
-  "description": "Simplified all-market Master Trade Matrix with a second weak-main inverse P2 permission path based on healthy secondary trend and independent fresh session confirmation, plus batch record deletion and journal backup.",
+  "description": "Simplified all-market Master Trade Matrix with P1 tailwind restored as an independent inverse-main P2 permission for healthy or weak main trends, plus weak-main paths A/B, batch deletion, journal and image backup.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

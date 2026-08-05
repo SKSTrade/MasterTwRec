@@ -1105,7 +1105,7 @@ function combinedDeploymentInfo() {
       priority:
         "順次判、逆主判：P1＋Q3最高0.5；P1＋Q2最高0.25。",
       secondary:
-        "P2／P2-E＋Q3最高0.25。主判健康要有效P1順風；主判弱勢可用路徑A次結首次Retest，或路徑B健康次判＋新Session獨立確認。"
+        "P2／P2-E＋Q3最高0.25。有效P1順風可用於健康或弱主判；弱主判亦可用路徑A或路徑B。三者唔疊加。"
     },
     transitionConfirmed: {
       priority:
@@ -1215,8 +1215,10 @@ function positionTreatmentLabel(
 
 function counterP2BasisLabel(basis) {
   const labels = {
+    p1Tailwind:
+      "P1順風｜健康／弱主判均適用",
     healthyTailwind:
-      "主判健康＋有效P1順風",
+      "舊版｜主判健康＋有效P1順風",
     weakBreakRetest:
       "路徑A｜弱主判次結突破＋首次Retest",
     weakFreshSession:
@@ -2455,35 +2457,43 @@ function counterP2EligibilityInfo(
       eligible: false,
       basis: "none",
       reason:
-        "逆主判P2兩條路徑都只接受Entry-time Q3；Q2固定0注。",
+        "逆主判P2所有資格都只接受Entry-time Q3；Q2固定0注。",
       missing: [
         "Entry-time必須Q3"
       ]
     };
   }
 
+  const trendMain =
+    isHealthy(mainState) ||
+    isWeak(mainState);
+
+  const p1TailwindValid =
+    $("p1BackgroundTailwind")
+      .value === "valid";
+
+  if (
+    trendMain &&
+    p1TailwindValid
+  ) {
+    return {
+      eligible: true,
+      basis:
+        "p1Tailwind",
+      reason:
+        "P1順風路徑成立：有效P1順風＋P2／P2-E＋Q3，健康或弱主判均可；逆主判方向最高0.25。多條資格同時成立都唔疊加。",
+      missing: []
+    };
+  }
+
   if (
     isHealthy(mainState)
   ) {
-    if (
-      $("p1BackgroundTailwind")
-        .value === "valid"
-    ) {
-      return {
-        eligible: true,
-        basis:
-          "healthyTailwind",
-        reason:
-          "主判健康＋有效P1順風＋P2／P2-E＋Q3：逆主判方向最高0.25。",
-        missing: []
-      };
-    }
-
     return {
       eligible: false,
       basis: "none",
       reason:
-        "主判健康：逆向P2必須有仍有效P1順風；新增路徑B唔適用健康主判。",
+        "主判健康：逆向P2必須有仍有效P1順風；路徑A／B只適用弱主判。",
       missing: [
         "有效P1順風"
       ]
@@ -2632,9 +2642,9 @@ function counterP2EligibilityInfo(
       eligible: false,
       basis: "none",
       reason:
-        "主判弱勢：請揀路徑A「主判次結首次Retest」或路徑B「健康次判＋新Session獨立確認」。",
+        "弱主判未有有效P1順風；請揀路徑A「主判次結首次Retest」或路徑B「健康次判＋新Session獨立確認」。",
       missing: [
-        "未選擇逆弱主判P2權限路徑"
+        "有效P1順風、路徑A或路徑B均未成立"
       ]
     };
   }
@@ -4180,7 +4190,7 @@ function updateP1TailwindNote() {
 
   if (value === "valid") {
     $("p1TailwindNote").textContent =
-      "P1順風仍有效：只限價格觸及P1後第一段真實反應。主判健康時可提供逆主判P2資格；亦係窄義HTF P1 Probe嘅新鮮度條件。永遠唔會將P2升P1。";
+      "P1順風仍有效：只限價格觸及P1後第一段真實反應。健康或弱主判時，只要逆主判Entry係P2／P2-E＋Q3，就可提供最高0.25資格；唔需要再疊加路徑A／B，亦永遠唔會將P2升P1。";
     return;
   }
 
@@ -4236,17 +4246,28 @@ function updateCounterP2PermissionUI(
       .value = "none";
   }
 
+  const p1TailwindActive =
+    $("p1BackgroundTailwind")
+      .value === "valid";
+
+  $("counterP2WeakPermissionPath")
+    .disabled =
+      showWeakPanel &&
+      p1TailwindActive;
+
   const selectedPath =
     $("counterP2WeakPermissionPath")
       .value;
 
   $("counterP2WeakBreakRetest")
     .checked =
+      !p1TailwindActive &&
       selectedPath ===
-      "weakBreakRetest";
+        "weakBreakRetest";
 
   const showFreshPanel =
     showWeakPanel &&
+    !p1TailwindActive &&
     selectedPath ===
       "weakFreshSession";
 
@@ -5175,9 +5196,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26.5",
+      "PracticeJournal-V1.26.6",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1.1.3-WeakMainFreshSession",
+      "MasterTradeMatrix-AllMarkets-V1.1.4-P1TailwindAnyTrendMain",
 
     recordMode:
       recordMode(),
@@ -10044,10 +10065,14 @@ function recalculateLiveDecision() {
       "liveWeakFreshNotNearMainStructure"
     );
 
-  const healthyTailwindEligible =
+  const p1TailwindEligible =
     showCounterP2 &&
-    liveCounterBasis ===
-      "healthyTailwind" &&
+    (
+      liveCounterBasis ===
+        "p1Tailwind" ||
+      liveCounterBasis ===
+        "healthyTailwind"
+    ) &&
     $("liveP1Tailwind").value ===
       "valid" &&
     effectiveQuality === "Q3";
@@ -10059,16 +10084,16 @@ function recalculateLiveDecision() {
     effectiveQuality === "Q3";
 
   const counterP2Eligible =
-    healthyTailwindEligible ||
+    p1TailwindEligible ||
     weakBreakRetestEligible ||
     liveFreshSessionEligible;
 
   let liveCounterP2Reason =
     "逆主判P2未有額外資格，正常0。";
 
-  if (healthyTailwindEligible) {
+  if (p1TailwindEligible) {
     liveCounterP2Reason =
-      "主判健康＋有效P1順風＋P2／P2-E＋Q3：最高0.25。";
+      "P1順風路徑成立：有效P1順風＋P2／P2-E＋Q3，健康或弱主判均適用；最高0.25，多條資格唔疊加。";
   } else if (
     weakBreakRetestEligible
   ) {
@@ -10141,13 +10166,17 @@ function recalculateLiveDecision() {
       `路徑B未完整：${missing.join("；")}。`;
   } else if (
     showCounterP2 &&
-    liveCounterBasis ===
-      "healthyTailwind" &&
+    (
+      liveCounterBasis ===
+        "p1Tailwind" ||
+      liveCounterBasis ===
+        "healthyTailwind"
+    ) &&
     $("liveP1Tailwind").value !==
       "valid"
   ) {
     liveCounterP2Reason =
-      "主判健康路線未有仍有效P1順風。";
+      "P1順風路徑未成立：上方P1順風必須選「有｜仍有效」。";
   } else if (
     showCounterP2 &&
     liveCounterBasis !== "none" &&
