@@ -5196,9 +5196,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26.6",
+      "PracticeJournal-V1.26.7",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1.1.4-P1TailwindAnyTrendMain",
+      "MasterTradeMatrix-AllMarkets-V1.1.5-DialogBackdropDismiss",
 
     recordMode:
       recordMode(),
@@ -10996,6 +10996,35 @@ function resetAllToDefaultsExceptDate() {
 }
 
 
+function handleRecordDialogBackdropClick(
+  event
+) {
+  const dialog =
+    $("recordDialog");
+
+  if (
+    !dialog.open ||
+    event.target !== dialog
+  ) {
+    return;
+  }
+
+  const rect =
+    dialog.getBoundingClientRect();
+
+  const clickedInsideDialog =
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom;
+
+  if (clickedInsideDialog) {
+    return;
+  }
+
+  dialog.close("cancel");
+}
+
 function setupEvents() {
   $("liveMarketCode")
     .addEventListener(
@@ -11444,6 +11473,12 @@ function setupEvents() {
           );
         }
       }
+    );
+
+  $("recordDialog")
+    .addEventListener(
+      "click",
+      handleRecordDialogBackdropClick
     );
 
   $("recordDialog")

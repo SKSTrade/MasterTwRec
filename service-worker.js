@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-26-6-p1-tailwind-any-trend-main";
+const CACHE_NAME = "master-trade-system-v1-26-7-dialog-backdrop-dismiss";
 const ASSETS = [
   "./",
   "./index.html",
