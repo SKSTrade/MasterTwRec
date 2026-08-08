@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.26.7</span>
+    <span class="version-badge">V1.26.8</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -215,6 +215,19 @@
               <input id="liveTransitionLayerP1" type="checkbox">
               <span><strong>呢個P1係Transition層真正大位</strong></span>
             </label>
+          </div>
+
+          <div id="liveTransitionP2TailwindRow" class="conditional-panel hidden">
+            <label>
+              Transition主判｜P1順風方向資格
+              <select id="liveTransitionP2TailwindAlignment">
+                <option value="none" selected>未確認／不合資格</option>
+                <option value="neutral">主判轉換中性｜Long／Short都可</option>
+                <option value="aligned">交易方向順主判Transition偏向｜可</option>
+                <option value="opposite">交易方向逆主判Transition偏向｜不可</option>
+              </select>
+            </label>
+            <p class="state-note">仲要P1順風仍有效＋P2／P2-E＋Q3；合資格都只係最高0.25。</p>
           </div>
 
           <div id="liveP3ConflictTestableRow" class="conditional-panel hidden">
@@ -1201,7 +1214,8 @@
           <li><strong>同向但含弱勢／轉換：</strong>最高0.5注。</li>
           <li><strong>衝突但順主判：</strong>P1／P2＋右側確認，最高0.5注。</li>
           <li><strong>順次判、逆主判：</strong>P1 Q3最高0.5；P1 Q2最高0.25；P2／P2-E Q3最高0.25。</li>
-          <li><strong>P1順風路徑：</strong>健康或弱主判都適用；仍有效P1順風＋P2／P2-E＋Q3＝最高0.25。</li>
+          <li><strong>P1順風路徑：</strong>健康／弱主判按原規則；主判Transition只限中性，或交易方向順主判偏向。仍有效P1順風＋P2／P2-E＋Q3＝最高0.25。</li>
+          <li><strong>Transition反例：</strong>轉換偏升做Short、轉換偏跌做Long，都唔可以借P1順風取得P2權限。</li>
           <li><strong>弱主判路徑A：</strong>主判次結／工作結構突破＋Acceptance＋第一次Retest。</li>
           <li><strong>弱主判路徑B：</strong>健康逆向次判＋全新獨立高質Session Setup＋至少1.5R＋未到成熟腿尾／未貼近主判主結。</li>
           <li><strong>三條資格：</strong>任一成立即可；多條同時成立唔疊加，最高0.25，永遠唔升0.5。</li>
