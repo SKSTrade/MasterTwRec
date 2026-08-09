@@ -1093,7 +1093,7 @@ function combinedDeploymentInfo() {
       priority:
         "反共同方向正常0注。",
       secondary:
-        "只有Daily／Weekly P1＋原生至少P2＋Q3＋Sweep／Reclaim／微結構轉向＋第一段新鮮反應，先可0.25 Probe。"
+        "只有Daily／Weekly P1＋原生至少P2＋Q3＋對應Setup模型嘅等價右側確認＋第一段新鮮反應，先可0.25 Probe。"
     },
     conflictMain: {
       priority:
@@ -2766,6 +2766,164 @@ function transitionP1TailwindEligibilityInfo(
   };
 }
 
+function htfP1ReversalTriggerInfo(
+  baseTrigger
+) {
+  const trigger =
+    baseTrigger || {};
+
+  const variant =
+    trigger.variant ||
+    trigger.model ||
+    setupVariant(false);
+
+  const spaceOk =
+    trigger.tradeSpace !==
+      "insufficient";
+
+  const coreOk =
+    trigger.modelCoreValid ===
+      true;
+
+  if (
+    variant === "session2B" ||
+    variant === "sweep" ||
+    variant === "p1ReversalSweep"
+  ) {
+    const eligible =
+      coreOk &&
+      trigger.validSweep &&
+      trigger.validReclaim &&
+      trigger.microStructureShift &&
+      spaceOk;
+
+    return {
+      eligible,
+      model:
+        "Sweep＋Reclaim",
+      reason:
+        eligible
+          ? "Sweep＋Reclaim＋微結構轉向完整。"
+          : "Sweep類Setup未完整：需要有效Sweep、Reclaim、微結構轉向及足夠空間。"
+    };
+  }
+
+  if (
+    variant === "fullRepairAsia"
+  ) {
+    const eligible =
+      coreOk &&
+      trigger.fullRepairComplete &&
+      trigger.fullRepairAsiaSweep &&
+      trigger.validBreakout &&
+      trigger.validAcceptance &&
+      trigger.firstRetest &&
+      trigger.fullRepairEntryOutside &&
+      !trigger.fullRepairAcceptedBackInside &&
+      trigger.microStructureShift &&
+      trigger.openingDriveStatus !==
+        "expired" &&
+      spaceOk;
+
+    return {
+      eligible,
+      model:
+        "EU-B Full Repair",
+      reason:
+        eligible
+          ? "EU-B等價確認完整：Asia Sweep＋Full Repair＋Breakout＋Acceptance＋首次Retest＋控制權轉移。"
+          : "EU-B未完整：需要Asia Sweep、完整Full Repair、Breakout＋Acceptance、首次Retest、控制權轉移、POR外有效入場及足夠空間。"
+    };
+  }
+
+  if (
+    variant === "fullRepairPure"
+  ) {
+    const eligible =
+      coreOk &&
+      trigger.fullRepairComplete &&
+      trigger.validBreakout &&
+      trigger.validAcceptance &&
+      trigger.firstRetest &&
+      trigger.fullRepairEntryOutside &&
+      !trigger.fullRepairAcceptedBackInside &&
+      trigger.microStructureShift &&
+      trigger.openingDriveStatus !==
+        "expired" &&
+      spaceOk;
+
+    return {
+      eligible,
+      model:
+        "EU-C Full Repair",
+      reason:
+        eligible
+          ? "EU-C等價確認完整：Full Repair＋Breakout＋Acceptance＋首次Retest＋控制權轉移。"
+          : "EU-C未完整：需要完整Full Repair、Breakout＋Acceptance、首次Retest、控制權轉移、POR外有效入場及足夠空間。"
+    };
+  }
+
+  if (
+    variant ===
+      "postOpenConfirmation"
+  ) {
+    const eligible =
+      coreOk &&
+      trigger.postOpenAsiaSweep &&
+      trigger.postOpenAfterOpen &&
+      trigger.postOpenDriveConfirmed &&
+      !trigger.postOpenPreOpenEntry &&
+      trigger.validBreakout &&
+      trigger.firstRetest &&
+      trigger.microStructureShift &&
+      trigger.openingDriveStatus !==
+        "expired" &&
+      spaceOk;
+
+    return {
+      eligible,
+      model:
+        "EU-D Post-open Confirmation",
+      reason:
+        eligible
+          ? "EU-D等價確認完整：Asia Sweep＋正式開市後Opening Drive＋結構突破／控制權轉移＋首次Retest。"
+          : "EU-D未完整：需要Asia Sweep背景、正式開市後確認、Opening Drive、結構突破／控制權轉移、首次Retest及足夠空間。"
+    };
+  }
+
+  if (
+    variant === "breakout"
+  ) {
+    const eligible =
+      coreOk &&
+      trigger.validBreakout &&
+      trigger.validAcceptance &&
+      trigger.firstRetest &&
+      trigger.microStructureShift &&
+      spaceOk;
+
+    return {
+      eligible,
+      model:
+        "Breakout＋Acceptance",
+      reason:
+        eligible
+          ? "Breakout等價確認完整：Breakout＋Acceptance＋首次Retest＋控制權轉移。"
+          : "Breakout類Setup未完整：需要Breakout＋Acceptance、首次Retest、控制權轉移及足夠空間。"
+    };
+  }
+
+  return {
+    eligible: false,
+    model:
+      trigger.modelLabel ||
+      variant ||
+      "未知",
+    reason:
+      "呢個Setup模型未列入窄義HTF P1反轉例外嘅等價Trigger名單。"
+  };
+}
+
 function htfP1ReversalExceptionInfo(
   baseTrigger,
   basePosition,
@@ -2801,13 +2959,14 @@ function htfP1ReversalExceptionInfo(
     basePosition === "P1" ||
     basePosition === "P2";
 
+  const triggerInfo =
+    htfP1ReversalTriggerInfo(
+      baseTrigger
+    );
+
   const triggerOk =
     effectiveQuality === "Q3" &&
-    baseTrigger.validSweep &&
-    baseTrigger.validReclaim &&
-    baseTrigger.microStructureShift &&
-    baseTrigger.tradeSpace !==
-      "insufficient";
+    triggerInfo.eligible;
 
   const fresh =
     $("p1BackgroundTailwind")
@@ -2820,15 +2979,47 @@ function htfP1ReversalExceptionInfo(
   ) {
     return {
       eligible: true,
+      triggerModel:
+        triggerInfo.model,
       reason:
-        "窄義HTF P1反轉例外成立：原生至少P2＋Q3＋Sweep／Reclaim／微結構轉向＋第一段新鮮反應，最高0.25 Probe。"
+        `窄義HTF P1反轉例外成立：原生至少P2＋Q3＋${triggerInfo.model}等價右側確認＋P1第一段新鮮反應，最高0.25 Probe。`
     };
+  }
+
+  const missing = [];
+
+  if (!nativePositionOk) {
+    missing.push(
+      "原生位置至少P2"
+    );
+  }
+
+  if (
+    effectiveQuality !== "Q3"
+  ) {
+    missing.push(
+      "Entry-time Q3"
+    );
+  }
+
+  if (!triggerInfo.eligible) {
+    missing.push(
+      triggerInfo.reason
+    );
+  }
+
+  if (!fresh) {
+    missing.push(
+      "P1第一段反應仍有效"
+    );
   }
 
   return {
     eligible: false,
+    triggerModel:
+      triggerInfo.model,
     reason:
-      "例外未完整：必須原生至少P2、Q3、Sweep＋Reclaim＋微結構轉向、P1第一段反應仍有效，而且空間足夠。Type A P3→P2-effective唔會創造方向權限。"
+      `例外未完整：${missing.join("；").replace(/。+$/u, "")}。Type A／EU-D嘅P3→P2-effective仍然唔會單獨創造方向權限。`
   };
 }
 
@@ -5349,9 +5540,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26.8",
+      "PracticeJournal-V1.26.9",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1.1.6-TransitionP1TailwindDirection",
+      "MasterTradeMatrix-AllMarkets-V1.1.7-HTFP1TriggerEquivalence",
 
     recordMode:
       recordMode(),

@@ -1,67 +1,92 @@
-# Master Trade System V1.26.8｜Transition主判P1順風方向規則
+# Master Trade System V1.26.9｜窄義HTF P1反轉例外 Trigger 等價化
 
-## Transition主判最新P1順風規則
+## 修正問題
 
-當主判係Transition，P1順風唔係任何方向都可以用。
+舊版窄義HTF P1反轉例外硬性要求：
 
-### 可以用
+> validSweep＋validReclaim＋微結構轉向
 
-1. 主判係「轉換中－中性」
-   - Long／Short都可以享有P1順風資格。
+所以 EU-B 即使已經完整完成：
 
-2. 主判有方向偏向，而且交易方向順主判偏向
-   - 轉換偏升＋Long：可以
-   - 轉換偏跌＋Short：可以
+> Asia Sweep＋POR Full Repair＋Breakout＋Acceptance＋首次Retest
 
-### 唔可以用
+仍會因為普通 `validSweep / validReclaim` 欄位係 false 而被錯判0注。
 
-- 轉換偏升＋Short
-- 轉換偏跌＋Long
+## V1.26.9正式規則
 
-即係：
+窄義HTF P1反轉例外唔再要求所有Setup都填同一套Sweep／Reclaim欄位，而係按Setup模型檢查「等價右側確認」。
 
-> 逆主判Transition偏向嘅交易，唔可以借P1順風取得P2權限。
+### Type A／Type B Sweep類
 
-## 注碼條件
+需要：
 
-Transition主判要透過P1順風做P2／P2-effective，仍然必須：
+> Sweep＋Reclaim＋微結構轉向
 
-- P1順風仍有效
-- 有效位置P2或合格P2-effective
+### EU-B
+
+需要：
+
+> Asia Sweep  
+> ＋完整POR Full Repair  
+> ＋Breakout＋Acceptance  
+> ＋首次Retest  
+> ＋控制權轉移  
+> ＋POR外有效入場
+
+### EU-C
+
+需要：
+
+> 完整POR Full Repair  
+> ＋Breakout＋Acceptance  
+> ＋首次Retest  
+> ＋控制權轉移  
+> ＋POR外有效入場
+
+### EU-D
+
+需要：
+
+> Asia Sweep  
+> ＋正式開市後Opening Drive確認  
+> ＋Breakout／工作結構突破  
+> ＋控制權轉移  
+> ＋首次Retest
+
+### 其他Breakout Setup
+
+需要：
+
+> Breakout＋Acceptance＋首次Retest＋控制權轉移
+
+## 窄義HTF P1反轉例外共同條件
+
+仍然全部需要：
+
+- 原生位置至少P2；P1當然符合
 - Entry-time Q3
-- 符合上述Transition方向規則
-- 其他障礙／R:R／Hard Veto照常
+- P1第一段新鮮反應／P1順風仍有效
+- 對應Setup模型嘅核心確認完整
+- 空間合格
+- 手動勾選「窄義HTF P1反轉例外完整成立」
 
 全部成立：
 
-> 最高0.25注
+> 方向權限由正常0開到最高0.25 Probe
 
-P1順風唔會：
+注意：
 
-- 將P2升P1
-- 將Q2升Q3
-- 救P4
-- 推翻障礙或Hard Veto
-
-## 原有Transition P1 Probe保留
-
-真正Transition層P1＋Q3嘅0.25 Probe維持不變。
-
-今次新增／修正嘅係：
-
-> 原始P3經Setup取得P2-effective，或者原生P2，在合格Transition P1順風情況下亦可0.25。
-
-## 健康／弱主判規則保持
-
-- 健康主判：有效P1順風＋P2／P2-E＋Q3可最高0.25
-- 弱主判：有效P1順風、路徑A、路徑B其中一條成立即可，最高0.25
-- 多條資格唔疊加
+- Type A P3→P2-effective唔會單獨創造方向權限
+- EU-D P3→P2-effective亦唔會單獨創造方向權限
+- Q2唔得
+- P4唔得
+- Hard Veto／障礙規則仍然有效
 
 ## 其他功能保留
 
-- 紀錄詳情點擊外圍關閉
+- Transition主判P1順風方向規則
+- 紀錄視窗點擊外圍關閉
 - 紀錄庫批量刪除
 - EU-B／EU-D專屬分類
-- EU-D P3→P2-effective
 - 119欄CSV及舊CSV兼容匯入
 - 原有LocalStorage及圖片IndexedDB

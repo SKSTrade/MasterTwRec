@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.26.8",
+  "name": "Master Trade System V1.26.9",
   "short_name": "Master Trade",
-  "description": "Simplified all-market Master Trade Matrix with directional Transition-main P1-tailwind permission for P2/P2-effective Q3, dialog backdrop dismissal, batch record deletion, journal and image backup.",
+  "description": "All-market Master Trade Matrix with setup-model equivalent trigger validation for narrow HTF P1 reversal probes, Transition P1-tailwind direction rules, batch deletion and record-dialog backdrop dismissal.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

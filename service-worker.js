@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-26-8-transition-p1-tailwind-direction";
+const CACHE_NAME = "master-trade-system-v1-26-9-htf-p1-trigger-equivalence";
 const ASSETS = [
   "./",
   "./index.html",
