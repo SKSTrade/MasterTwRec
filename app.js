@@ -157,13 +157,13 @@ const MARKET_CONFIG = {
     preset: "xau",
     defaultSymbol: "XAUUSD",
     setupCodes: [
-      "xau_session_2b",
-      "xau_htf_session_sweep",
-      "xau_breakout_retest",
+      "xau_htf_location_sweep",
+      "xau_asia_pdh_pdl",
+      "xau_london_asia_sweep",
       "trend_pullback",
       "custom"
     ],
-    timeRule: "黃金：高速大陽／大陰Retest唔可以因低Volume放行；SL放結構失效點。"
+    timeRule: "XAU：D大局／4H主判／1H次判／15M或5M Trigger；1M只改善Entry，唔重新判方向。高速大陽／大陰Retest唔可以因低Volume放行。"
   }
 };
 
@@ -257,29 +257,58 @@ const SETUP_DEFINITIONS = {
     variant: "p1ReversalSweep",
     note: "只限Daily／4H主要P1、主判已弱、次判Sweep＋Reclaim＋右側反轉，而且第一段反應仍新鮮。"
   },
-  xau_session_2b: {
+  xau_htf_location_sweep: {
     marketGroup: "XAU",
-    label: "XAU-A｜Asia／OPR 2B",
-    type: "A",
-    variant: "session2B",
-    designatedTypeA: true,
-    liquidityLabel: "Asia／OPR H／L",
-    note: "黃金Session 2B；P／Q特殊待遇同外匯Type A一致，但Retest標準更嚴格。"
+    label: "XAU-A｜HTF Location Sweep",
+    type: "B",
+    classificationLabel: "XAU-A｜HTF Location Sweep",
+    variant: "sweep",
+    xauFormalSetup: "A",
+    note: "XAU首選：原生P1／P2 HTF真實位置＋meaningful liquidity sweep＋Reclaim＋弱Retest。Location提供Edge，Sweep負責確認；若Liquidity來源係PDH／PDL E+或Asia／OPR E，可按專用Enhancement規則有限度修補邊緣Q2，但唔改原生P。"
   },
-  xau_htf_session_sweep: {
+  xau_asia_pdh_pdl: {
     marketGroup: "XAU",
-    label: "XAU-B｜HTF結構＋Session Sweep",
+    label: "XAU-B｜Asia Sweep PDH／PDL",
+    type: "B",
+    classificationLabel: "XAU-B｜Asia Sweep PDH／PDL",
+    variant: "sweep",
+    xauFormalSetup: "B",
+    xauFixedLiquidity: "pdhPdl",
+    xauFixedSession: "asia",
+    note: "XAU第二核心：Asia時段Sweep PDH／PDL → 無法Acceptance → Reclaim → 弱Retest。PDH／PDL固定E+；Raw P3高質Sweep可獲P2-effective，邊緣型Q2可獲Q3-effective，但原生P仍記P3。"
+  },
+  xau_london_asia_sweep: {
+    marketGroup: "XAU",
+    label: "XAU-C｜London Sweep Asia H／L",
+    type: "B",
+    classificationLabel: "XAU-C｜London Sweep Asia H／L",
+    variant: "sweep",
+    xauFormalSetup: "C",
+    xauFixedLiquidity: "asiaHL",
+    xauFixedSession: "london",
+    note: "XAU Secondary Setup：London／Europe Sweep Asia H／L → Reclaim → 弱Retest。Asia H／L固定E；高質Sweep可令Raw P3獲P2-effective及有限度修補邊緣Q2，但仍然最好有HTF位置／結構支持。"
+  },
+  xau_session_2b: {
+    marketGroup: "XAU_LEGACY",
+    label: "舊版｜XAU Asia／OPR 2B",
     type: "B",
     variant: "sweep",
-    note: "Session Sweep只係Trigger；真正P由Daily／4H／1H真實結構、Range邊界及重疊決定。"
+    note: "舊版記錄兼容；V1.27.0起唔再係XAU正式Type A打法。"
+  },
+  xau_htf_session_sweep: {
+    marketGroup: "XAU_LEGACY",
+    label: "舊版｜XAU HTF結構＋Session Sweep",
+    type: "B",
+    variant: "sweep",
+    note: "舊版記錄兼容。"
   },
   xau_breakout_retest: {
-    marketGroup: "XAU",
-    label: "XAU-C｜Breakout＋Acceptance＋First Retest",
+    marketGroup: "XAU_LEGACY",
+    label: "舊版｜XAU Breakout＋Acceptance＋First Retest",
     type: "C",
     variant: "breakout",
     nativeP2: true,
-    note: "4H／1H大Range、歷史高低位或Market State轉換後第一次Retest；原生P2，改變4H狀態可屬P1。"
+    note: "舊版記錄兼容。"
   },
   trend_pullback: {
     marketGroup: "ALL",
@@ -456,6 +485,588 @@ function isDesignatedTypeASetup(
   return true;
 }
 
+function isXauFormalSetupCode(
+  code = ""
+) {
+  return [
+    "xau_htf_location_sweep",
+    "xau_asia_pdh_pdl",
+    "xau_london_asia_sweep"
+  ].includes(code);
+}
+
+function xauLiquiditySourceInfo(
+  value = "other"
+) {
+  const sources = {
+    htfMajor: {
+      label:
+        "HTF主結／Major Swing／HTF Range／重要前Swing",
+      rank:
+        "第一級｜HTF結構流動性"
+    },
+    pdhPdl: {
+      label:
+        "PDH／PDL",
+      rank:
+        "第二級｜PDH／PDL"
+    },
+    monHL: {
+      label:
+        "Mon H／Mon L",
+      rank:
+        "第三級｜Mon H／L｜星期二後更有價值"
+    },
+    asiaHL: {
+      label:
+        "Asia H／Asia L",
+      rank:
+        "第四級｜Asia H／L｜Intraday Secondary"
+    },
+    oprHL: {
+      label:
+        "OPR H／OPR L",
+      rank:
+        "第四級｜OPR H／L｜Intraday Secondary"
+    },
+    other: {
+      label:
+        "其他／未指定",
+      rank:
+        "未分級"
+    }
+  };
+
+  return sources[value] || sources.other;
+}
+
+function xauLiquidityEdgeInfo(
+  live = false,
+  positionOverride = null
+) {
+  if (
+    marketCode(live) !== "XAU"
+  ) {
+    return {
+      active: false,
+      source: "other",
+      sourceLabel: "N/A",
+      rank: "N/A",
+      session: "other",
+      sessionLabel: "N/A",
+      marker: "",
+      markerLabel: "N/A",
+      positionLabel:
+        positionOverride || "N/A"
+    };
+  }
+
+  const controlPrefix =
+    live ? "liveXau" : "xau";
+
+  const source =
+    $(`${controlPrefix}LiquiditySource`)
+      .value || "other";
+
+  const session =
+    $(`${controlPrefix}SweepSession`)
+      .value || "other";
+
+  const basePosition =
+    positionOverride ||
+    $(
+      live
+        ? "livePosition"
+        : "positionLevel"
+    ).value;
+
+  const sourceInfo =
+    xauLiquiditySourceInfo(source);
+
+  const sessionLabels = {
+    asia:
+      "Asia時段",
+    london:
+      "London／Europe時段",
+    other:
+      "其他／未指定Session"
+  };
+
+  let marker = "";
+
+  if (
+    source === "htfMajor" ||
+    source === "pdhPdl"
+  ) {
+    marker = "E+";
+  } else if (
+    source === "monHL" ||
+    source === "asiaHL" ||
+    source === "oprHL"
+  ) {
+    marker = "E";
+  }
+
+  return {
+    active: true,
+    source,
+    sourceLabel:
+      sourceInfo.label,
+    rank:
+      sourceInfo.rank,
+    session,
+    sessionLabel:
+      sessionLabels[session] ||
+      sessionLabels.other,
+    marker,
+    markerLabel:
+      marker || "無E標記",
+    positionLabel:
+      marker
+        ? `${basePosition}-${marker}`
+        : basePosition
+  };
+}
+
+function xauLiquidityEnhancementInfo(
+  baseTrigger,
+  basePosition,
+  live = false,
+  qualityOverride = null
+) {
+  if (
+    marketCode(live) !== "XAU"
+  ) {
+    return {
+      applicable: false,
+      sourceEligible: false,
+      highQuality: false,
+      q2MarginalOnly: false,
+      promotePosition: false,
+      promoteQuality: false,
+      marker: "",
+      reason:
+        "XAU Liquidity Enhancement不適用。"
+    };
+  }
+
+  const edge =
+    xauLiquidityEdgeInfo(
+      live,
+      basePosition
+    );
+
+  const variant =
+    setupVariant(live);
+
+  const sweepModel =
+    variant === "sweep" ||
+    variant === "session2B" ||
+    variant === "p1ReversalSweep";
+
+  const sourceEligible = [
+    "pdhPdl",
+    "asiaHL",
+    "oprHL"
+  ].includes(edge.source);
+
+  if (
+    !sweepModel ||
+    !sourceEligible
+  ) {
+    return {
+      applicable: true,
+      sourceEligible,
+      highQuality: false,
+      q2MarginalOnly: false,
+      promotePosition: false,
+      promoteQuality: false,
+      marker:
+        edge.marker,
+      reason:
+        !sweepModel
+          ? "XAU E／E+升級只適用Sweep／Reclaim模型。"
+          : "Mon H/L及其他Liquidity可保留E標記，但唔享有P3→P2-effective或Q2→Q3-effective權力。"
+    };
+  }
+
+  if (live) {
+    const baseQuality =
+      qualityOverride ||
+      $("liveTriggerQuality").value;
+
+    const hardConditionsOk =
+      checked(
+        "liveXauEnhancementCoreValid"
+      );
+
+    const q2MarginalOnly =
+      baseQuality === "Q2" &&
+      checked(
+        "liveXauQ2MarginalOnly"
+      );
+
+    const highQuality =
+      hardConditionsOk &&
+      (
+        baseQuality === "Q3" ||
+        q2MarginalOnly
+      );
+
+    return {
+      applicable: true,
+      sourceEligible: true,
+      highQuality,
+      q2MarginalOnly,
+      promotePosition:
+        basePosition === "P3" &&
+        highQuality,
+      promoteQuality:
+        q2MarginalOnly &&
+        hardConditionsOk,
+      marker:
+        edge.marker,
+      reason:
+        highQuality
+          ? `${edge.sourceLabel} ${edge.marker}高質Sweep合格：可用有限度Liquidity Enhancement。`
+          : `${edge.sourceLabel} ${edge.marker}只係候選Edge；要確認Sweep／Reclaim有效、控制權轉移、Retest弱、Reclaim未失效、冇強反向microstructure及空間合格先有升級權力。`
+    };
+  }
+
+  const trigger =
+    baseTrigger || {};
+
+  const noHardFailure =
+    Array.isArray(
+      trigger.failures
+    ) &&
+    trigger.failures.length === 0 &&
+    trigger.modelCoreValid === true;
+
+  const retestClean =
+    trigger.retestQuality === "weak";
+
+  const reclaimValid =
+    trigger.validSweep === true &&
+    trigger.validReclaim === true &&
+    trigger.reclaimQuality !== "negated";
+
+  const controlShift =
+    trigger.microStructureShift === true;
+
+  const spaceOk =
+    trigger.tradeSpace !==
+      "insufficient";
+
+  const q2MarginalOnly =
+    trigger.quality === "Q2" &&
+    noHardFailure &&
+    reclaimValid &&
+    controlShift &&
+    retestClean &&
+    spaceOk &&
+    trigger.reclaimQuality ===
+      "ordinary" &&
+    Array.isArray(
+      trigger.imperfections
+    ) &&
+    trigger.imperfections.length === 1;
+
+  const highQuality =
+    noHardFailure &&
+    reclaimValid &&
+    controlShift &&
+    retestClean &&
+    spaceOk &&
+    (
+      trigger.quality === "Q3" ||
+      q2MarginalOnly
+    );
+
+  let reason =
+    `${edge.sourceLabel} ${edge.marker}未取得升級權力。`;
+
+  if (highQuality) {
+    reason =
+      `${edge.sourceLabel} ${edge.marker}高質Sweep成立：Sweep／Reclaim有效、控制權轉移成立、Retest弱、冇失效Reclaim、冇Hard Failure，而且空間合格。`;
+  } else if (
+    trigger.retestQuality ===
+      "imperfect"
+  ) {
+    reason =
+      "Retest稍快／稍深／稍強：E／E+唔可以將呢類Q2升Q3，亦唔視為高質Liquidity Sweep。";
+  } else if (
+    trigger.retestQuality ===
+      "invalid"
+  ) {
+    reason =
+      "Retest fast／deep／strong已否定Setup：E／E+完全救唔到。";
+  } else if (
+    trigger.reclaimQuality ===
+      "negated"
+  ) {
+    reason =
+      "Reclaim已被重新吞噬／否定：E／E+完全救唔到。";
+  } else if (
+    trigger.tradeSpace ===
+      "insufficient"
+  ) {
+    reason =
+      "第一真實障礙空間不足：E／E+完全救唔到。";
+  } else if (
+    trigger.microStructureShift !==
+      true
+  ) {
+    reason =
+      "未有足夠控制權轉移／微結構確認：唔符合E／E+高質升級條件。";
+  } else if (
+    trigger.quality === "Q2" &&
+    !q2MarginalOnly
+  ) {
+    reason =
+      "Q2唔係單一Sweep／Reclaim邊緣瑕疵：E／E+唔可以升做Q3-effective。";
+  }
+
+  return {
+    applicable: true,
+    sourceEligible: true,
+    highQuality,
+    q2MarginalOnly,
+    promotePosition:
+      basePosition === "P3" &&
+      highQuality,
+    promoteQuality:
+      q2MarginalOnly,
+    marker:
+      edge.marker,
+    reason
+  };
+}
+
+function xauSetupPriorityLabel(
+  code = ""
+) {
+  const labels = {
+    xau_htf_location_sweep:
+      "核心首選｜最高優先",
+    xau_asia_pdh_pdl:
+      "核心第二｜高優先",
+    xau_london_asia_sweep:
+      "Secondary｜次要打法"
+  };
+
+  return labels[code] ||
+    "非XAU三個正式打法";
+}
+
+function xauSetupEligibilityInfo(
+  live = false,
+  positionOverride = null
+) {
+  const code =
+    setupTemplateCode(live);
+
+  if (
+    marketCode(live) !== "XAU" ||
+    !isXauFormalSetupCode(code)
+  ) {
+    return {
+      applicable: false,
+      eligible: true,
+      reason:
+        "XAU專用Setup限制不適用。"
+    };
+  }
+
+  const basePosition =
+    positionOverride ||
+    $(
+      live
+        ? "livePosition"
+        : "positionLevel"
+    ).value;
+
+  const edge =
+    xauLiquidityEdgeInfo(
+      live,
+      basePosition
+    );
+
+  if (
+    code ===
+      "xau_htf_location_sweep"
+  ) {
+    const eligible =
+      basePosition === "P1" ||
+      basePosition === "P2";
+
+    return {
+      applicable: true,
+      eligible,
+      reason:
+        eligible
+          ? `XAU-A位置合格：原生${basePosition} HTF Location；原生P唔會被E／E+改寫。若Liquidity來源係PDH／PDL E+或Asia／OPR E，仍可按專用規則有限度修補邊緣Q2。`
+          : "XAU-A只限原生P1／P2 HTF真實位置；P3／P4唔可以靠Sweep或E標記救返。"
+    };
+  }
+
+  if (
+    code ===
+      "xau_asia_pdh_pdl"
+  ) {
+    const eligible =
+      edge.source === "pdhPdl" &&
+      edge.session === "asia";
+
+    return {
+      applicable: true,
+      eligible,
+      reason:
+        eligible
+          ? `XAU-B成立：Asia Sweep PDH／PDL＝${edge.markerLabel}候選。Raw ${basePosition}仍照原生P記錄；只有高質Sweep先可P3→P2-effective／邊緣Q2→Q3-effective。`
+          : "XAU-B必須係Asia時段Sweep PDH／PDL；Setup名稱本身唔會自動升P／Q。"
+    };
+  }
+
+  const eligible =
+    edge.source === "asiaHL" &&
+    edge.session === "london";
+
+  return {
+    applicable: true,
+    eligible,
+    reason:
+      eligible
+        ? `XAU-C成立：London／Europe Sweep Asia H／L＝${edge.markerLabel}候選。高質Sweep可令Raw P3獲P2-effective／邊緣Q2獲Q3-effective，但仍受方向、Market cap同障礙限制。`
+        : "XAU-C必須係London／Europe Sweep Asia H／L；純Setup名稱唔會自動創造方向或升級。"
+  };
+}
+
+function applyXauTemplateDefaults(
+  live = false
+) {
+  const panelId =
+    live
+      ? "liveXauLiquidityPanel"
+      : "xauLiquidityPanel";
+
+  if (!$(panelId)) return;
+
+  const isXau =
+    marketCode(live) === "XAU";
+
+  $(panelId).classList.toggle(
+    "hidden",
+    !isXau
+  );
+
+  if (!isXau) return;
+
+  const controlPrefix =
+    live ? "liveXau" : "xau";
+
+  const sourceSelect =
+    $(`${controlPrefix}LiquiditySource`);
+
+  const sessionSelect =
+    $(`${controlPrefix}SweepSession`);
+
+  const definition =
+    setupDefinition(live);
+
+  const code =
+    setupTemplateCode(live);
+
+  if (
+    definition.xauFixedLiquidity
+  ) {
+    sourceSelect.value =
+      definition.xauFixedLiquidity;
+    sourceSelect.disabled = true;
+  } else {
+    sourceSelect.disabled = false;
+    sourceSelect.value =
+      code ===
+        "xau_htf_location_sweep"
+        ? "htfMajor"
+        : "other";
+  }
+
+  if (
+    definition.xauFixedSession
+  ) {
+    sessionSelect.value =
+      definition.xauFixedSession;
+    sessionSelect.disabled = true;
+  } else {
+    sessionSelect.disabled = false;
+    sessionSelect.value = "other";
+  }
+
+  updateXauLiquidityUI(
+    live
+  );
+}
+
+function updateXauLiquidityUI(
+  live = false,
+  positionOverride = null
+) {
+  const panelId =
+    live
+      ? "liveXauLiquidityPanel"
+      : "xauLiquidityPanel";
+
+  if (!$(panelId)) return;
+
+  const isXau =
+    marketCode(live) === "XAU";
+
+  $(panelId).classList.toggle(
+    "hidden",
+    !isXau
+  );
+
+  if (!isXau) return;
+
+  const controlPrefix =
+    live ? "liveXau" : "xau";
+
+  const edge =
+    xauLiquidityEdgeInfo(
+      live,
+      positionOverride
+    );
+
+  const eligibility =
+    xauSetupEligibilityInfo(
+      live,
+      positionOverride
+    );
+
+  $(`${controlPrefix}LiquidityRank`)
+    .textContent =
+      edge.rank;
+
+  $(`${controlPrefix}EdgeMarker`)
+    .textContent =
+      edge.markerLabel;
+
+  $(`${controlPrefix}PositionEdgeLabel`)
+    .textContent =
+      edge.positionLabel;
+
+  $(`${controlPrefix}SetupPriority`)
+    .textContent =
+      xauSetupPriorityLabel(
+        setupTemplateCode(live)
+      );
+
+  $(`${controlPrefix}LiquidityNote`)
+    .textContent =
+      `${eligibility.reason} 原生P仍照Raw P記錄；只有PDH／PDL E+或Asia／OPR E嘅高質Sweep先可有限度P3→P2-effective／邊緣Q2→Q3-effective，永遠唔創造方向權限。`;
+}
+
 function populateSetupTemplateSelect(
   market,
   selectId,
@@ -554,6 +1165,10 @@ function applySetupTemplate(
         live
       );
   }
+
+  applyXauTemplateDefaults(
+    live
+  );
 }
 
 function applyMarketPreset(
@@ -1888,7 +2503,7 @@ function evaluateAsia2B(baseTrigger) {
 
     if (!designatedTypeA) {
       warnings.push(
-        "Type A只限HSI OPR 2B、FX／XAU Asia／OPR 2B、UK100／GER40正式開市後POR 2B。Asia 2B during POR已刪除，今次按Type B處理。"
+        "Type A只限HSI OPR 2B、FX Asia／OPR 2B、UK100／GER40正式開市後POR 2B。XAU V1.27.0起改用專用A/B/C Liquidity Matrix，唔再享有舊Type A升級。"
       );
     } else {
       warnings.push(
@@ -2038,6 +2653,79 @@ function evaluateAsia2B(baseTrigger) {
     }
   }
 
+  const xauEdge =
+    xauLiquidityEdgeInfo(
+      false,
+      basePosition
+    );
+
+  const xauEligibility =
+    xauSetupEligibilityInfo(
+      false,
+      basePosition
+    );
+
+  const xauEnhancement =
+    xauLiquidityEnhancementInfo(
+      baseTrigger,
+      basePosition,
+      false
+    );
+
+  let xauPositionPromoted = false;
+  let xauTriggerPromoted = false;
+
+  if (
+    marketCode(false) === "XAU" &&
+    xauEnhancement.promoteQuality
+  ) {
+    effectiveQuality = "Q3";
+    triggerPromoted = true;
+    xauTriggerPromoted = true;
+
+    reasons.push(
+      `${xauEdge.sourceLabel} ${xauEdge.marker}：基礎Q2唯一問題係Sweep／Reclaim質素邊緣，獲Q3-effective待遇。`
+    );
+  } else if (
+    marketCode(false) === "XAU" &&
+    baseTrigger.quality === "Q2" &&
+    xauEnhancement.sourceEligible
+  ) {
+    warnings.push(
+      `XAU Q維持Q2：${xauEnhancement.reason}`
+    );
+  }
+
+  if (
+    marketCode(false) === "XAU" &&
+    xauEnhancement.promotePosition &&
+    basePosition === "P3"
+  ) {
+    effectivePosition = "P2";
+    positionPromoted = true;
+    xauPositionPromoted = true;
+    positionTreatment =
+      "p2Effective";
+
+    reasons.push(
+      `${xauEdge.sourceLabel} ${xauEdge.marker}高質Sweep：Raw P3保留原生P3記錄，但交易執行按P2-effective處理。`
+    );
+  }
+
+  if (
+    marketCode(false) === "XAU" &&
+    isXauFormalSetupCode(
+      setupTemplateCode(false)
+    )
+  ) {
+    reasons.push(
+      `XAU Liquidity：${xauEdge.rank}｜${xauEdge.positionLabel}。原生P仍記${basePosition}；只有PDH／PDL E+或Asia／OPR E嘅高質Sweep先可取得有限度P2-effective／Q3-effective待遇。`
+    );
+    reasons.push(
+      xauEligibility.reason
+    );
+  }
+
   const sessionLabel =
     definition.liquidityLabel ||
     "指定Session H／L";
@@ -2089,6 +2777,36 @@ function evaluateAsia2B(baseTrigger) {
     nativeP2Applied,
     positionTreatment,
     triggerPromoted,
+    xauLiquiditySource:
+      xauEdge.source,
+    xauLiquiditySourceLabel:
+      xauEdge.sourceLabel,
+    xauSweepSession:
+      xauEdge.session,
+    xauSweepSessionLabel:
+      xauEdge.sessionLabel,
+    xauLiquidityRank:
+      xauEdge.rank,
+    xauEdgeMarker:
+      xauEdge.marker,
+    xauPositionEdgeLabel:
+      xauEdge.positionLabel,
+    xauSetupPriority:
+      xauSetupPriorityLabel(
+        setupTemplateCode(false)
+      ),
+    xauSetupEligible:
+      xauEligibility.eligible,
+    xauSetupEligibilityReason:
+      xauEligibility.reason,
+    xauHighQualityLiquidity:
+      xauEnhancement.highQuality,
+    xauQ2MarginalOnly:
+      xauEnhancement.q2MarginalOnly,
+    xauPositionPromoted,
+    xauTriggerPromoted,
+    xauEnhancementReason:
+      xauEnhancement.reason,
     reasons,
     warnings
   };
@@ -3087,6 +3805,21 @@ function applySetupMatrixConstraint(
   size,
   setupResult
 ) {
+  if (
+    setupResult.xauSetupEligible ===
+      false &&
+    isXauFormalSetupCode(
+      setupResult.setupTemplate
+    )
+  ) {
+    return {
+      size: 0,
+      reason:
+        setupResult.xauSetupEligibilityReason ||
+        "XAU專用Setup條件未完整。"
+    };
+  }
+
   const variant =
     setupResult.setupVariant;
 
@@ -4228,21 +4961,28 @@ function renderAsia2B(result) {
 
   $("asia2BTriggerEffect")
     .textContent =
-      result.triggerPromoted
-        ? `${result.baseQuality} → ${result.effectiveQuality}｜只修正Sweep／Reclaim邊緣`
-        : result.effectiveSetupType === "A" &&
-          result.baseQuality === "Q2"
-          ? `維持Q2｜${currentBaseTrigger.typeAUpgradeReason}`
-          : `維持${result.baseQuality}`;
+      result.xauTriggerPromoted
+        ? `${result.baseQuality} → ${result.effectiveQuality}-effective｜XAU ${result.xauEdgeMarker}只修正Sweep／Reclaim邊緣`
+        : result.triggerPromoted
+          ? `${result.baseQuality} → ${result.effectiveQuality}｜只修正Sweep／Reclaim邊緣`
+          : marketCode(false) === "XAU" &&
+            result.baseQuality === "Q2"
+            ? `維持Q2｜${result.xauEnhancementReason}`
+            : result.effectiveSetupType === "A" &&
+              result.baseQuality === "Q2"
+              ? `維持Q2｜${currentBaseTrigger.typeAUpgradeReason}`
+              : `維持${result.baseQuality}`;
 
   const grade =
     $("baseTriggerGrade");
 
   grade.textContent =
     result.effectiveQuality === "Q3"
-      ? result.triggerPromoted
-        ? "Q3｜Type A單一邊緣修正"
-        : "Q3｜完整高質"
+      ? result.xauTriggerPromoted
+        ? "Q3-effective｜XAU Liquidity單一邊緣修正"
+        : result.triggerPromoted
+          ? "Q3｜Type A單一邊緣修正"
+          : "Q3｜完整高質"
       : result.effectiveQuality === "Q2"
         ? "Q2｜故事成立但有瑕疵"
         : "Q1｜Setup失效";
@@ -4934,6 +5674,11 @@ function updateInterface() {
         ? "HSI 10:30後仍開新Setup／其他市場違反時間規則"
         : "違反交易時間限制";
 
+  updateXauLiquidityUI(
+    false,
+    position
+  );
+
   syncObstacleModelInputs();
   updateBackgroundOverlapNote();
   updateP1TailwindNote();
@@ -5032,6 +5777,12 @@ function checklistSummary() {
     `Setup Type：${currentAsia2B.effectiveSetupTypeLabel}`,
     `Type A高質：${currentAsia2B.selectedSetupType === "A" ? yesNo(currentAsia2B.highQuality) : "N/A"}`,
     `Type A條件：${currentAsia2B.selectedSetupType === "A" ? `${currentAsia2B.criteriaCount}/6` : "N/A"}`,
+    marketCode(false) === "XAU"
+      ? `XAU流動性：${currentAsia2B.xauLiquidityRank}｜${currentAsia2B.xauLiquiditySourceLabel}｜${currentAsia2B.xauSweepSessionLabel}`
+      : "",
+    marketCode(false) === "XAU"
+      ? `XAU E標記：${currentAsia2B.xauPositionEdgeLabel}｜${currentAsia2B.xauSetupPriority}`
+      : "",
     "",
     `大局實際結構重疊：${$("backgroundDirectOverlap").value === "yes" ? "有" : "冇"}`,
     `P1順風：${tailwind === "valid" ? "有｜仍有效" : tailwind === "expired" ? "曾有｜已失效" : "冇"}`,
@@ -5540,9 +6291,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.26.9",
+      "PracticeJournal-V1.27.1",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1.1.7-HTFP1TriggerEquivalence",
+      "MasterTradeMatrix-AllMarkets-V1.2.1-XAULiquidityEnhancement",
 
     recordMode:
       recordMode(),
@@ -5559,6 +6310,26 @@ async function saveDecision(event) {
       currentAsia2B.setupTemplateLabel,
     setupVariant:
       currentAsia2B.setupVariant,
+    xauLiquiditySource:
+      currentAsia2B.xauLiquiditySource || "",
+    xauLiquiditySourceLabel:
+      currentAsia2B.xauLiquiditySourceLabel || "",
+    xauSweepSession:
+      currentAsia2B.xauSweepSession || "",
+    xauSweepSessionLabel:
+      currentAsia2B.xauSweepSessionLabel || "",
+    xauLiquidityRank:
+      currentAsia2B.xauLiquidityRank || "",
+    xauEdgeMarker:
+      currentAsia2B.xauEdgeMarker || "",
+    xauPositionEdgeLabel:
+      currentAsia2B.xauPositionEdgeLabel || "",
+    xauSetupPriority:
+      currentAsia2B.xauSetupPriority || "",
+    xauSetupEligible:
+      currentAsia2B.xauSetupEligible !== false,
+    xauSetupEligibilityReason:
+      currentAsia2B.xauSetupEligibilityReason || "",
 
     backgroundTimeframe:
       timeframes.background,
@@ -6754,6 +7525,30 @@ async function openRecord(recordId) {
       )
     )}
     <br>
+    ${
+      record.marketCode === "XAU"
+        ? `<strong>XAU Liquidity：</strong>${escapeHtml(
+            record.xauLiquidityRank || "舊版未記錄"
+          )}｜${escapeHtml(
+            record.xauLiquiditySourceLabel ||
+            record.xauLiquiditySource ||
+            "未記錄"
+          )}｜${escapeHtml(
+            record.xauSweepSessionLabel ||
+            record.xauSweepSession ||
+            "未記錄"
+          )}<br><strong>XAU E標記：</strong>${escapeHtml(
+            record.xauPositionEdgeLabel ||
+            (
+              record.xauEdgeMarker
+                ? `${basePosition}-${record.xauEdgeMarker}`
+                : basePosition
+            )
+          )}｜${escapeHtml(
+            record.xauSetupPriority || "舊版未記錄"
+          )}<br>`
+        : ""
+    }
     <strong>大局實際結構重疊：</strong>
     ${record.backgroundDirectOverlap === "yes" ? "有" : "冇"}
     <br>
@@ -7277,6 +8072,14 @@ function buildCsv(records) {
     "核心Setup",
     "Setup代碼",
     "Setup子類型",
+    "XAU Liquidity來源代碼",
+    "XAU Liquidity來源",
+    "XAU Sweep時段代碼",
+    "XAU Sweep時段",
+    "XAU Liquidity級別",
+    "XAU E標記",
+    "XAU P＋E顯示",
+    "XAU Setup優先級",
     "大局背景TF",
     "大局背景狀態",
     "主判TF",
@@ -7402,6 +8205,14 @@ function buildCsv(records) {
         "",
       record.setupTemplate || "",
       record.setupVariant || "",
+      record.xauLiquiditySource || "",
+      record.xauLiquiditySourceLabel || "",
+      record.xauSweepSession || "",
+      record.xauSweepSessionLabel || "",
+      record.xauLiquidityRank || "",
+      record.xauEdgeMarker || "",
+      record.xauPositionEdgeLabel || "",
+      record.xauSetupPriority || "",
       record.backgroundTimeframe || "",
       record.backgroundState || "",
       record.mainTimeframe || "",
@@ -8657,6 +9468,46 @@ function recordFromCsvRow(row) {
       firstCsvValue(
         row,
         "Setup子類型"
+      ),
+    xauLiquiditySource:
+      firstCsvValue(
+        row,
+        "XAU Liquidity來源代碼"
+      ),
+    xauLiquiditySourceLabel:
+      firstCsvValue(
+        row,
+        "XAU Liquidity來源"
+      ),
+    xauSweepSession:
+      firstCsvValue(
+        row,
+        "XAU Sweep時段代碼"
+      ),
+    xauSweepSessionLabel:
+      firstCsvValue(
+        row,
+        "XAU Sweep時段"
+      ),
+    xauLiquidityRank:
+      firstCsvValue(
+        row,
+        "XAU Liquidity級別"
+      ),
+    xauEdgeMarker:
+      firstCsvValue(
+        row,
+        "XAU E標記"
+      ),
+    xauPositionEdgeLabel:
+      firstCsvValue(
+        row,
+        "XAU P＋E顯示"
+      ),
+    xauSetupPriority:
+      firstCsvValue(
+        row,
+        "XAU Setup優先級"
       ),
     backgroundTimeframe:
       firstCsvValue(
@@ -10252,6 +11103,11 @@ function recalculateLiveDecision() {
   const basePosition =
     $("livePosition").value;
 
+  updateXauLiquidityUI(
+    true,
+    basePosition
+  );
+
   let effectiveQuality =
     $("liveTriggerQuality").value;
 
@@ -10265,11 +11121,29 @@ function recalculateLiveDecision() {
     effectiveQuality = "Q3";
   }
 
+  const liveXauEnhancement =
+    xauLiquidityEnhancementInfo(
+      null,
+      basePosition,
+      true,
+      $("liveTriggerQuality").value
+    );
+
+  let liveXauTriggerPromoted = false;
+
+  if (
+    liveXauEnhancement.promoteQuality
+  ) {
+    effectiveQuality = "Q3";
+    liveXauTriggerPromoted = true;
+  }
+
   let effectivePosition =
     basePosition;
 
   let livePositionTreatment =
     "native";
+  let liveXauPositionPromoted = false;
 
   if (
     effectiveSetupType === "A" &&
@@ -10278,6 +11152,16 @@ function recalculateLiveDecision() {
     effectivePosition = "P2";
     livePositionTreatment =
       "p2Effective";
+  }
+
+  if (
+    liveXauEnhancement.promotePosition &&
+    basePosition === "P3"
+  ) {
+    effectivePosition = "P2";
+    livePositionTreatment =
+      "p2Effective";
+    liveXauPositionPromoted = true;
   }
 
   const liveOpeningFresh =
@@ -10749,6 +11633,19 @@ function recalculateLiveDecision() {
     matrixSize = 0;
   }
 
+  const liveXauEligibility =
+    xauSetupEligibilityInfo(
+      true,
+      basePosition
+    );
+
+  if (
+    liveXauEligibility.applicable &&
+    !liveXauEligibility.eligible
+  ) {
+    matrixSize = 0;
+  }
+
   const rangeState =
     $("liveRangePosition").value;
 
@@ -11079,6 +11976,12 @@ function recalculateLiveDecision() {
       marketCode(true)
     ].label}。`,
     `Setup：${definition.label}。`,
+    marketCode(true) === "XAU"
+      ? `XAU Liquidity：${xauLiquidityEdgeInfo(true, basePosition).rank}｜${xauLiquidityEdgeInfo(true, basePosition).positionLabel}｜${xauSetupPriorityLabel(setupTemplateCode(true))}。`
+      : "",
+    marketCode(true) === "XAU" && liveXauEligibility.applicable
+      ? liveXauEligibility.reason
+      : "",
     `方向／市場關係：${liveRouteLabel(routeCode)}。`,
     selectedSetupType === "A" &&
       !typeAQualified
@@ -11091,17 +11994,21 @@ function recalculateLiveDecision() {
       ? "EU-B／EU-C：完整Full Repair形成真實Breakout＋Acceptance＋首次Retest，按原生P2處理。"
       : livePositionTreatment ===
           "p2Effective"
-        ? euD
-          ? "EU-D：完整Asia Sweep＋Post-open Confirmation令原始P3獲P2-effective待遇。"
-          : "Type A：原始P3獲P2-effective待遇。"
+        ? liveXauPositionPromoted
+          ? `XAU ${xauLiquidityEdgeInfo(true, basePosition).marker}高質Liquidity Sweep：Raw P3保留原生P3，執行按P2-effective。`
+          : euD
+            ? "EU-D：完整Asia Sweep＋Post-open Confirmation令原始P3獲P2-effective待遇。"
+            : "Type A：原始P3獲P2-effective待遇。"
         : `位置：${effectivePosition}。`,
-    effectiveSetupType === "A" &&
-      $("liveTriggerQuality").value === "Q2" &&
-      checked(
-        "liveTypeAQ2EdgeOnly"
-      )
-      ? "Type A：Q2唯一問題係Sweep／Reclaim邊緣，獲Q3待遇。"
-      : `Q：${effectiveQuality}。`,
+    liveXauTriggerPromoted
+      ? `XAU ${xauLiquidityEdgeInfo(true, basePosition).marker}：Q2唯一問題係Sweep／Reclaim質素邊緣，獲Q3-effective待遇。`
+      : effectiveSetupType === "A" &&
+        $("liveTriggerQuality").value === "Q2" &&
+        checked(
+          "liveTypeAQ2EdgeOnly"
+        )
+        ? "Type A：Q2唯一問題係Sweep／Reclaim邊緣，獲Q3待遇。"
+        : `Q：${effectiveQuality}。`,
     euD
       ? basePosition === "P1" ||
         basePosition === "P2"

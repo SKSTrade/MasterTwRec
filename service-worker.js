@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-26-9-htf-p1-trigger-equivalence";
+const CACHE_NAME = "master-trade-system-v1-27-1-xau-liquidity-enhancement";
 const ASSETS = [
   "./",
   "./index.html",

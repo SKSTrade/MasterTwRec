@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.26.9</span>
+    <span class="version-badge">V1.27.1</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -57,6 +57,46 @@
             <select id="liveSetupTemplate"></select>
           </label>
           <p id="liveSetupTemplateNote" class="state-note"></p>
+
+          <div id="liveXauLiquidityPanel" class="conditional-panel hidden">
+            <label>
+              XAU Liquidity來源
+              <select id="liveXauLiquiditySource">
+                <option value="htfMajor">HTF主結／Major Swing／HTF Range</option>
+                <option value="pdhPdl">PDH／PDL</option>
+                <option value="monHL">Mon H／Mon L</option>
+                <option value="asiaHL">Asia H／Asia L</option>
+                <option value="oprHL">OPR H／OPR L</option>
+                <option value="other" selected>其他／未指定</option>
+              </select>
+            </label>
+            <label>
+              Sweep時段
+              <select id="liveXauSweepSession">
+                <option value="asia">Asia</option>
+                <option value="london">London／Europe</option>
+                <option value="other" selected>其他／未指定</option>
+              </select>
+            </label>
+            <div class="result-lines compact">
+              <div><span>Liquidity級別</span><strong id="liveXauLiquidityRank">未分級</strong></div>
+              <div><span>E標記</span><strong id="liveXauEdgeMarker">無E標記</strong></div>
+              <div><span>原生P＋E</span><strong id="liveXauPositionEdgeLabel">P2</strong></div>
+              <div><span>打法優先級</span><strong id="liveXauSetupPriority">N/A</strong></div>
+            </div>
+
+            <label class="toggle-row">
+              <input id="liveXauEnhancementCoreValid" type="checkbox">
+              <span><strong>E／E+升級硬條件完整</strong><small>Sweep＋Reclaim有效、控制權轉移成立、Retest弱；冇fast/deep/strong Retest、冇失效Reclaim、冇強反向microstructure，而且空間合格。</small></span>
+            </label>
+
+            <label class="toggle-row">
+              <input id="liveXauQ2MarginalOnly" type="checkbox">
+              <span><strong>若目前Q2：唯一瑕疵只係Sweep／Reclaim質素邊緣</strong><small>Retest瑕疵、空間不足、Reclaim失效或強反向microstructure一律唔可以勾。</small></span>
+            </label>
+
+            <p id="liveXauLiquidityNote" class="state-note"></p>
+          </div>
 
           <div id="liveEUOpeningPanel" class="conditional-panel hidden">
             <label>
@@ -570,6 +610,43 @@
           </label>
           <p><strong>分類：</strong> <span id="setupClassification">Type B</span></p>
 
+          <div id="xauLiquidityPanel" class="conditional-panel hidden">
+            <div class="principle-box">
+              <strong>XAU Liquidity優先級</strong>
+              <span>HTF結構流動性 ＞ PDH／PDL ＞ Mon H／L ＞ Asia／OPR H／L。Location提供真正Edge；Sweep負責確認。</span>
+            </div>
+
+            <label>
+              XAU被Sweep嘅Liquidity來源
+              <select id="xauLiquiditySource">
+                <option value="htfMajor">HTF主結／Major Swing／HTF Range／重要前Swing</option>
+                <option value="pdhPdl">PDH／PDL</option>
+                <option value="monHL">Mon H／Mon L</option>
+                <option value="asiaHL">Asia H／Asia L</option>
+                <option value="oprHL">OPR H／OPR L</option>
+                <option value="other" selected>其他／未指定</option>
+              </select>
+            </label>
+
+            <label>
+              Sweep發生時段
+              <select id="xauSweepSession">
+                <option value="asia">Asia時段</option>
+                <option value="london">London／Europe時段</option>
+                <option value="other" selected>其他／未指定Session</option>
+              </select>
+            </label>
+
+            <div class="result-lines compact">
+              <div><span>Liquidity級別</span><strong id="xauLiquidityRank">未分級</strong></div>
+              <div><span>E標記</span><strong id="xauEdgeMarker">無E標記</strong></div>
+              <div><span>原生P＋E顯示</span><strong id="xauPositionEdgeLabel">P2</strong></div>
+              <div><span>XAU打法優先級</span><strong id="xauSetupPriority">N/A</strong></div>
+            </div>
+            <p id="xauLiquidityNote" class="state-note"></p>
+            <p class="muted"><strong>E／E+唔會改寫原生P。</strong>但高質PDH／PDL E+或Asia／OPR E可令Raw P3獲P2-effective待遇，亦可將「唯一瑕疵只係Sweep／Reclaim邊緣」嘅Q2修正成Q3-effective。Retest fast/deep/strong、Reclaim失效、強反向microstructure或空間不足一律救唔到。</p>
+          </div>
+
           <div id="typeAPanel" class="conditional-panel hidden">
             <label>
               指定Session 2B方向
@@ -589,11 +666,11 @@
               <label class="toggle-row"><input id="asia2BNoDoubleSweep" type="checkbox"><span>沒有頂底雙邊掃</span></label>
             </div>
 
-            <p class="state-note">方向一致＋5／6或以上先屬高質Type A。只有HSI OPR、FX／XAU Asia／OPR、EU正式開市後POR 2B有特殊待遇。</p>
+            <p class="state-note">方向一致＋5／6或以上先屬高質Type A。只有HSI OPR、FX Asia／OPR、EU正式開市後POR 2B有特殊待遇；XAU V1.27.0起改用專用Liquidity Matrix。</p>
           </div>
 
           <div id="typeBPanel" class="conditional-panel">
-            <p><strong>Type B：</strong>普通Liquidity Sweep＋Reclaim；冇自動P／Q升級。</p>
+            <p><strong>Type B：</strong>一般市場普通Liquidity Sweep＋Reclaim冇自動P／Q升級；XAU另按專用PDH／PDL E+、Asia／OPR E Liquidity Enhancement規則處理。</p>
           </div>
 
           <div id="typeCPanel" class="conditional-panel hidden">
@@ -658,7 +735,7 @@
             <div><span>Q待遇</span><strong id="asia2BTriggerEffect">無特殊待遇</strong></div>
           </div>
 
-          <p class="muted">Type A可令原始P3獲P2-effective；EU-B／EU-C完整Full Repair係原生P2；完整EU-D亦可令普通P3獲P2-effective。三者都唔會將實際P2升P1，亦唔會重複加分。</p>
+          <p class="muted">Type A只處理HSI／FX／EU指定Session 2B；EU-B／EU-C／EU-D沿用各自P規則。XAU改用專用Liquidity Enhancement：PDH／PDL E+及Asia／OPR E只喺高質Sweep條件完整時先可P3→P2-effective或邊緣Q2→Q3-effective，唔會創造方向權限。</p>
         </article>
 
         <article id="rbPosition" class="card rulebook-anchor">
@@ -1225,7 +1302,7 @@
 
       <article class="card">
         <h2>窄義HTF P1反轉例外</h2>
-        <p>原本方向權限為0時，只有Daily／Weekly清晰P1、原生至少P2、Q3右側反轉、Sweep＋Reclaim＋微結構轉向、第一段反應仍新鮮、空間足夠，先可最高0.25 Probe。</p>
+        <p>原本方向權限為0時，只有Daily／Weekly清晰P1、原生至少P2、Q3右側反轉、對應Setup模型嘅等價確認、第一段反應仍新鮮、空間足夠，先可最高0.25 Probe。</p>
         <p>Type A P3→P2-effective唔會創造呢個方向權限。</p>
       </article>
 
@@ -1252,9 +1329,9 @@
       <article class="card">
         <h2>Setup Type</h2>
         <h3>Type A｜高質Session 2B</h3>
-        <p>只包括HSI OPR 2B、FX／XAU Asia／OPR 2B、UK100／GER40正式開市後POR 2B。原始P3可獲P2-effective；Q2只有唯一瑕疵係Sweep／Reclaim邊緣先可獲Q3待遇。</p>
+        <p>只包括HSI OPR 2B、FX Asia／OPR 2B、UK100／GER40正式開市後POR 2B。原始P3可獲P2-effective；Q2只有唯一瑕疵係Sweep／Reclaim邊緣先可獲Q3待遇。XAU唔再使用呢套Type A升級。</p>
         <h3>Type B｜普通Sweep＋Reclaim</h3>
-        <p>PDH／PDL、Mon H/L、普通Swing及非指定Session Sweep；冇自動P／Q升級。</p>
+        <p>一般市場PDH／PDL、Mon H/L、普通Swing及非指定Session Sweep冇自動P／Q升級。XAU屬專用例外：PDH／PDL E+及Asia／OPR E只有喺高質Sweep完整時先有有限度effective待遇。</p>
         <h3>Type C｜Breakout／No Sweep</h3>
         <p>EU-B／EU-C嘅Breakout＋Acceptance＋第一次Retest係原生P2；EU-D普通P3可因完整Asia Sweep＋Post-open Confirmation取得P2-effective，而真實15M／1H Breakout／Swap維持原生P2或P1。No-Sweep反轉只限真正P1。</p>
       </article>
@@ -1310,14 +1387,30 @@
       </article>
 
       <article class="card">
-        <h2>外匯／黃金 Matrix</h2>
+        <h2>外匯 Matrix</h2>
         <ul>
-          <li><strong>FX／XAU-A：</strong>Asia／OPR 2B｜高質P3可P2-E。</li>
-          <li><strong>FX-B／XAU-B：</strong>普通Liquidity／HTF結構＋Session Sweep｜P由真實結構決定。</li>
-          <li><strong>FX／XAU-C：</strong>Breakout＋Acceptance＋First Retest｜原生P2；改變主判狀態可P1。</li>
+          <li><strong>FX-A：</strong>Asia／OPR 2B｜高質P3可P2-effective。</li>
+          <li><strong>FX-B：</strong>普通Liquidity Sweep｜P由真實結構決定，冇自動升級。</li>
+          <li><strong>FX-C：</strong>Breakout＋Acceptance＋First Retest｜原生P2；改變4H狀態可P1。</li>
           <li><strong>FX-D：</strong>只限Daily／4H P1、主判弱化、次判Sweep＋Reclaim＋右側反轉、第一段反應新鮮。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>XAUUSD專用 Matrix｜2026/08</h2>
+        <p><strong>時間框架：</strong>Daily大局／4H主判／1H次判／15M或5M Trigger；1M只改善Entry，唔重新判方向。</p>
+        <p class="large-rule">HTF結構流動性 ＞ PDH／PDL ＞ Mon H／L ＞ Asia／OPR H／L</p>
+        <ul>
+          <li><strong>XAU-A｜HTF Location Sweep：</strong>原生P1／P2 HTF位置＋meaningful liquidity sweep＋Reclaim＋弱Retest。XAU首選。</li>
+          <li><strong>XAU-B｜Asia Sweep PDH／PDL：</strong>Asia先Sweep PDH／PDL、無法Acceptance、Reclaim、弱Retest。純PDH／PDL原生仍可係P3；高質E+ Sweep可令Raw P3獲P2-effective待遇，但唔會假裝成原生P2。</li>
+          <li><strong>XAU-C｜London Sweep Asia H／L：</strong>保留做Secondary；最好有HTF位置、PDH／PDL、Mon H／L、1H結構或Range邊界支持。</li>
+          <li><strong>Liquidity Enhancement：</strong>PDH／PDL＝E+；Asia／OPR H/L＝E。高質Sweep可令Raw P3→P2-effective；亦只可修補「單一Sweep／Reclaim邊緣」Q2→Q3-effective。原生P仍照Raw P記錄，E唔可以P2→P1。</li>
+          <li><strong>禁止修補：</strong>Retest fast/deep/strong、Reclaim被吞／失效、空間不足、已形成強反向microstructure，一律唔可以靠E／E+升Q。</li>
+          <li><strong>Q：</strong>沿用Q3／Q2／Q1；Retest優先睇價格推進效率、深度、K線Sequence、時間，Volume只係輔助。</li>
+          <li><strong>空間：</strong>≥2R標準；1.5R–2R可按RF-managed；1R–1.5R只限頂級條件；&lt;1R Hard Veto。</li>
           <li>黃金高速Retest、延伸段追價、固定點數SL都唔合格。</li>
         </ul>
+        <p><strong>核心優先：</strong>HTF Location Sweep ≥ PDH／PDL Sweep＋HTF overlap ＞ 純PDH／PDL Sweep ＞ Asia H／L Sweep＋structure ＞ 純Asia H／L Sweep。</p>
       </article>
 
       <article class="card">
