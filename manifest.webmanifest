@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.27.1",
+  "name": "Master Trade System V1.27.2",
   "short_name": "Master Trade",
-  "description": "All-market Master Trade Matrix with XAU-specific PDH/PDL E+ and Asia/OPR E liquidity enhancement for qualified P3-to-P2-effective and marginal Q2-to-Q3-effective treatment.",
+  "description": "All-market Master Trade Matrix with the Rulebook trade date moved into the Practice/Live result journal section, preserving existing storage, CSV, XAU liquidity enhancement and record-management behavior.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

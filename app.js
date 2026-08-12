@@ -6291,9 +6291,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.27.1",
+      "PracticeJournal-V1.27.2",
     engineVersion:
-      "MasterTradeMatrix-AllMarkets-V1.2.1-XAULiquidityEnhancement",
+      "MasterTradeMatrix-AllMarkets-V1.2.2-TradeDateMovedToJournal",
 
     recordMode:
       recordMode(),

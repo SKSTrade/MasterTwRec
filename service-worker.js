@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-27-1-xau-liquidity-enhancement";
+const CACHE_NAME = "master-trade-system-v1-27-2-trade-date-journal";
 const ASSETS = [
   "./",
   "./index.html",
