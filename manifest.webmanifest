@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.28.0",
+  "name": "Master Trade System V1.28.1",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen (2026/08): transition taxonomy, Control Alignment research, Raw/Execution P separation, Native Q2 subtypes, Expansion/Reaction objectives, and instrument-specific HSI/EU/XAU setup models.",
+  "description": "Master Trade Matrix V1.3 Frozen with XAU-B and FX-B Previous High/Low Sweep setup selection for PDH/PDL or PWH/PWL and Asia or Europe/London session.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

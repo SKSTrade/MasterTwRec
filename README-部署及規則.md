@@ -1,28 +1,87 @@
-# Master Trade System V1.28.0｜Master Trade Matrix V1.3 Frozen｜2026/08
+# Master Trade System V1.28.1｜Previous H/L Sweep Setup
 
-## Frozen核心流程
+## 今次更新
 
-> 大局背景 → 主／次Market State → Direction Permission → Control Alignment → Raw P → Setup／E → Native Q → Obstacle／RR → Final Size → Expansion／Reaction／Skip
+### XAU-B
 
-## V1.3正式更新
+由原本：
 
-- Transition拆成 Aligned／Mixed／Neutral；Aligned Transition P2＋Native Q3正式0.25，0.5只做Shadow Test。
-- Control Alignment新增 Confirmed／Transitioning／Opposing，V1.3只記錄、不直接改Size。
-- Raw P、Enhancement E、Execution P永久分開。
-- Native Q3／Q2永久分開，取消所有E／Session Q2→Q3升級。
-- Q2記錄Subtype：R／F／D／S／RR；Fast＋Deep＋Strong通常Q1。
-- Trade Objective新增 Expansion／Reaction／Skip。
-- RR：≥2R正常；1.5–<2R仍可交易但預設Reaction；<1.5R通常RR Veto；身處重大HTF障礙Size再降一級。
-- Counter-main Q2正式0注，只作Research Candidate。
-- P2-E＋Q2：Aligned最高0.25；Conflict／Transition可直接0。
-- HSI-C OPR Continuation正式加入Research／Provisional，暫時冇E。
-- EU正式核心：EU-A POR 2B、EU-B Asia Sweep＋Post-open Confirmation、EU-D POR Full Repair；同一Opening thesis唔Double E／Size。
-- XAU：PWH/PWL、PDH/PDL高質Sweep＝E+；Asia H/L＝E；可P3→P2-effective，但Native Q唔升級。
-- Journal新增Frozen Matrix、Transition Type、Control Alignment、Native Q/Q2 subtype、Trade Objective、MFE/MAE、Time to RF/MFE、Reviewed Session、Valid Candidate等研究欄位。
-- Opportunity Rate＝Valid Candidate ÷ Reviewed Session。
+> XAU-B｜Asia Sweep PDH／PDL
 
-## 資料相容
+改成：
 
-- localStorage Key保持 `masterTradePracticeJournalV1Records`。
-- IndexedDB保持 `masterTradePracticeJournalImages` / `chartImages`。
-- 舊CSV缺少V1.3欄位時以Legacy／N/A匯入，不影響既有文字紀錄。
+> XAU-B｜Sweep PDH／PDL 或 PWH／PWL
+
+入場前會獨立記錄兩項：
+
+1. 被Sweep嘅Liquidity Pool
+   - PDH／PDL
+   - PWH／PWL
+
+2. Sweep發生Session
+   - Asia
+   - Europe／London
+
+四個組合全部可以正式記錄：
+
+- Asia Sweep PDH／PDL
+- Europe Sweep PDH／PDL
+- Asia Sweep PWH／PWL
+- Europe Sweep PWH／PWL
+
+XAU仍沿用Matrix V1.3：
+
+- PWH／PWL高質Sweep＝E+
+- PDH／PDL高質Sweep＝E+
+- Raw P3可按既有條件取得P2-effective
+- Native Q永久保留
+- Q2唔會因E+改名Q3
+- E+唔會創造方向權限
+
+內部Setup代碼 `xau_asia_pdh_pdl` 暫時保留，避免破壞舊紀錄相容性；只更新其正式名稱與判定範圍。
+
+## FX新增正式Setup
+
+新增：
+
+> FX-B｜Sweep PDH／PDL 或 PWH／PWL
+
+同樣記錄：
+
+- PDH／PDL 或 PWH／PWL
+- Asia 或 Europe／London Sweep
+
+但V1.28.1暫時：
+
+> FX Previous H/L Sweep本身冇自動E、冇P3→P2-effective權力。
+
+所以FX仍然按Raw P＋Native Q＋Market State Matrix處理，等後續sample再決定有冇instrument-specific E。
+
+原本FX普通Liquidity Sweep改名：
+
+> FX-Other｜普通Liquidity Sweep
+
+邏輯不變。
+
+## Journal／CSV
+
+新增4個欄位：
+
+- Previous H/L來源代碼
+- Previous H/L來源
+- Previous H/L Sweep Session代碼
+- Previous H/L Sweep Session
+
+舊CSV仍可匯入；舊紀錄未有呢4欄時保持空白。
+
+## 保留
+
+- Master Trade Matrix V1.3 Frozen size rules
+- Transition Type
+- Control Alignment
+- Q2 subtype
+- Trade Objective
+- XAU E/E+原有規則
+- 批量刪除
+- 紀錄視窗點擊外圍關閉
+- 原有LocalStorage及圖片IndexedDB

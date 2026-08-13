@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-28-0-matrix-v1-3-frozen";
+const CACHE_NAME = "master-trade-system-v1-28-1-previous-hl-sweep";
 const ASSETS = [
   "./",
   "./index.html",

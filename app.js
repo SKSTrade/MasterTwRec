@@ -142,6 +142,7 @@ const MARKET_CONFIG = {
     defaultSymbol: "EURUSD",
     setupCodes: [
       "fx_session_2b",
+      "fx_previous_high_low_sweep",
       "fx_liquidity_sweep",
       "fx_breakout_retest",
       "fx_p1_reversal",
@@ -243,12 +244,21 @@ const SETUP_DEFINITIONS = {
     liquidityLabel: "Asia／指定OPR H／L",
     note: "Sweep指定Session邊界 → Reclaim → 破15M／5M微結構 → 第一次弱Retest。純邊界原始P3；高質可P2-effective。"
   },
-  fx_liquidity_sweep: {
+  fx_previous_high_low_sweep: {
     marketGroup: "FX",
-    label: "FX-B｜普通Liquidity Sweep",
+    label: "FX-B｜Sweep PDH／PDL 或 PWH／PWL",
+    classificationLabel: "FX-B｜Previous H/L Sweep",
     type: "B",
     variant: "sweep",
-    note: "PDH／PDL、Mon H／L、Europe H／L、局部Swing或前一日Range邊界；冇自動P／Q升級。"
+    previousHLSweepSetup: true,
+    note: "外匯Previous H/L Sweep：揀PDH／PDL或PWH／PWL，再記錄Sweep發生喺Asia定Europe／London。仍然要有效Sweep＋Reclaim＋Retest；呢個Setup本身冇自動E或P升級。"
+  },
+  fx_liquidity_sweep: {
+    marketGroup: "FX",
+    label: "FX-Other｜普通Liquidity Sweep",
+    type: "B",
+    variant: "sweep",
+    note: "Mon H／L、Europe H／L、局部Swing或其他普通Liquidity；冇自動P／Q升級。"
   },
   fx_breakout_retest: {
     marketGroup: "FX",
@@ -276,14 +286,13 @@ const SETUP_DEFINITIONS = {
   },
   xau_asia_pdh_pdl: {
     marketGroup: "XAU",
-    label: "XAU-B｜Asia Sweep PDH／PDL",
+    label: "XAU-B｜Sweep PDH／PDL 或 PWH／PWL",
     type: "B",
-    classificationLabel: "XAU-B｜Asia Sweep PDH／PDL",
+    classificationLabel: "XAU-B｜Previous H/L Sweep",
     variant: "sweep",
     xauFormalSetup: "B",
-    xauFixedLiquidity: "pdhPdl",
-    xauFixedSession: "asia",
-    note: "XAU核心Liquidity：PDH／PDL高質Sweep＝E+。Raw P3可獲P2-effective，但Native Q2永遠維持Q2；E+救唔到fast/deep/strong Retest、失效Reclaim或RR不足。"
+    previousHLSweepSetup: true,
+    note: "XAU-B：揀PDH／PDL或PWH／PWL，再記錄Sweep發生喺Asia定Europe／London。兩者高質Sweep都係E+；Raw P3可獲P2-effective，但Native Q永久保留。"
   },
   xau_london_asia_sweep: {
     marketGroup: "XAU",
@@ -609,6 +618,115 @@ function isXauFormalSetupCode(
   ].includes(code);
 }
 
+function isPreviousHLSweepSetup(
+  live = false
+) {
+  return !!setupDefinition(live)
+    .previousHLSweepSetup;
+}
+
+function previousHLSweepInfo(
+  live = false
+) {
+  if (
+    !isPreviousHLSweepSetup(live)
+  ) {
+    return {
+      applicable: false,
+      eligible: true,
+      source: "",
+      sourceLabel: "N/A",
+      session: "",
+      sessionLabel: "N/A",
+      reason:
+        "Previous H/L Sweep專用欄位不適用。"
+    };
+  }
+
+  const prefix =
+    live ? "livePrevHL" : "prevHL";
+
+  const source =
+    $(`${prefix}Source`).value;
+
+  const session =
+    $(`${prefix}Session`).value;
+
+  const sourceLabels = {
+    pdhPdl:
+      "PDH／PDL",
+    pwhPwl:
+      "PWH／PWL"
+  };
+
+  const sessionLabels = {
+    asia:
+      "Asia時段",
+    europe:
+      "Europe／London時段"
+  };
+
+  const eligible =
+    ["pdhPdl", "pwhPwl"]
+      .includes(source) &&
+    ["asia", "europe"]
+      .includes(session);
+
+  return {
+    applicable: true,
+    eligible,
+    source,
+    sourceLabel:
+      sourceLabels[source] ||
+      "未選Liquidity",
+    session,
+    sessionLabel:
+      sessionLabels[session] ||
+      "未選Session",
+    reason:
+      eligible
+        ? `${sourceLabels[source]}｜${sessionLabels[session]} Sweep已記錄；Native Q仍由Sweep／Reclaim／Retest Price Action決定。`
+        : "請揀PDH／PDL或PWH／PWL，同時揀Asia或Europe／London Sweep。"
+  };
+}
+
+function syncPreviousHLSweepToXau(
+  live = false
+) {
+  if (
+    marketCode(live) !== "XAU" ||
+    setupTemplateCode(live) !==
+      "xau_asia_pdh_pdl"
+  ) {
+    return;
+  }
+
+  const info =
+    previousHLSweepInfo(live);
+
+  const prefix =
+    live ? "liveXau" : "xau";
+
+  if (
+    ["pdhPdl", "pwhPwl"]
+      .includes(info.source)
+  ) {
+    $(`${prefix}LiquiditySource`)
+      .value = info.source;
+  }
+
+  if (
+    ["asia", "europe"]
+      .includes(info.session)
+  ) {
+    $(`${prefix}SweepSession`)
+      .value =
+        info.session === "asia"
+          ? "asia"
+          : "london";
+  }
+}
+
 function xauLiquiditySourceInfo(
   value = "other"
 ) {
@@ -887,17 +1005,27 @@ function xauSetupEligibilityInfo(
     code ===
       "xau_asia_pdh_pdl"
   ) {
+    const previousInfo =
+      previousHLSweepInfo(live);
+
     const eligible =
-      edge.source === "pdhPdl" &&
-      edge.session === "asia";
+      previousInfo.eligible &&
+      (
+        edge.source === "pdhPdl" ||
+        edge.source === "pwhPwl"
+      ) &&
+      (
+        edge.session === "asia" ||
+        edge.session === "london"
+      );
 
     return {
       applicable: true,
       eligible,
       reason:
         eligible
-          ? `XAU-B成立：Asia Sweep PDH／PDL＝${edge.markerLabel}候選。Raw ${basePosition}仍照原生P記錄；只有高質Sweep先可P3→P2-effective；Native Q唔會升級。`
-          : "XAU-B必須係Asia時段Sweep PDH／PDL；Setup名稱本身唔會自動升P／Q。"
+          ? `XAU-B成立：${previousInfo.sourceLabel}｜${previousInfo.sessionLabel} Sweep＝E+候選。Raw ${basePosition}仍照原生P記錄；高質Sweep可P3→P2-effective；Native Q永久保持原級。`
+          : "XAU-B必須揀PDH／PDL或PWH／PWL，並記錄係Asia定Europe／London Sweep。"
     };
   }
 
@@ -949,6 +1077,30 @@ function applyXauTemplateDefaults(
 
   const code =
     setupTemplateCode(live);
+
+  const sourceRowId =
+    live
+      ? "liveXauLiquiditySourceRow"
+      : "xauLiquiditySourceRow";
+
+  const sessionRowId =
+    live
+      ? "liveXauSweepSessionRow"
+      : "xauSweepSessionRow";
+
+  const usePreviousHLPanel =
+    code ===
+      "xau_asia_pdh_pdl";
+
+  $(sourceRowId).classList.toggle(
+    "hidden",
+    usePreviousHLPanel
+  );
+
+  $(sessionRowId).classList.toggle(
+    "hidden",
+    usePreviousHLPanel
+  );
 
   if (
     definition.xauFixedLiquidity
@@ -1142,6 +1294,25 @@ function applySetupTemplate(
   applyXauTemplateDefaults(
     live
   );
+
+  const previousHLPanelId =
+    live
+      ? "livePreviousHLSweepPanel"
+      : "previousHLSweepPanel";
+
+  $(previousHLPanelId)
+    .classList.toggle(
+      "hidden",
+      !isPreviousHLSweepSetup(live)
+    );
+
+  if (
+    isPreviousHLSweepSetup(live)
+  ) {
+    syncPreviousHLSweepToXau(
+      live
+    );
+  }
 }
 
 function applyMarketPreset(
@@ -2578,6 +2749,11 @@ function evaluateAsia2B(baseTrigger) {
     }
   }
 
+  syncPreviousHLSweepToXau(false);
+
+  const previousHLInfo =
+    previousHLSweepInfo(false);
+
   const xauEdge =
     xauLiquidityEdgeInfo(
       false,
@@ -2637,6 +2813,15 @@ function evaluateAsia2B(baseTrigger) {
     );
     reasons.push(
       xauEligibility.reason
+    );
+  }
+
+  if (
+    previousHLInfo.applicable &&
+    !previousHLInfo.eligible
+  ) {
+    warnings.push(
+      previousHLInfo.reason
     );
   }
 
@@ -2721,6 +2906,18 @@ function evaluateAsia2B(baseTrigger) {
     xauTriggerPromoted,
     xauEnhancementReason:
       xauEnhancement.reason,
+    previousHLSweepSource:
+      previousHLInfo.source || "",
+    previousHLSweepSourceLabel:
+      previousHLInfo.sourceLabel || "",
+    previousHLSweepSession:
+      previousHLInfo.session || "",
+    previousHLSweepSessionLabel:
+      previousHLInfo.sessionLabel || "",
+    previousHLSweepEligible:
+      previousHLInfo.eligible !== false,
+    previousHLSweepReason:
+      previousHLInfo.reason || "",
     reasons,
     warnings
   };
@@ -5411,6 +5608,9 @@ function checklistSummary() {
     `Setup Type：${currentAsia2B.effectiveSetupTypeLabel}`,
     `Type A高質：${currentAsia2B.selectedSetupType === "A" ? yesNo(currentAsia2B.highQuality) : "N/A"}`,
     `Type A條件：${currentAsia2B.selectedSetupType === "A" ? `${currentAsia2B.criteriaCount}/6` : "N/A"}`,
+    isPreviousHLSweepSetup(false)
+      ? `Previous H/L Sweep：${currentAsia2B.previousHLSweepSourceLabel}｜${currentAsia2B.previousHLSweepSessionLabel}`
+      : "",
     marketCode(false) === "XAU"
       ? `XAU流動性：${currentAsia2B.xauLiquidityRank}｜${currentAsia2B.xauLiquiditySourceLabel}｜${currentAsia2B.xauSweepSessionLabel}`
       : "",
@@ -5931,9 +6131,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.28.0",
+      "PracticeJournal-V1.28.1",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r1-PreviousHLSweep",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -5952,6 +6152,14 @@ async function saveDecision(event) {
       currentAsia2B.setupTemplateLabel,
     setupVariant:
       currentAsia2B.setupVariant,
+    previousHLSweepSource:
+      currentAsia2B.previousHLSweepSource || "",
+    previousHLSweepSourceLabel:
+      currentAsia2B.previousHLSweepSourceLabel || "",
+    previousHLSweepSession:
+      currentAsia2B.previousHLSweepSession || "",
+    previousHLSweepSessionLabel:
+      currentAsia2B.previousHLSweepSessionLabel || "",
     xauLiquiditySource:
       currentAsia2B.xauLiquiditySource || "",
     xauLiquiditySourceLabel:
@@ -7248,6 +7456,20 @@ async function openRecord(recordId) {
     )}
     <br>
     ${
+      record.previousHLSweepSource ||
+      record.previousHLSweepSession
+        ? `<strong>Previous H/L Sweep：</strong>${escapeHtml(
+            record.previousHLSweepSourceLabel ||
+            record.previousHLSweepSource ||
+            "未記錄"
+          )}｜${escapeHtml(
+            record.previousHLSweepSessionLabel ||
+            record.previousHLSweepSession ||
+            "未記錄"
+          )}<br>`
+        : ""
+    }
+    ${
       record.marketCode === "XAU"
         ? `<strong>XAU Liquidity：</strong>${escapeHtml(
             record.xauLiquidityRank || "舊版未記錄"
@@ -7815,6 +8037,10 @@ function buildCsv(records) {
     "核心Setup",
     "Setup代碼",
     "Setup子類型",
+    "Previous H/L來源代碼",
+    "Previous H/L來源",
+    "Previous H/L Sweep Session代碼",
+    "Previous H/L Sweep Session",
     "XAU Liquidity來源代碼",
     "XAU Liquidity來源",
     "XAU Sweep時段代碼",
@@ -7966,6 +8192,10 @@ function buildCsv(records) {
         "",
       record.setupTemplate || "",
       record.setupVariant || "",
+      record.previousHLSweepSource || "",
+      record.previousHLSweepSourceLabel || "",
+      record.previousHLSweepSession || "",
+      record.previousHLSweepSessionLabel || "",
       record.xauLiquiditySource || "",
       record.xauLiquiditySourceLabel || "",
       record.xauSweepSession || "",
@@ -9254,6 +9484,132 @@ function recordFromCsvRow(row) {
         row,
         "Setup子類型"
       ),
+    previousHLSweepSource:
+      (() => {
+        const value =
+          firstCsvValue(
+            row,
+            "Previous H/L來源代碼"
+          );
+        if (value) return value;
+
+        const setupCode =
+          firstCsvValue(
+            row,
+            "Setup代碼"
+          );
+
+        if (
+          setupCode ===
+            "xau_asia_pdh_pdl"
+        ) {
+          return firstCsvValue(
+            row,
+            "XAU Liquidity來源代碼"
+          );
+        }
+
+        return "";
+      })(),
+    previousHLSweepSourceLabel:
+      (() => {
+        const value =
+          firstCsvValue(
+            row,
+            "Previous H/L來源"
+          );
+        if (value) return value;
+
+        const setupCode =
+          firstCsvValue(
+            row,
+            "Setup代碼"
+          );
+
+        if (
+          setupCode ===
+            "xau_asia_pdh_pdl"
+        ) {
+          return firstCsvValue(
+            row,
+            "XAU Liquidity來源"
+          );
+        }
+
+        return "";
+      })(),
+    previousHLSweepSession:
+      (() => {
+        const value =
+          firstCsvValue(
+            row,
+            "Previous H/L Sweep Session代碼"
+          );
+        if (value) return value;
+
+        const setupCode =
+          firstCsvValue(
+            row,
+            "Setup代碼"
+          );
+
+        if (
+          setupCode ===
+            "xau_asia_pdh_pdl"
+        ) {
+          const oldSession =
+            firstCsvValue(
+              row,
+              "XAU Sweep時段代碼"
+            );
+
+          if (oldSession === "asia") {
+            return "asia";
+          }
+
+          if (oldSession === "london") {
+            return "europe";
+          }
+        }
+
+        return "";
+      })(),
+    previousHLSweepSessionLabel:
+      (() => {
+        const value =
+          firstCsvValue(
+            row,
+            "Previous H/L Sweep Session"
+          );
+        if (value) return value;
+
+        const setupCode =
+          firstCsvValue(
+            row,
+            "Setup代碼"
+          );
+
+        if (
+          setupCode ===
+            "xau_asia_pdh_pdl"
+        ) {
+          const oldSession =
+            firstCsvValue(
+              row,
+              "XAU Sweep時段代碼"
+            );
+
+          if (oldSession === "asia") {
+            return "Asia時段";
+          }
+
+          if (oldSession === "london") {
+            return "Europe／London時段";
+          }
+        }
+
+        return "";
+      })(),
     xauLiquiditySource:
       firstCsvValue(
         row,
@@ -10886,6 +11242,12 @@ function recalculateLiveDecision() {
     $("liveMarketRoute").value;
   const definition =
     setupDefinition(true);
+
+  syncPreviousHLSweepToXau(true);
+
+  const livePreviousHLInfo =
+    previousHLSweepInfo(true);
+
   const variant =
     setupVariant(true);
   const selectedSetupType =
@@ -11280,6 +11642,15 @@ function recalculateLiveDecision() {
   const vetoes = [
     ...obstacleVetoes
   ];
+
+  if (
+    livePreviousHLInfo.applicable &&
+    !livePreviousHLInfo.eligible
+  ) {
+    vetoes.push(
+      livePreviousHLInfo.reason
+    );
+  }
   if (effectivePosition === "P4") {
     vetoes.push(
       "P4／Range middle／Chase位置＝0。"
@@ -11400,6 +11771,9 @@ function recalculateLiveDecision() {
   const notes = [
     `Matrix V1.3 Frozen｜市場：${MARKET_CONFIG[marketCode(true)].label}。`,
     `Setup：${definition.label}。`,
+    livePreviousHLInfo.applicable
+      ? `Previous H/L Sweep：${livePreviousHLInfo.sourceLabel}｜${livePreviousHLInfo.sessionLabel}。`
+      : "",
     `Direction Permission：${liveRouteLabel(routeCode)}｜Cap ${SIZE_LABELS[marketCap]}。`,
     `Control Alignment：${controlAlignment}｜研究欄位，V1.3唔直接改Size。`,
     `Raw P ${basePosition} → Execution P ${effectivePosition}${livePositionTreatment === "p2Effective" ? "-E" : ""}。`,
@@ -11925,6 +12299,32 @@ function setupEvents() {
     $(id).addEventListener(
       "change",
       syncObstacleModelInputs
+    );
+  });
+
+  [
+    "prevHLSource",
+    "prevHLSession"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "change",
+      () => {
+        syncPreviousHLSweepToXau(false);
+        recalculate();
+      }
+    );
+  });
+
+  [
+    "livePrevHLSource",
+    "livePrevHLSession"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "change",
+      () => {
+        syncPreviousHLSweepToXau(true);
+        recalculateLiveDecision();
+      }
     );
   });
 

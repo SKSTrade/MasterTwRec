@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.28.0</span>
+    <span class="version-badge">V1.28.1</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -58,8 +58,26 @@
           </label>
           <p id="liveSetupTemplateNote" class="state-note"></p>
 
-          <div id="liveXauLiquidityPanel" class="conditional-panel hidden">
+          <div id="livePreviousHLSweepPanel" class="conditional-panel hidden">
             <label>
+              被Sweep嘅Previous H/L
+              <select id="livePrevHLSource">
+                <option value="pdhPdl" selected>PDH／PDL</option>
+                <option value="pwhPwl">PWH／PWL</option>
+              </select>
+            </label>
+            <label>
+              Sweep發生Session
+              <select id="livePrevHLSession">
+                <option value="asia" selected>Asia Sweep</option>
+                <option value="europe">Europe／London Sweep</option>
+              </select>
+            </label>
+            <p class="state-note">只記Liquidity來源＋Session；Native Q仍按實際Sweep／Reclaim／Retest判。</p>
+          </div>
+
+          <div id="liveXauLiquidityPanel" class="conditional-panel hidden">
+            <label id="liveXauLiquiditySourceRow">
               XAU Liquidity來源
               <select id="liveXauLiquiditySource">
                 <option value="htfMajor">HTF主結／Major Swing／HTF Range</option>
@@ -71,7 +89,7 @@
                 <option value="other" selected>其他／未指定</option>
               </select>
             </label>
-            <label>
+            <label id="liveXauSweepSessionRow">
               Sweep時段
               <select id="liveXauSweepSession">
                 <option value="asia">Asia</option>
@@ -618,13 +636,38 @@
           </label>
           <p><strong>分類：</strong> <span id="setupClassification">Type B</span></p>
 
+          <div id="previousHLSweepPanel" class="conditional-panel hidden">
+            <div class="principle-box">
+              <strong>Previous High / Low Sweep</strong>
+              <span>先記被Sweep嘅Liquidity Pool，再記Sweep發生Session。Native Q仍然由Sweep／Reclaim／Retest Price Action決定。</span>
+            </div>
+
+            <label>
+              被Sweep嘅Previous H/L
+              <select id="prevHLSource">
+                <option value="pdhPdl" selected>PDH／PDL｜Previous Day H/L</option>
+                <option value="pwhPwl">PWH／PWL｜Previous Week H/L</option>
+              </select>
+            </label>
+
+            <label>
+              Sweep發生Session
+              <select id="prevHLSession">
+                <option value="asia" selected>Asia時段 Sweep</option>
+                <option value="europe">Europe／London時段 Sweep</option>
+              </select>
+            </label>
+
+            <p class="state-note">XAU：PWH/PWL、PDH/PDL高質Sweep＝E+；FX：同樣記Liquidity＋Session，但今版唔自動取得E或P升級。</p>
+          </div>
+
           <div id="xauLiquidityPanel" class="conditional-panel hidden">
             <div class="principle-box">
               <strong>XAU Liquidity優先級</strong>
               <span>HTF Location Sweep ≥ PWH／PWL＋HTF ≈ PDH／PDL＋HTF ＞ 純PWH／PWL ≈ 純PDH／PDL ＞ Asia H/L＋Structure ＞ 純Asia H/L。</span>
             </div>
 
-            <label>
+            <label id="xauLiquiditySourceRow">
               XAU被Sweep嘅Liquidity來源
               <select id="xauLiquiditySource">
                 <option value="htfMajor">HTF主結／Major Swing／HTF Range／重要前Swing</option>
@@ -637,7 +680,7 @@
               </select>
             </label>
 
-            <label>
+            <label id="xauSweepSessionRow">
               Sweep發生時段
               <select id="xauSweepSession">
                 <option value="asia">Asia時段</option>
@@ -680,6 +723,7 @@
 
           <div id="typeBPanel" class="conditional-panel">
             <p><strong>Type B：</strong>一般市場普通Liquidity Sweep＋Reclaim冇自動P／Q升級；XAU另按專用PWH／PWL、PDH／PDL E+同Asia H/L E位置Enhancement規則處理。</p>
+            <p class="state-note"><strong>V1.28.1：</strong>XAU-B同FX-B Previous H/L Sweep都會獨立記錄「PDH/PDL 或 PWH/PWL」＋「Asia 或 Europe/London Sweep」。FX呢個新Setup暫時冇E；XAU沿用E+規則。</p>
           </div>
 
           <div id="typeCPanel" class="conditional-panel hidden">
@@ -1476,12 +1520,22 @@
       </article>
 
       <article class="card">
+        <h2>FX Previous H/L Sweep｜V1.28.1</h2>
+        <ul>
+          <li><strong>FX-B｜Sweep PDH／PDL 或 PWH／PWL：</strong>獨立記錄Liquidity來源同Sweep Session。</li>
+          <li><strong>Liquidity：</strong>PDH／PDL或PWH／PWL。</li>
+          <li><strong>Session：</strong>Asia或Europe／London。</li>
+          <li><strong>Execution：</strong>仍然按Raw P＋Native Q＋Direction Permission；V1.28.1暫時冇自動E／P3→P2-effective。</li>
+        </ul>
+      </article>
+
+      <article class="card">
         <h2>XAUUSD專用 Matrix｜2026/08</h2>
         <p><strong>時間框架：</strong>Daily大局／4H主判／1H次判／15M或5M Trigger；1M只改善Entry，唔重新判方向。</p>
         <p class="large-rule">HTF Location Sweep ≥ PWH／PWL＋HTF ≈ PDH／PDL＋HTF ＞ 純PWH／PWL ≈ 純PDH／PDL ＞ Asia H/L＋Structure ＞ 純Asia H/L</p>
         <ul>
           <li><strong>XAU-A｜HTF Location Sweep：</strong>原生P1／P2 HTF位置＋meaningful liquidity sweep＋Reclaim＋弱Retest。XAU首選。</li>
-          <li><strong>XAU-B｜Asia Sweep PDH／PDL：</strong>Asia先Sweep PDH／PDL、無法Acceptance、Reclaim、弱Retest。純PDH／PDL原生仍可係P3；高質E+ Sweep可令Raw P3獲P2-effective待遇，但唔會假裝成原生P2。</li>
+          <li><strong>XAU-B｜Sweep PDH／PDL 或 PWH／PWL：</strong>可記Asia或Europe／London Sweep。先揀Previous Day／Week H/L，再按Sweep＋Reclaim＋弱Retest評Native Q；PWH／PWL同PDH／PDL高質Sweep都係E+，Raw P3可按原規則獲P2-effective。</li>
           <li><strong>XAU-C｜London Sweep Asia H／L：</strong>保留做Secondary；最好有HTF位置、PDH／PDL、Mon H／L、1H結構或Range邊界支持。</li>
           <li><strong>Liquidity Enhancement：</strong>PWH／PWL＝E+；PDH／PDL＝E+；Asia H/L＝E。高質Sweep可令Raw P3→P2-effective；<strong>Native Q永久保留，唔可以Q2→Q3。</strong> E亦唔可以P2→P1。</li>
           <li><strong>禁止修補：</strong>Retest fast/deep/strong、Reclaim被吞／失效、空間不足、已形成強反向microstructure，一律唔可以靠E／E+升Q。</li>
