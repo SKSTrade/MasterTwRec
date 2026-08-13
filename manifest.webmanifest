@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.27.2",
+  "name": "Master Trade System V1.28.0",
   "short_name": "Master Trade",
-  "description": "All-market Master Trade Matrix with the Rulebook trade date moved into the Practice/Live result journal section, preserving existing storage, CSV, XAU liquidity enhancement and record-management behavior.",
+  "description": "Master Trade Matrix V1.3 Frozen (2026/08): transition taxonomy, Control Alignment research, Raw/Execution P separation, Native Q2 subtypes, Expansion/Reaction objectives, and instrument-specific HSI/EU/XAU setup models.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
