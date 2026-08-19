@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-28-2-weak-main-ab-independent";
+const CACHE_NAME = "master-trade-system-v1-28-3-route-correction";
 const ASSETS = [
   "./",
   "./index.html",

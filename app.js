@@ -441,12 +441,13 @@ function transitionTypeInfo(
       : undefined;
 
   if (
-    (mainTransition && mainBias === null) ||
-    (secondaryTransition && secondaryBias === null)
+    mainTransition &&
+    secondaryTransition &&
+    (mainBias === null || secondaryBias === null)
   ) {
     return {
       code: "Neutral",
-      label: "Neutral｜至少一層轉換中性／Range",
+      label: "Neutral｜雙Transition且至少一層中性／Range",
       aligned: false,
       mixed: false,
       neutral: true
@@ -906,23 +907,21 @@ function xauLiquidityEnhancementInfo(
   }
 
   const trigger = baseTrigger || {};
-  const noCoreFailure = Array.isArray(trigger.coreFailures) && trigger.coreFailures.length === 0 && trigger.modelCoreValid === true;
   const reclaimValid = trigger.validSweep === true && trigger.validReclaim === true && trigger.reclaimQuality !== "negated";
   const controlShift = trigger.microStructureShift === true;
-  const retestNotInvalid = trigger.retestQuality !== "invalid" && !trigger.q2FastRetest && !trigger.q2DeepRetest && !trigger.q2StrongRetest;
-  const spaceOk = trigger.tradeSpace !== "insufficient";
+  const retestNotInvalid = trigger.retestQuality !== "invalid";
 
-  const highQuality = noCoreFailure && reclaimValid && controlShift && retestNotInvalid && spaceOk;
+  // V1.28.3：Q2-F／D／S只係Native Q研究Tag，唔取消有效Liquidity Location Enhancement。
+  // RR亦由Obstacle層處理；E/E+只唔會救真正Invalid Retest／失效Sweep-Reclaim／冇Control transfer。
+  const highQuality = reclaimValid && controlShift && retestNotInvalid;
 
   let reason = `${edge.sourceLabel} ${edge.marker}未取得位置Enhancement。`;
   if (highQuality) {
     reason = `${edge.sourceLabel} ${edge.marker}高質Sweep成立：可令Raw P3獲P2-effective；Native ${trigger.quality || "Q"}永久保留，E唔會Q2→Q3。`;
-  } else if (trigger.retestQuality === "invalid" || trigger.q2FastRetest || trigger.q2DeepRetest || trigger.q2StrongRetest) {
-    reason = "Retest屬F／D／S瑕疵或已Invalid：E／E+唔可以用嚟救Setup／洗白Q。";
+  } else if (trigger.retestQuality === "invalid") {
+    reason = "Retest已真正Invalid：E／E+唔可以救Setup。Q2-F／D／S本身只係研究Tag，唔會取消Location Enhancement。";
   } else if (trigger.reclaimQuality === "negated") {
     reason = "Reclaim失效：E／E+完全救唔到。";
-  } else if (!spaceOk) {
-    reason = "RR低於最低要求：E／E+完全救唔到。";
   } else if (!controlShift) {
     reason = "未有控制權轉移／微結構確認：未達高質Sweep。";
   }
@@ -1550,61 +1549,67 @@ function computeMarketRoute(
       "neutralTransition",
       "Neutral／Range Transition｜只做邊界",
       0.5,
-      "至少一層Transition中性／大型Range；Long優先底25%、Short優先頂25%，真正Range中間固定0。"
+      "雙層都係Transition，而且至少一層中性／大型Range；Long優先底25%、Short優先頂25%，真正Range中間固定0。"
     );
   }
 
   if (mainTransition || secondaryTransition) {
     if (mainTransition && !secondaryTransition) {
+      // E / M：主判中性Transition，但次判已Confirmed，唔再歸入neutralTransition。
       if (mainBias === null) {
         if (currentTradeBias === secondaryBias) {
           return result(
-            "transitionConfirmed",
+            "neutralMainConfirmed",
             `主判中性Transition｜跟次判${biasDirectionLabel(secondaryBias)}`,
             0.5,
-            "主判中性Transition × 次判已確認Trend：常規方向跟次判，最高0.5；若實際位於主判大Range中間仍P4＝0。"
+            "主判中性Transition冇方向Authority，但次判已Confirmed；常規方向跟次判。Size按P1/P2 0.5/0.25 Matrix，但Trade Objective固定Reaction。"
           );
         }
+
         return result(
-          "transitionReverse",
-          "主判中性Transition｜逆次判已確認方向",
+          "neutralMainReverse",
+          "主判中性Transition｜逆次判Confirmed",
           0.25,
-          "逆次判已確認方向只作窄義Reaction／P1 Probe；普通P2唔因Transition而自動有權。"
+          "主判中性唔等於反方向有權；逆唯一Confirmed Control正常0，只限清晰HTF P1／主判Range Boundary＋Native Q3作0.25 Reaction Probe。"
         );
       }
 
+      // C：Directional Transition + Confirmed，同方向。
       if (mainBias === secondaryBias) {
         if (currentTradeBias === secondaryBias) {
           return result(
             "transitionConfirmed",
             "主判Transition＋次判Trend同向｜順方向",
             0.5,
-            "主判Transition偏向與次判已確認Trend同向；方向Alignment良好，最高0.5。"
+            "主判Directional Transition與次判已確認Trend同向；P1／P2＋Q3最高0.5。"
           );
         }
         return result(
           "alignedReverse",
           "主判Transition＋次判Trend同向｜反共同方向",
           0,
-          "反共同方向正常0；只有窄義HTF P1反轉例外。"
+          "反共同方向正常0；只有現行窄義HTF P1反轉例外。"
         );
       }
 
-      if (currentTradeBias === secondaryBias) {
+      // J：主判Directional Transition與次判Confirmed反方向；兩個交易方向Size相同，Control tag不同。
+      if (
+        currentTradeBias === secondaryBias ||
+        currentTradeBias === mainBias
+      ) {
+        const followsConfirmed =
+          currentTradeBias === secondaryBias;
         return result(
-          "transitionConfirmed",
-          "主判Transition與次判Trend相反｜跟次判已確認方向",
+          "transitionVsConfirmedConflict",
+          followsConfirmed
+            ? "主判Directional Transition × 次判Confirmed反向｜做次判Confirmed方向"
+            : "主判Directional Transition × 次判Confirmed反向｜做主判Transition Bias方向",
           0.5,
-          "次判已確認Trend提供Immediate Control，但主判Transition Bias相反；有交易權但Objective通常較保守。"
+          followsConfirmed
+            ? "次判Confirmed Control支持，但主判Transition Bias反對；P1 Q3 0.5、P2 Q3 0.25，Objective固定Reaction。"
+            : "主判Transition Bias支持，但次判Confirmed Control反對；P1 Q3 0.5、P2 Q3 0.25，Objective固定Reaction。"
         );
       }
-
-      return result(
-        "transitionReverse",
-        "主判Transition｜逆次判已確認方向",
-        0.25,
-        "次判Confirmed Control反對交易；只限真正P1 Probe或既有合格P1 Tailwind例外。"
-      );
     }
 
     if (!mainTransition && secondaryTransition) {
@@ -1621,10 +1626,11 @@ function computeMarketRoute(
           "alignedReverse",
           "主判Trend＋次判中性Transition｜逆主判",
           0,
-          "逆主判而次判仍未確認反方向Trend，正常0。"
+          "逆主判而次判仍未確認反方向Trend，正常0；現行只保留窄義HTF P1反轉例外。"
         );
       }
 
+      // C：Confirmed + Directional Transition，同方向。
       if (secondaryBias === mainBias) {
         if (currentTradeBias === mainBias) {
           return result(
@@ -1642,6 +1648,7 @@ function computeMarketRoute(
         );
       }
 
+      // I：順主判、次判Transition Against，保留原規則。
       if (currentTradeBias === mainBias) {
         return result(
           "conflictMain",
@@ -1651,12 +1658,21 @@ function computeMarketRoute(
         );
       }
 
+      // K / L：逆主判，按主判健康/弱勢拆開。
       if (currentTradeBias === secondaryBias) {
+        if (isWeak(mainState)) {
+          return result(
+            "reverseWeakMain",
+            "逆弱主判｜次判Transition偏向支持",
+            0.25,
+            "普通逆弱主判冇自動權限；只限Route A／Route B＋P1/P2/P2-E＋Native Q3，最高0.25。"
+          );
+        }
         return result(
-          "conflictSecondary",
-          "次判Transition偏向｜逆主判",
-          0.5,
-          "逆主判方向只按既有P1 Tailwind／弱主判Route A/B等資格；Transition bias本身唔創造權限。"
+          "reverseHealthyMain",
+          "逆健康主判｜次判Transition偏向支持",
+          0.25,
+          "健康主判Authority未失效；正常0，只限Active HTF P1第一反應＋P1/P2/P2-E＋Native Q3右側反轉，最高0.25 Reaction Probe。"
         );
       }
     }
@@ -1670,7 +1686,7 @@ function computeMarketRoute(
         "alignedReverse",
         "雙同向｜反共同方向",
         0,
-        `主判＋次判共同${biasDirectionLabel(commonBias)}；正常0，只有窄義HTF P1反轉例外可0.25 Probe。`
+        `主判＋次判共同${biasDirectionLabel(commonBias)}；正常0，只有現行窄義HTF P1反轉例外可0.25 Probe。`
       );
     }
 
@@ -1701,11 +1717,20 @@ function computeMarketRoute(
       );
     }
 
+    if (isWeak(mainState)) {
+      return result(
+        "reverseWeakMain",
+        `逆弱主判｜順次判${biasDirectionLabel(secondaryBias)}`,
+        0.25,
+        "普通逆弱主判冇自動權限；只限Route A／Route B＋P1/P2/P2-E＋Native Q3，最高0.25。"
+      );
+    }
+
     return result(
-      "conflictSecondary",
-      `方向衝突｜順次判${biasDirectionLabel(secondaryBias)}、逆主判`,
-      0.5,
-      "逆主判：P2＋Native Q3只限指定資格最高0.25；Counter-main Q2目前Research only＝0注。"
+      "reverseHealthyMain",
+      `逆健康主判｜順次判${biasDirectionLabel(secondaryBias)}`,
+      0.25,
+      "健康主判Authority未失效；正常0，只限Active HTF P1第一反應＋P1/P2/P2-E＋Native Q3右側反轉，最高0.25 Reaction Probe。"
     );
   }
 
@@ -1777,8 +1802,28 @@ function preferredDirectionInfo() {
     return { label: `順主判${biasDirectionLabel(mainBias)}優先`, note: route.reason };
   }
 
+  if (route.code === "reverseWeakMain") {
+    return { label: `主判${biasDirectionLabel(mainBias)}仍係Primary｜逆向只限Route A/B`, note: route.reason };
+  }
+
+  if (route.code === "reverseHealthyMain") {
+    return { label: `健康主判${biasDirectionLabel(mainBias)}仍係Primary｜逆向只限Active P1 Probe`, note: route.reason };
+  }
+
+  if (route.code === "neutralMainConfirmed") {
+    return { label: "主判中性｜常規跟次判Confirmed方向", note: route.reason };
+  }
+
+  if (route.code === "neutralMainReverse") {
+    return { label: "次判Confirmed方向優先｜逆向只限P1/Range Boundary Probe", note: route.reason };
+  }
+
+  if (route.code === "transitionVsConfirmedConflict") {
+    return { label: "Directional Transition × Confirmed反向｜按Control Alignment研究", note: route.reason };
+  }
+
   if (route.code === "conflictSecondary") {
-    return { label: `順主判${biasDirectionLabel(mainBias)}仍係Primary；今次屬逆主判例外`, note: route.reason };
+    return { label: `舊版逆主判Route`, note: route.reason };
   }
 
   if (route.code === "transitionConfirmed") {
@@ -1806,8 +1851,13 @@ function combinedDeploymentInfo() {
     neutralTransition: {priority:"Neutral／Range Transition：只做Range邊界。",secondary:"Long底25%、Short頂25%；中間P4＝0。"},
     alignedReverse: {priority:"反共同方向正常0。",secondary:"只有窄義HTF P1＋原生至少P2＋Native Q3＋等價右側確認＋新鮮反應先0.25 Probe。"},
     conflictMain: {priority:"方向衝突順主判：P1／P2＋Q3最高0.5。",secondary:"Control若Opposing要特別記錄；Q2通常0.25／0。"},
-    conflictSecondary: {priority:"逆主判：Route A／B或既有Active P1 Tailwind資格，P2＋Native Q3最高0.25。",secondary:"Counter-main Q2目前0注，只標Research Candidate。"},
-    transitionConfirmed: {priority:"包含單層Transition但順已確認方向：最高0.5。",secondary:"Control／主判Bias衝突時Objective偏Reaction。"},
+    conflictSecondary: {priority:"舊版逆主判Route；新紀錄會拆分Weak／Healthy。",secondary:"保留舊資料兼容。"},
+    reverseWeakMain: {priority:"逆弱主判：只有Route A／B＋P1/P2/P2-E＋Native Q3先有權。",secondary:"Route成立一律最高0.25；Q2＝0。"},
+    reverseHealthyMain: {priority:"逆健康主判：正常0。",secondary:"Active HTF P1第一反應＋P1/P2/P2-E＋Native Q3先可0.25 Reaction Probe。"},
+    neutralMainConfirmed: {priority:"主判中性Transition＋次判Confirmed：常規跟次判，最高0.5。",secondary:"Trade Objective固定Reaction；唔歸neutralTransition。"},
+    neutralMainReverse: {priority:"主判中性但逆次判Confirmed：正常0。",secondary:"只限HTF P1／Range Boundary＋Native Q3＝0.25 Reaction Probe。"},
+    transitionVsConfirmedConflict: {priority:"主判Directional Transition × 次判Confirmed反向：P1 Q3 0.5、P2 Q3 0.25。",secondary:"兩個交易方向Size相同；Control Alignment分Confirmed／Opposing研究。"},
+    transitionConfirmed: {priority:"包含單層Directional Transition但同Confirmed方向一致：最高0.5。",secondary:"Native Q3可Expansion；P2-E＋Q2全局最多0.25。"},
     transitionReverse: {priority:"主判Transition反向部署：只作窄義Reaction Probe。",secondary:"真正P1 Q3或既有方向合格P1 Tailwind例外；最高0.25。"}
   };
   return map[route.code] || {priority:"方向權限未成立：不部署。",secondary:"等待Market State及方向關係清晰。"};
@@ -2939,7 +2989,7 @@ function matrixCell(
     return 0;
   }
 
-  if (["weakAligned","transitionConfirmed"].includes(routeCode)) {
+  if (["weakAligned","transitionConfirmed","neutralMainConfirmed"].includes(routeCode)) {
     if (["P1","P2"].includes(position) && quality === "Q3") return 0.5;
     if (["P1","P2"].includes(position) && quality === "Q2") return 0.25;
     if (position === "P3" && quality === "Q3") return options.p3AlignedTestable === false ? 0 : 0.25;
@@ -2971,6 +3021,40 @@ function matrixCell(
     if (["P1","P2"].includes(position) && quality === "Q3") return 0.5;
     if (["P1","P2"].includes(position) && quality === "Q2") return 0.25;
     if (position === "P3" && quality === "Q3") return options.p3ConflictTestable ? 0.25 : 0;
+    return 0;
+  }
+
+  if (routeCode === "transitionVsConfirmedConflict") {
+    if (position === "P1" && quality === "Q3") return 0.5;
+    if (position === "P1" && quality === "Q2") return 0.25;
+    if (position === "P2" && quality === "Q3") return 0.25;
+    return 0;
+  }
+
+  if (routeCode === "neutralMainReverse") {
+    if (
+      position === "P1" &&
+      quality === "Q3" &&
+      options.transitionLayerP1
+    ) return 0.25;
+    return 0;
+  }
+
+  if (routeCode === "reverseWeakMain") {
+    if (
+      ["P1","P2"].includes(position) &&
+      quality === "Q3" &&
+      options.weakCounterRouteEligible
+    ) return 0.25;
+    return 0;
+  }
+
+  if (routeCode === "reverseHealthyMain") {
+    if (
+      ["P1","P2"].includes(position) &&
+      quality === "Q3" &&
+      options.healthyCounterReversalEligible
+    ) return 0.25;
     return 0;
   }
 
@@ -3101,6 +3185,63 @@ function freshSessionSetupInfo(
   };
 }
 
+function healthyCounterReversalInfo(
+  positionOverride = null,
+  qualityOverride = null
+) {
+  const route =
+    marketRouteInfo();
+
+  const position =
+    positionOverride ||
+    $("positionLevel").value;
+
+  const quality =
+    qualityOverride ||
+    currentAsia2B?.effectiveQuality ||
+    "Q1";
+
+  if (
+    route.code !==
+      "reverseHealthyMain" ||
+    !["P1","P2"].includes(
+      position
+    )
+  ) {
+    return {
+      eligible: false,
+      reason:
+        "逆健康主判P1例外目前不適用。"
+    };
+  }
+
+  if (quality !== "Q3") {
+    return {
+      eligible: false,
+      reason:
+        "逆健康主判只接受Native Q3右側反轉；任何Q2固定0。"
+    };
+  }
+
+  const activeP1 =
+    $("p1BackgroundTailwind")
+      .value === "valid";
+
+  if (!activeP1) {
+    return {
+      eligible: false,
+      reason:
+        "健康主判正常0：未有Active HTF P1第一反應／P1 Tailwind。"
+    };
+  }
+
+  return {
+    eligible: true,
+    reason:
+      `逆健康主判窄義例外成立：Active HTF P1第一反應＋${position}＋Native Q3右側反轉，最高0.25 Reaction Probe。`
+  };
+}
+
 function weakCounterRouteConfirmationInfo(
   positionOverride = null,
   qualityOverride = null,
@@ -3139,8 +3280,9 @@ function weakCounterRouteConfirmationInfo(
       .value;
 
   const applicable =
-    route.code ===
-      "conflictSecondary" &&
+    ["reverseWeakMain","conflictSecondary"].includes(
+      route.code
+    ) &&
     isWeak(mainState) &&
     ["P1","P2"].includes(
       position
@@ -3166,8 +3308,8 @@ function weakCounterRouteConfirmationInfo(
       basis: "none",
       reason:
         position === "P1"
-          ? "P1目前未揀Route A／B；P1仍按本身Matrix判Size。"
-          : "P2／P2-E目前未揀Route A／B；P1順風仍會獨立判定。",
+          ? "P1目前未揀Route A／B；逆弱主判正常0。"
+          : "P2／P2-E目前未揀Route A／B；逆弱主判正常0。",
       missing: []
     };
   }
@@ -3196,7 +3338,7 @@ function weakCounterRouteConfirmationInfo(
       basis:
         "weakBreakRetest",
       reason:
-        `Route A成立：弱主判＋主判次結／工作結構有效Break＋Acceptance＋第一次Retest＋${position}＋Native Q3。${position === "P1" ? "P1本身按Matrix，Route A只作Confirmation，唔加Size。" : "P2／P2-E可由Route A解鎖最高0.25。"}`,
+        `Route A成立：弱主判＋主判次結／工作結構有效Break＋Acceptance＋第一次Retest＋${position}＋Native Q3；逆弱主判一律最高0.25。`,
       missing: []
     };
   }
@@ -3227,24 +3369,16 @@ function weakCounterRouteConfirmationInfo(
       {
         ok:
           checked(
-            "counterP2WeakWorkStructureHeld"
-          ),
-        text:
-          "主判近端次結／工作結構已突破、Acceptance，而且未Reclaim"
-      },
-      {
-        ok:
-          checked(
             "counterP2WeakIndependentSession"
           ),
         text:
-          "今次必須係全新、獨立Session催化"
+          "今次必須係全新、獨立Session Confirmation"
       },
       {
         ok:
           setupInfo.recognized,
         text:
-          "Setup必須係EU-B／高質EU-D／其他同級開市後Setup"
+          "Setup必須係App識別或手動確認嘅獨立Session Setup"
       },
       {
         ok:
@@ -3256,30 +3390,7 @@ function weakCounterRouteConfirmationInfo(
         ok:
           setupInfo.openingFresh,
         text:
-          "Opening／Session故事必須仍然新鮮"
-      },
-      {
-        ok:
-          obstacleR !== null &&
-          obstacleR >= 1.5,
-        text:
-          "去主判主結／第一硬障礙至少1.5R"
-      },
-      {
-        ok:
-          checked(
-            "counterP2WeakNotMatureLeg"
-          ),
-        text:
-          "唔可以處於次判成熟逆向腿尾段"
-      },
-      {
-        ok:
-          checked(
-            "counterP2WeakNotNearMainStructure"
-          ),
-        text:
-          "唔可以貼近主判主結／第一硬障礙"
+          "Session Confirmation必須仍然新鮮"
       }
     ];
 
@@ -3304,7 +3415,7 @@ function weakCounterRouteConfirmationInfo(
         basis:
           "weakFreshSession",
         reason:
-          `Route B成立：弱主判＋健康逆向次判＋${setupInfo.label}新Session獨立Confirmation＋${position}＋Native Q3＋硬障礙${obstacleR.toFixed(2)}R。${position === "P1" ? "P1本身按Matrix，Route B只作Confirmation，唔加Size。" : "P2／P2-E可由Route B解鎖最高0.25。"}`,
+          `Route B成立：弱主判＋健康逆向次判＋${setupInfo.label}新Session獨立Confirmation＋${position}＋Native Q3；逆弱主判一律最高0.25。`,
         missing: [],
         setupInfo,
         obstacleR
@@ -3345,9 +3456,6 @@ function counterP2EligibilityInfo(
   const route =
     marketRouteInfo();
 
-  const mainState =
-    $("mainState").value;
-
   const position =
     positionOverride ||
     $("positionLevel").value;
@@ -3362,15 +3470,18 @@ function counterP2EligibilityInfo(
     "Q1";
 
   if (
-    route.code !==
-      "conflictSecondary" ||
+    ![
+      "reverseWeakMain",
+      "reverseHealthyMain",
+      "conflictSecondary"
+    ].includes(route.code) ||
     position !== "P2"
   ) {
     return {
       eligible: false,
       basis: "none",
       reason:
-        "P2／P2-E解鎖資格目前不適用；P1如有Route A／B只作Confirmation，Size仍按P1 Matrix。",
+        "逆主判P2／P2-E特殊資格目前不適用。",
       missing: []
     };
   }
@@ -3380,114 +3491,79 @@ function counterP2EligibilityInfo(
       eligible: false,
       basis: "none",
       reason:
-        "逆主判P2所有解鎖資格都只接受Native Q3；Q2固定0注。",
+        "逆主判P2／P2-E只接受Native Q3；Q2固定0注。",
       missing: [
         "Native Q3"
       ]
     };
   }
 
-  const p1TailwindValid =
-    $("p1BackgroundTailwind")
-      .value === "valid";
-
   if (
-    isHealthy(mainState)
+    route.code ===
+      "reverseHealthyMain"
   ) {
-    if (p1TailwindValid) {
-      return {
-        eligible: true,
-        basis:
-          "p1Tailwind",
-        reason:
-          "主判健康：有效P1順風＋P2／P2-E＋Native Q3成立，逆主判最高0.25。Route A／B只適用弱主判。",
-        missing: []
-      };
-    }
+    const healthyInfo =
+      healthyCounterReversalInfo(
+        position,
+        quality
+      );
 
     return {
-      eligible: false,
-      basis: "none",
+      eligible:
+        healthyInfo.eligible,
+      basis:
+        healthyInfo.eligible
+          ? "p1Tailwind"
+          : "none",
       reason:
-        "主判健康：逆向P2只可以靠仍有效P1順風；Route A／B只適用弱主判。",
-      missing: [
-        "有效P1順風"
-      ]
+        healthyInfo.reason,
+      missing:
+        healthyInfo.eligible
+          ? []
+          : [
+              "Active HTF P1第一反應"
+            ]
     };
   }
 
+  const routeConfirmation =
+    weakCounterRouteConfirmationInfo(
+      position,
+      quality,
+      baseTriggerOverride,
+      setupResultOverride
+    );
+
   if (
-    isWeak(mainState)
+    routeConfirmation.confirmed
   ) {
-    const routeConfirmation =
-      weakCounterRouteConfirmationInfo(
-        position,
-        quality,
-        baseTriggerOverride,
-        setupResultOverride
-      );
-
-    const qualifiers = [];
-
-    if (p1TailwindValid) {
-      qualifiers.push(
-        "P1順風"
-      );
-    }
-
-    if (
-      routeConfirmation.confirmed
-    ) {
-      qualifiers.push(
-        routeConfirmation.basis ===
-          "weakBreakRetest"
-          ? "Route A"
-          : "Route B"
-      );
-    }
-
-    if (
-      qualifiers.length > 0
-    ) {
-      return {
-        eligible: true,
-        basis:
-          p1TailwindValid
-            ? "p1Tailwind"
-            : routeConfirmation.basis,
-        reason:
-          `逆弱主判P2解鎖成立：${qualifiers.join("＋")}；P2／P2-E＋Native Q3最高0.25。多條資格同時成立都唔疊加。${routeConfirmation.path !== "none" ? ` ${routeConfirmation.reason}` : ""}`,
-        missing: [],
-        routeConfirmation
-      };
-    }
-
     return {
-      eligible: false,
+      eligible: true,
       basis:
-        routeConfirmation.basis ||
-        "none",
+        routeConfirmation.basis,
       reason:
-        routeConfirmation.path !==
-          "none"
-          ? `${routeConfirmation.reason} 同時P1順風亦未成立，所以P2／P2-E仍然0注。`
-          : "弱主判：P2／P2-E＋Native Q3要由P1順風、Route A或Route B其中一條解鎖；三者可以同時存在，但唔疊加。",
-      missing:
-        routeConfirmation.missing?.length
-          ? routeConfirmation.missing
-          : [
-              "P1順風、Route A、Route B均未成立"
-            ],
+        `${routeConfirmation.reason} P2／P2-E最高0.25。`,
+      missing: [],
       routeConfirmation
     };
   }
 
   return {
     eligible: false,
-    basis: "none",
+    basis:
+      routeConfirmation.basis ||
+      "none",
     reason:
-      "主判唔係健康／弱勢Trend，逆主判P2資格不適用。",
-    missing: []
+      routeConfirmation.path !== "none"
+        ? `${routeConfirmation.reason} 所以P2／P2-E仍然0注。`
+        : "逆弱主判普通情況冇自動權限；只可以行Route A或Route B，並且Native Q3。",
+    missing:
+      routeConfirmation.missing?.length
+        ? routeConfirmation.missing
+        : [
+            "Route A或Route B未成立"
+          ],
+    routeConfirmation
   };
 }
 
@@ -3890,6 +3966,18 @@ function currentMatrixOptions(
         trigger,
         setupResult
       ).eligible,
+    weakCounterRouteEligible:
+      weakCounterRouteConfirmationInfo(
+        effectivePosition,
+        effectiveQuality,
+        trigger,
+        setupResult
+      ).confirmed,
+    healthyCounterReversalEligible:
+      healthyCounterReversalInfo(
+        effectivePosition,
+        effectiveQuality
+      ).eligible,
     bothTransitionMajorP1:
       checked(
         "bothTransitionMajorP1"
@@ -4141,30 +4229,13 @@ function evaluateMatrix(
     p2EFromRawP3 &&
     effectiveQuality === "Q2"
   ) {
-    const conflictOrTransition = [
-      "alignedTransition",
-      "mixedTransition",
-      "neutralTransition",
-      "transitionConfirmed",
-      "transitionReverse",
-      "conflictMain",
-      "conflictSecondary",
-      "alignedReverse"
-    ].includes(route.code);
-
-    if (conflictOrTransition) {
-      p2EQualitySize = 0;
-      p2EQualityReason =
-        "V1.3：P2-E＋Native Q2喺Conflict／Transition環境直接0；Research only。";
-    } else {
-      p2EQualitySize =
-        Math.min(
-          p2EQualitySize,
-          0.25
-        );
-      p2EQualityReason =
-        "V1.3：P2-E＋Native Q2最高0.25，唔按原生P2 Q2 full待遇。";
-    }
+    p2EQualitySize =
+      Math.min(
+        p2EQualitySize,
+        0.25
+      );
+    p2EQualityReason =
+      "V1.3：P2-E＋Native Q2全局最高0.25；如果該市場情境本身Q2＝0，仍然維持0。Q2 subtype只作研究記錄，唔再額外改Size。";
   }
 
   const size =
@@ -4193,6 +4264,49 @@ function evaluateMatrix(
             resolvedSetup.basePosition,
             effectiveQuality
           ).reason}`;
+  } else if (
+    route.code === "reverseWeakMain"
+  ) {
+    const confirmation =
+      weakCounterRouteConfirmationInfo(
+        effectivePosition,
+        effectiveQuality,
+        baseTrigger || currentBaseTrigger,
+        resolvedSetup
+      );
+    cellExplanation =
+      confirmation.confirmed
+        ? `逆弱主判Route ${confirmation.basis === "weakBreakRetest" ? "A" : "B"}成立；${combination}最高0.25。${confirmation.reason}`
+        : `逆弱主判普通0；Route A／B未完整。${confirmation.reason}`;
+  } else if (
+    route.code === "reverseHealthyMain"
+  ) {
+    const healthyInfo =
+      healthyCounterReversalInfo(
+        effectivePosition,
+        effectiveQuality
+      );
+    cellExplanation =
+      healthyInfo.eligible
+        ? `${healthyInfo.reason}`
+        : `逆健康主判正常0。${healthyInfo.reason}`;
+  } else if (
+    route.code === "neutralMainConfirmed"
+  ) {
+    cellExplanation =
+      `主判中性Transition＋次判Confirmed，順次判：P1/P2 Q3＝0.5、Q2＝0.25；P3 Q3＝0.25。Trade Objective固定Reaction。${p2EQualityReason ? ` ${p2EQualityReason}` : ""}`;
+  } else if (
+    route.code === "neutralMainReverse"
+  ) {
+    cellExplanation =
+      options.transitionLayerP1 && effectivePosition === "P1" && effectiveQuality === "Q3"
+        ? `主判中性但逆次判Confirmed：清晰HTF P1／Range Boundary＋Native Q3成立，最高0.25 Reaction Probe。`
+        : `主判中性唔代表反方向有權；逆次判Confirmed正常0，只限清晰P1／Range Boundary＋Native Q3。`;
+  } else if (
+    route.code === "transitionVsConfirmedConflict"
+  ) {
+    cellExplanation =
+      `主判Directional Transition × 次判Confirmed反方向：兩個交易方向Size暫時相同；P1 Q3＝0.5、P1 Q2＝0.25、P2 Q3＝0.25、P2 Q2＝0、P3＝0。Control Alignment用嚟分Confirmed／Opposing研究Tag。`;
   } else if (
     route.code ===
       "conflictSecondary" &&
@@ -4564,6 +4678,11 @@ function tradeObjectiveInfo({
   const conflictLike = [
     "conflictMain",
     "conflictSecondary",
+    "reverseWeakMain",
+    "reverseHealthyMain",
+    "neutralMainConfirmed",
+    "neutralMainReverse",
+    "transitionVsConfirmedConflict",
     "alignedReverse",
     "transitionReverse",
     "mixedTransition",
@@ -4699,19 +4818,30 @@ function evaluateDecision(
     );
   }
 
-  if (matrix.routeCode === "conflictSecondary") {
-    if (baseTrigger.quality === "Q2") {
-      warnings.push("Counter-main Q2 Research Candidate：目前 Echtgeld／正式Matrix＝0注；只記Opportunity／Reaction研究。")
-    } else {
-      warnings.push(
-        `逆主判P2／P2-E Native Q3要額外資格。${counterP2EligibilityInfo(
-          setupResult.effectivePosition,
-          setupResult.effectiveQuality,
-          baseTrigger,
-          setupResult
-        ).reason}`
-      );
-    }
+  if (matrix.routeCode === "reverseWeakMain") {
+    warnings.push(
+      baseTrigger.quality === "Q2"
+        ? "逆弱主判Q2固定0；Q2 subtype只作研究記錄。"
+        : weakCounterRouteConfirmationInfo(
+            setupResult.effectivePosition,
+            setupResult.effectiveQuality,
+            baseTrigger,
+            setupResult
+          ).reason
+    );
+  }
+
+  if (matrix.routeCode === "reverseHealthyMain") {
+    warnings.push(
+      healthyCounterReversalInfo(
+        setupResult.effectivePosition,
+        setupResult.effectiveQuality
+      ).reason
+    );
+  }
+
+  if (matrix.routeCode === "neutralMainReverse") {
+    warnings.push("主判中性唔等於逆次判有權；只限清晰HTF P1／Range Boundary＋Native Q3 Reaction Probe。")
   }
 
   if (["mixedTransition","neutralTransition"].includes(matrix.routeCode)) {
@@ -5238,21 +5368,25 @@ function updateCounterP2PermissionUI(
     effectivePosition ||
     $("positionLevel").value;
 
-  const showCounterContext =
-    route.code ===
-      "conflictSecondary" &&
+  const showCounterPermissionNote =
+    ["reverseWeakMain","reverseHealthyMain"].includes(
+      route.code
+    ) &&
     ["P1","P2"].includes(
       resolvedPosition
     );
 
-  const showCounterP2 =
-    showCounterContext &&
-    resolvedPosition === "P2";
+  const showCounterContext =
+    route.code ===
+      "reverseWeakMain" &&
+    ["P1","P2"].includes(
+      resolvedPosition
+    );
 
   $("counterP2EligibilityNote")
     .classList.toggle(
       "hidden",
-      !showCounterContext
+      !showCounterPermissionNote
     );
 
   const showWeakPanel =
@@ -5303,16 +5437,21 @@ function updateCounterP2PermissionUI(
     $("counterP2WeakFreshSessionSetupNote")
       .textContent =
         setupInfo.autoRecognized
-          ? `App自動識別：${setupInfo.label}。仍要Q3、健康逆向次判、工作結構突破維持、至少1.5R及未到成熟腿尾。`
+          ? `App自動識別：${setupInfo.label}。Route B Size gate只再要求Native Q3＋健康逆向次判＋全新獨立Session Confirmation；其他距離／成熟度欄位只作Research。`
           : setupInfo.manualEquivalent
-            ? "已手動確認其他同級高質開市後Setup；仍要其餘全部條件成立。"
-            : "目前核心Setup唔係App自動識別嘅EU-B／高質EU-D／高質Session Setup；只有真正同級Setup先可手動勾選。";
+            ? "已手動確認其他同級獨立Session Setup；其餘距離／成熟度欄位只作Research。"
+            : "目前核心Setup未被App識別為獨立Session Confirmation；只有真正同級Setup先可手動確認。";
   }
 
-  if (showCounterContext) {
-    if (
-      resolvedPosition === "P1"
-    ) {
+  if (showCounterPermissionNote) {
+    if (route.code === "reverseHealthyMain") {
+      $("counterP2EligibilityNote")
+        .textContent =
+          healthyCounterReversalInfo(
+            resolvedPosition,
+            effectiveQuality
+          ).reason;
+    } else if (resolvedPosition === "P1") {
       const confirmation =
         weakCounterRouteConfirmationInfo(
           resolvedPosition,
@@ -5323,7 +5462,7 @@ function updateCounterP2PermissionUI(
 
       $("counterP2EligibilityNote")
         .textContent =
-          `P1逆弱主判：P1＋Native Q3本身按Matrix最高0.5；Route A／B只作Confirmation，唔會加Size。${confirmation.reason}`;
+          `P1逆弱主判：冇Route A／B就0；Route成立＋Native Q3最高0.25。${confirmation.reason}`;
     } else {
       $("counterP2EligibilityNote")
         .textContent =
@@ -5572,8 +5711,9 @@ function updateInterface() {
     marketRouteInfo();
 
   const showTransitionP1 =
-    route.code ===
-      "transitionReverse" &&
+    ["transitionReverse","neutralMainReverse"].includes(
+      route.code
+    ) &&
     position === "P1";
 
   $("transitionLayerP1Row")
@@ -6282,9 +6422,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.28.2",
+      "PracticeJournal-V1.28.3",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r2-WeakMainABIndependent",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r3-RouteCorrection",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -11372,8 +11512,13 @@ function liveRouteLabel(value) {
     weakAligned: "同向有弱勢｜順共同方向",
     alignedReverse: "反共同方向｜正常0／窄義P1例外",
     conflictMain: "方向衝突｜順主判、逆次判",
-    conflictSecondary: "順次判、逆主判",
-    transitionConfirmed: "Single Transition｜順已確認方向",
+    conflictSecondary: "舊版｜順次判、逆主判",
+    reverseWeakMain: "逆弱主判｜Route A/B only",
+    reverseHealthyMain: "逆健康主判｜Active P1 Probe only",
+    neutralMainConfirmed: "主判中性Transition｜跟次判Confirmed",
+    neutralMainReverse: "主判中性Transition｜逆次判Confirmed",
+    transitionVsConfirmedConflict: "Directional Transition × Confirmed反向",
+    transitionConfirmed: "Single Directional Transition｜同Confirmed方向",
     alignedTransition: "Aligned Transition｜Early Trend",
     mixedTransition: "Mixed Transition｜Conflict",
     neutralTransition: "Neutral／Range Transition｜邊界",
@@ -11390,6 +11535,11 @@ function liveRouteCap(value) {
     alignedReverse: 0,
     conflictMain: 0.5,
     conflictSecondary: 0.5,
+    reverseWeakMain: 0.25,
+    reverseHealthyMain: 0.25,
+    neutralMainConfirmed: 0.5,
+    neutralMainReverse: 0.25,
+    transitionVsConfirmedConflict: 0.5,
     transitionConfirmed: 0.5,
     alignedTransition: 0.5,
     mixedTransition: 0.5,
@@ -11552,7 +11702,7 @@ function recalculateLiveDecision() {
   }
 
   const showTransitionP1 =
-    routeCode === "transitionReverse" &&
+    ["transitionReverse","neutralMainReverse"].includes(routeCode) &&
     effectivePosition === "P1";
   $("liveTransitionLayerP1Row").classList.toggle(
     "hidden",
@@ -11594,7 +11744,7 @@ function recalculateLiveDecision() {
   }
 
   const showCounterContext =
-    routeCode === "conflictSecondary" &&
+    routeCode === "reverseWeakMain" &&
     ["P1","P2"].includes(
       effectivePosition
     );
@@ -11633,24 +11783,13 @@ function recalculateLiveDecision() {
   const freshSessionConfirmationComplete =
     showLiveFreshSession &&
     nativeQuality === "Q3" &&
-    checked("liveWeakFreshWorkStructureHeld") &&
     checked("liveWeakFreshSecondaryHealthy") &&
-    checked("liveWeakFreshIndependentSession") &&
-    freshObstacleR !== null &&
-    freshObstacleR >= 1.5 &&
-    checked("liveWeakFreshNotMatureLeg") &&
-    checked("liveWeakFreshNotNearMainStructure");
+    checked("liveWeakFreshIndependentSession");
 
   const weakBreakConfirmationComplete =
     showCounterContext &&
     liveCounterBasis ===
       "weakBreakRetest" &&
-    nativeQuality === "Q3";
-
-  const p1TailwindEligible =
-    showCounterP2 &&
-    $("liveP1Tailwind").value ===
-      "valid" &&
     nativeQuality === "Q3";
 
   const weakBreakRetestEligible =
@@ -11662,9 +11801,14 @@ function recalculateLiveDecision() {
     freshSessionConfirmationComplete;
 
   const counterP2Eligible =
-    p1TailwindEligible ||
     weakBreakRetestEligible ||
     freshSessionEligible;
+
+  const liveHealthyCounterEligible =
+    routeCode === "reverseHealthyMain" &&
+    ["P1","P2"].includes(effectivePosition) &&
+    $("liveP1Tailwind").value === "valid" &&
+    nativeQuality === "Q3";
 
   const showHTFException =
     routeCode === "alignedReverse" &&
@@ -11722,6 +11866,11 @@ function recalculateLiveDecision() {
         htfP1ReversalEligible:
           htfExceptionEligible,
         counterP2Eligible,
+        weakCounterRouteEligible:
+          routeCode === "reverseWeakMain" &&
+          (weakBreakConfirmationComplete || freshSessionConfirmationComplete),
+        healthyCounterReversalEligible:
+          liveHealthyCounterEligible,
         transitionLayerP1:
           checked("liveTransitionLayerP1"),
         transitionP2TailwindEligible:
@@ -11745,16 +11894,10 @@ function recalculateLiveDecision() {
     livePositionTreatment === "p2Effective" &&
     nativeQuality === "Q2";
   if (p2EWithQ2) {
-    if (
-      ["healthyAligned","weakAligned"].includes(routeCode)
-    ) {
-      matrixSize = Math.min(
-        matrixSize,
-        0.25
-      );
-    } else {
-      matrixSize = 0;
-    }
+    matrixSize = Math.min(
+      matrixSize,
+      0.25
+    );
   }
 
   let rangeSize =
@@ -11944,8 +12087,13 @@ function recalculateLiveDecision() {
     weakAligned: "同向有弱勢：P1／P2 Native Q3最高0.5。",
     alignedReverse: "反共同方向正常0；窄義HTF P1例外最高0.25。",
     conflictMain: "方向衝突順主判：Immediate Control仍Opposing時要保守；P1／P2 Q3最高0.5。",
-    conflictSecondary: "逆主判：P2只限Route A／B或Active P1 Tailwind＋Native Q3＝0.25；Q2 Research only＝0。",
-    transitionConfirmed: "Single Transition順已確認方向：最高0.5。",
+    conflictSecondary: "舊版逆主判Route。",
+    reverseWeakMain: "逆弱主判：只限Route A／B＋P1/P2/P2-E＋Native Q3，最高0.25；Q2＝0。",
+    reverseHealthyMain: "逆健康主判：正常0；Active P1第一反應＋P1/P2/P2-E＋Native Q3先0.25。",
+    neutralMainConfirmed: "主判中性Transition＋次判Confirmed：跟次判；P1/P2 Q3最高0.5，但Objective固定Reaction。",
+    neutralMainReverse: "主判中性但逆次判Confirmed：正常0；清晰P1／Range Boundary＋Q3先0.25。",
+    transitionVsConfirmedConflict: "Directional Transition × Confirmed反向：P1 Q3 0.5、P2 Q3 0.25；Objective Reaction。",
+    transitionConfirmed: "Single Directional Transition同Confirmed方向：最高0.5。",
     alignedTransition: "Aligned Transition：P2＋Native Q3正式0.25；0.5只Shadow Test。",
     mixedTransition: "Mixed Transition：Conflict邊界；P2 Q3 0.25，Q2 0。",
     neutralTransition: "Neutral／Range Transition：只做邊界；Range middle 0。",
@@ -11959,8 +12107,8 @@ function recalculateLiveDecision() {
     `Setup：${definition.label}。`,
     showCounterContext
       ? effectivePosition === "P1"
-        ? `逆弱主判Confirmation：${liveCounterBasis === "weakBreakRetest" ? "Route A" : liveCounterBasis === "weakFreshSession" ? "Route B" : "冇A/B"}；P1本身按Matrix，A/B唔加Size。`
-        : `逆弱主判P2解鎖：P1順風${$("liveP1Tailwind").value === "valid" ? "有效" : "未成立"}／${liveCounterBasis === "weakBreakRetest" ? "Route A" : liveCounterBasis === "weakFreshSession" ? "Route B" : "冇A/B"}；任一合格最高0.25，唔疊加。`
+        ? `逆弱主判P1：${liveCounterBasis === "weakBreakRetest" ? "Route A" : liveCounterBasis === "weakFreshSession" ? "Route B" : "冇A/B"}；Route成立＋Native Q3先0.25，冇Route就0。`
+        : `逆弱主判P2解鎖：${liveCounterBasis === "weakBreakRetest" ? "Route A" : liveCounterBasis === "weakFreshSession" ? "Route B" : "冇A/B"}；Route成立＋Native Q3先最高0.25。P1 Tailwind只作背景記錄，唔係K嘅第三條Route。`
       : "",
     livePreviousHLInfo.applicable
       ? `Previous H/L Sweep：${livePreviousHLInfo.sourceLabel}｜${livePreviousHLInfo.sessionLabel}。`
@@ -11973,13 +12121,13 @@ function recalculateLiveDecision() {
       : "",
     `Native Q：${nativeQuality}。`,
     p2EWithQ2
-      ? "P2-E＋Native Q2限制已套用：Aligned最高0.25；Conflict／Transition可直接0。"
+      ? "P2-E＋Native Q2全局最高0.25；如果該route本身Q2＝0仍然0。Q2 subtype只作記錄。"
       : "",
     routeCode === "alignedTransition" && shadowSize !== null
       ? "Aligned Transition P2 Q3：正式0.25；0.5只做Shadow Test。"
       : "",
-    routeCode === "conflictSecondary" && nativeQuality === "Q2"
-      ? "Counter-main Q2 Research Candidate：正式0注，只記Reaction研究。"
+    ["reverseWeakMain","reverseHealthyMain"].includes(routeCode) && nativeQuality === "Q2"
+      ? "Counter-main Q2正式0注；Subtype只作研究記錄。"
       : "",
     variant === "oprContinuation"
       ? "HSI-C OPR Continuation：Research／Provisional，暫時冇E。"

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.28.2</span>
+    <span class="version-badge">V1.28.3</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -143,16 +143,21 @@
           <label>
             目前市場關係＋今次交易路線
             <select id="liveMarketRoute">
-              <option value="healthyAligned">A｜雙健康同向｜順共同方向｜Max 1注</option>
-              <option value="weakAligned">B｜同向有弱勢｜順共同方向｜Max 0.5注</option>
-              <option value="alignedReverse">C｜反共同方向｜正常0／窄義P1例外0.25</option>
-              <option value="conflictMain">D｜方向衝突｜順主判、逆次判｜Max 0.5注</option>
-              <option value="conflictSecondary">E｜順次判、逆主判｜P1 Max 0.5／P2 Max 0.25</option>
-              <option value="transitionConfirmed">F｜Single Transition｜順已確認方向｜Max 0.5</option>
-              <option value="alignedTransition">G｜Aligned Transition｜P2 Q3正式0.25／Shadow 0.5</option>
-              <option value="mixedTransition">H｜Mixed Transition｜Conflict邊界</option>
-              <option value="neutralTransition">I｜Neutral／Range Transition｜邊界／25%</option>
-              <option value="transitionReverse">J｜Transition反向Probe｜Max 0.25</option>
+              <option value="healthyAligned">A｜雙健康同向｜Max 1注</option>
+              <option value="weakAligned">B｜同向但至少一層弱｜Max 0.5</option>
+              <option value="transitionConfirmed">C｜Directional Transition＋Confirmed同向｜Max 0.5</option>
+              <option value="alignedTransition">D｜Aligned Transition｜P2 Q3 0.25／Shadow 0.5</option>
+              <option value="neutralMainConfirmed">E｜主判中性Transition＋次判Confirmed｜Max 0.5 Reaction</option>
+              <option value="neutralTransition">F｜Neutral／Range Transition｜Boundary only｜Reaction</option>
+              <option value="mixedTransition">G｜Mixed Transition｜Conflict Boundary</option>
+              <option value="conflictMain">H / I｜順主判、次判Opposing／Transitioning Against｜Max 0.5</option>
+              <option value="transitionVsConfirmedConflict">J｜Directional Transition × Confirmed反向</option>
+              <option value="reverseWeakMain">K｜逆弱主判｜Route A/B only｜Max 0.25</option>
+              <option value="reverseHealthyMain">L｜逆健康主判｜Active P1 Probe only｜Max 0.25</option>
+              <option value="neutralMainReverse">M｜主判中性但逆Confirmed次判｜P1 Boundary Probe only</option>
+              <option value="alignedReverse">N / 其他反共同方向｜正常0／現行窄義HTF P1例外0.25</option>
+              <option value="conflictSecondary">Legacy｜舊版逆主判Route</option>
+              <option value="transitionReverse">Legacy｜舊版Transition反向Probe</option>
             </select>
           </label>
           <label>Control Alignment｜研究欄位
@@ -225,7 +230,7 @@
             <label>
               逆弱主判｜Route A／B Confirmation
               <select id="liveCounterP2Basis">
-                <option value="none">冇A／B｜P1順風由上方獨立判定</option>
+                <option value="none">冇A／B｜逆弱主判正常0</option>
                 <option value="weakBreakRetest">Route A｜弱主判次結／工作結構Break＋Acceptance＋首次Retest</option>
                 <option value="weakFreshSession">Route B｜弱主判＋健康次判＋新Session Confirmation</option>
               </select>
@@ -234,7 +239,7 @@
             <div id="liveWeakFreshSessionPanel" class="conditional-panel hidden">
               <label class="toggle-row">
                 <input id="liveWeakFreshWorkStructureHeld" type="checkbox">
-                <span><strong>主判工作結構已突破並維持</strong><small>價格未Reclaim返去。</small></span>
+                <span><strong>研究記錄｜主判工作結構已突破並維持</strong><small>可記，但唔再係Route B Size gate。</small></span>
               </label>
 
               <label class="toggle-row">
@@ -249,21 +254,21 @@
 
               <label>
                 去主判主結／第一硬障礙距離（R）
-                <input id="liveWeakFreshHardObstacleR" type="number" min="0" step="0.1" inputmode="decimal" placeholder="最低1.5R">
+                <input id="liveWeakFreshHardObstacleR" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Research only｜最終RR由Obstacle處理">
               </label>
 
               <label class="toggle-row">
                 <input id="liveWeakFreshNotMatureLeg" type="checkbox">
-                <span><strong>未處於次判成熟逆向腿尾段</strong></span>
+                <span><strong>研究記錄｜未處於次判成熟逆向腿尾段</strong></span>
               </label>
 
               <label class="toggle-row">
                 <input id="liveWeakFreshNotNearMainStructure" type="checkbox">
-                <span><strong>未貼近主判主結／第一硬障礙</strong></span>
+                <span><strong>研究記錄｜未貼近主判主結／第一硬障礙</strong></span>
               </label>
             </div>
 
-            <p class="state-note">P1順風、Route A、Route B可以同時存在。P1＋Native Q3本身按Matrix，A/B只作Confirmation；P2／P2-E＋Native Q3就由三者任一解鎖最高0.25，多條同時成立都唔疊加。</p>
+            <p class="state-note">K逆弱主判：P1/P2/P2-E都只認Route A或Route B＋Native Q3，最高0.25。P1順風只作背景記錄。Route B其他距離／成熟度欄位保留Research，但唔再係硬性Size gate。</p>
           </div>
 
           <div id="liveHTFP1ReversalExceptionRow" class="conditional-panel hidden">
@@ -835,14 +840,14 @@
 
           <div id="counterP2WeakPermissionPanel" class="conditional-panel hidden">
             <div class="principle-box">
-              <strong>P1順風、Route A、Route B係獨立事實｜可以同時成立</strong>
-              <span>P1＋Native Q3本身按Matrix最高0.5；A/B只作Confirmation。P2／P2-E＋Native Q3就由P1順風、Route A、Route B其中一條解鎖最高0.25。多條同時成立永遠唔疊加。</span>
+              <strong>逆弱主判只認Route A／Route B</strong>
+              <span>P1、P2、P2-E都一樣：Route A或B完整成立＋Native Q3先最高0.25；冇Route＝0。P1順風可以照記，但唔係K嘅第三條Permission。</span>
             </div>
 
             <label>
               逆弱主判｜Route A／B Confirmation
               <select id="counterP2WeakPermissionPath">
-                <option value="none" selected>冇A／B｜P1順風仍會獨立判定</option>
+                <option value="none" selected>冇A／B｜逆弱主判正常0</option>
                 <option value="weakBreakRetest">Route A｜主判次結／工作結構Break＋Acceptance＋首次Retest</option>
                 <option value="weakFreshSession">Route B｜健康次判＋新Session獨立Confirmation</option>
               </select>
@@ -853,12 +858,12 @@
             <div id="counterP2WeakFreshSessionPanel" class="conditional-panel hidden">
               <div class="principle-box">
                 <strong>Route B｜Fresh Session Confirmation</strong>
-                <span>只限弱主判；次判已健康逆向，再由全新Session獨立Confirmation。P1成立時只作Confirmation；P2／P2-E成立時先解鎖最高0.25。</span>
+                <span>弱主判＋健康逆向次判＋P1/P2/P2-E＋Native Q3＋全新獨立Session Confirmation。以下工作結構／距離／腿成熟度欄位保留做研究記錄，但V1.28.3唔再係Route B硬性Size gate。</span>
               </div>
 
               <label class="toggle-row">
                 <input id="counterP2WeakWorkStructureHeld" type="checkbox">
-                <span><strong>主判近端次結／工作結構已逆向有效突破</strong><small>有Acceptance，而且價格仍未Reclaim返去。</small></span>
+                <span><strong>研究記錄｜主判近端次結／工作結構已逆向有效突破</strong><small>可記，但唔再係Route B必須條件。</small></span>
               </label>
 
               <label class="toggle-row">
@@ -873,17 +878,17 @@
 
               <label>
                 去主判主結／第一硬障礙距離（R）
-                <input id="counterP2WeakHardObstacleR" type="number" min="0" step="0.1" inputmode="decimal" placeholder="最低1.5R；最好接近2R">
+                <input id="counterP2WeakHardObstacleR" type="number" min="0" step="0.1" inputmode="decimal" placeholder="研究記錄｜最終RR由Obstacle規則處理">
               </label>
 
               <label class="toggle-row">
                 <input id="counterP2WeakNotMatureLeg" type="checkbox">
-                <span><strong>未處於次判成熟逆向腿尾段</strong><small>唔係已經延伸太遠先追入。</small></span>
+                <span><strong>研究記錄｜未處於次判成熟逆向腿尾段</strong><small>保留做後續統計，唔直接改Route B size。</small></span>
               </label>
 
               <label class="toggle-row">
                 <input id="counterP2WeakNotNearMainStructure" type="checkbox">
-                <span><strong>未貼近主判主結／第一硬障礙</strong><small>仍有至少1.5R可管理空間。</small></span>
+                <span><strong>研究記錄｜未貼近主判主結／第一硬障礙</strong><small>最終空間由Obstacle/RR層獨立處理。</small></span>
               </label>
 
               <p id="counterP2WeakFreshSessionSetupNote" class="state-note"></p>
@@ -899,7 +904,7 @@
 
           <label id="transitionLayerP1Row" class="toggle-row hidden">
             <input id="transitionLayerP1" type="checkbox">
-            <span><strong>主判Transition反向｜呢個P1係真正Transition層大位</strong><small>P1＋Q3先可0.25 Probe。</small></span>
+            <span><strong>主判Transition反向｜清晰HTF P1／主要Range Boundary</strong><small>只限P1＋Native Q3，最高0.25 Reaction Probe。</small></span>
           </label>
 
           <label id="p3ConflictTestableRow" class="toggle-row hidden">
@@ -1412,14 +1417,25 @@
           <li><strong>雙健康同向：</strong>最高1注。</li>
           <li><strong>同向但含弱勢／轉換：</strong>最高0.5注。</li>
           <li><strong>衝突但順主判：</strong>P1／P2＋右側確認，最高0.5注。</li>
-          <li><strong>順次判、逆主判：</strong>Counter-main Q2目前正式0注；P2／P2-E只限Route A／B或Active P1 Tailwind＋Native Q3，最高0.25。P1 Q3按窄義反轉／方向規則處理。</li>
+          <li><strong>逆主判拆開處理：</strong>主判弱＝只認Route A/B＋Native Q3；主判健康＝只認Active HTF P1第一反應＋Native Q3。兩者最高都係0.25，任何Q2＝0。</li>
           <li><strong>P1順風路徑：</strong>健康／弱主判按原規則；主判Transition只限中性，或交易方向順主判偏向。仍有效P1順風＋P2／P2-E＋Q3＝最高0.25。</li>
           <li><strong>Transition反例：</strong>轉換偏升做Short、轉換偏跌做Long，都唔可以借P1順風取得P2權限。</li>
-          <li><strong>弱主判Route A：</strong>主判次結／工作結構Break＋Acceptance＋第一次Retest＋P1/P2以上＋Native Q3。</li>
-          <li><strong>弱主判Route B：</strong>健康逆向次判＋P1/P2/P2-E＋Native Q3＋全新獨立高質Session Confirmation＋至少1.5R＋未到成熟腿尾／未貼近主判主結。</li>
-          <li><strong>P1：</strong>Route A/B可以成立同記錄，但P1本身按Matrix；A/B唔疊加Size。</li>
-          <li><strong>P2／P2-E：</strong>P1順風、Route A、Route B任一成立即可解鎖最高0.25；三者可以同時成立但永遠唔疊加。</li>
+          <li><strong>K｜逆弱主判 Route A：</strong>主判次結／工作結構Break＋Acceptance＋第一次Retest＋P1/P2/P2-E＋Native Q3 → 0.25。</li>
+          <li><strong>K｜逆弱主判 Route B：</strong>健康逆向次判＋P1/P2/P2-E＋Native Q3＋全新獨立Session Confirmation → 0.25。</li>
+          <li><strong>K鎖死：</strong>冇Route A/B＝0；P1都唔例外。P1順風只作背景記錄，唔係第三條Permission。</li>
+          <li><strong>L｜逆健康主判：</strong>正常0；Active HTF P1第一反應＋P1/P2/P2-E＋Native Q3右側反轉先0.25。</li>
           <li><strong>雙轉換／Range：</strong>只做邊界；Range中間固定0。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>V1.28.3｜C / E / J / M Route修正</h2>
+        <ul>
+          <li><strong>C：</strong>一層Directional Transition＋另一層Confirmed同方向：P1/P2 Q3＝0.5、Q2＝0.25；P2-E＋Q2全局最多0.25。</li>
+          <li><strong>E：</strong>主判中性Transition＋次判Confirmed，順次判：唔再歸Neutral Transition；Size同C，但Objective固定Reaction。</li>
+          <li><strong>J：</strong>主判Directional Transition＋次判Confirmed反方向：做任何一邊Size暫時一樣；P1 Q3＝0.5、Q2＝0.25；P2 Q3＝0.25、Q2＝0；P3＝0。Control Alignment分研究Tag。</li>
+          <li><strong>M：</strong>主判中性Transition但逆次判Confirmed：正常0；清晰HTF P1／主要Range Boundary＋Native Q3先0.25 Reaction Probe。</li>
+          <li><strong>F：</strong>Neutral／Range Transition保留原規則，而且永遠排除Expansion。</li>
         </ul>
       </article>
 

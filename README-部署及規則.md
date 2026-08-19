@@ -1,86 +1,60 @@
-# Master Trade System V1.28.2｜Weak-main Route A/B Independent Confirmation
+# Master Trade System V1.28.3｜Route Correction
 
-## 今次規則修正
+## 今次只改
 
-主判弱、次判已向主判反方向發展時：
+- C｜單層Directional Transition＋另一層Confirmed同向
+- E｜主判中性Transition＋次判Confirmed
+- J｜主判Directional Transition＋次判Confirmed反方向
+- K｜逆弱主判
+- L｜逆健康主判
+- M｜主判中性但逆次判Confirmed
+- P2-E＋Native Q2全局Modifier
+- XAU E/E+ Location Enhancement與Q2 subtype解耦
 
-### Route A｜Structure Break Route
+A/B/D/F/H/I Matrix route保持。F Neutral/Range永遠唔會Expansion。
 
-> 主判弱
-> ＋主判次結／工作結構有效Break＋Acceptance
-> ＋第一次Retest
-> ＋P1／P2或P2-effective
-> ＋Native Q3
+## K｜逆弱主判
 
-P1：
-- Route A可以成立及記錄
-- P1本身按Matrix判Size
-- Route A只係Confirmation，唔額外加Size
+只認兩條正式Route：
 
-P2／P2-effective：
-- Route A可以解鎖逆弱主判最高0.25
+- Route A：弱主判＋工作/次結Break＋Acceptance＋First Retest＋P1/P2/P2-E＋Native Q3
+- Route B：弱主判＋健康逆向次判＋P1/P2/P2-E＋Native Q3＋全新獨立Session Confirmation
 
-### Route B｜Fresh Session Confirmation
+Route成立最高0.25。P1都係0.25 cap；冇Route＝0。Active P1 Tailwind可記錄，但唔再係K第三條Permission。
 
-> 主判弱
-> ＋次判已建立健康反方向Trend
-> ＋P1／P2或P2-effective
-> ＋Native Q3
-> ＋新Session獨立Confirmation
-> ＋主判工作結構突破維持
-> ＋去主判主結／第一硬障礙至少1.5R
-> ＋未到成熟逆向腿尾
-> ＋未貼近主判主結
+## L｜逆健康主判
 
-P1：
-- Route B可以成立及記錄
-- P1本身按Matrix
-- Route B唔額外加Size
+正常0。只有Active HTF P1第一反應／P1 Tailwind＋P1/P2/P2-E＋Native Q3右側反轉，最高0.25 Reaction Probe。
 
-P2／P2-effective：
-- Route B可以解鎖逆弱主判最高0.25
+## E / M
 
-## P1順風改成完全獨立
+主判中性Transition＋次判Confirmed唔再分類Neutral Transition。
 
-P1順風、Route A、Route B係三個獨立事實：
+- 跟次判Confirmed方向＝E：P1/P2 Q3 0.5、Q2 0.25；Objective固定Reaction。
+- 逆次判Confirmed＝M：正常0；清晰HTF P1／Range Boundary＋Q3先0.25 Reaction Probe。
 
-- 可以同時存在
-- P1順風有效唔會再disable Route A/B selector
-- 可以記錄Tailwind同時又有Route A/B
-- 多條資格永遠唔疊加Size
+## J
 
-P2／P2-effective＋Native Q3：
+主判Directional Transition與次判Confirmed反方向：做次判方向或做主判Transition Bias方向，Size暫時相同：
 
-> P1順風 OR Route A OR Route B
-> → 逆弱主判最高0.25
+- P1 Q3 0.5 / Q2 0.25
+- P2/P2-E Q3 0.25 / Q2 0
+- P3 0
 
-即使三條全部成立：
+Control Alignment繼續記Confirmed/Opposing研究Tag。
 
-> 仍然最高0.25
+## P2-E＋Q2
 
-P1＋Native Q3：
+全局最高0.25，但唔會將原本route Q2＝0嘅情況救成0.25。
 
-> 本身按conflictSecondary Matrix最高0.5
-> Route A/B只作Confirmation，唔會0.5再加上去
+## Q2 subtype
 
-## Live Decision
+Q2-R/RR/F/D/S全部只作紀錄；除非F+D+S令Native Q本身變Q1，否則Subtype唔直接改Size。
 
-Live模式嘅P1順風保留獨立select。
+## XAU E/E+
 
-Route A/B selector改成只記：
-- None
-- Route A
-- Route B
+Q2-F/D/S唔再取消有效Location Enhancement。有效PWH/PWL、PDH/PDL、Asia H/L E/E+如本身Location條件成立，Raw P3仍可P2-effective；Native Q保持原級。真正Invalid Retest仍然唔可以靠E救。
 
-唔再將P1順風塞入同一個Route selector，所以可以同時選：
-- P1順風有效
-- Route A / Route B
+## N
 
-## 相容性
-
-- 原有counterP2欄位及CSV欄位保持
-- CSV維持149欄
-- 舊紀錄／舊CSV可繼續讀取
-- V1.28.1 Previous H/L Sweep更新全部保留
-- XAU/FX Previous H/L Setup不變
-- Matrix V1.3其他route、Q2 subtype、Transition、Objective規則不變
+今版未改Global HTF P1 Reversal Exception；仍保留V1.28.2現行窄義alignedReverse適用範圍，等用戶確認是否Global化。
