@@ -1,87 +1,86 @@
-# Master Trade System V1.28.1｜Previous H/L Sweep Setup
+# Master Trade System V1.28.2｜Weak-main Route A/B Independent Confirmation
 
-## 今次更新
+## 今次規則修正
 
-### XAU-B
+主判弱、次判已向主判反方向發展時：
 
-由原本：
+### Route A｜Structure Break Route
 
-> XAU-B｜Asia Sweep PDH／PDL
+> 主判弱
+> ＋主判次結／工作結構有效Break＋Acceptance
+> ＋第一次Retest
+> ＋P1／P2或P2-effective
+> ＋Native Q3
 
-改成：
+P1：
+- Route A可以成立及記錄
+- P1本身按Matrix判Size
+- Route A只係Confirmation，唔額外加Size
 
-> XAU-B｜Sweep PDH／PDL 或 PWH／PWL
+P2／P2-effective：
+- Route A可以解鎖逆弱主判最高0.25
 
-入場前會獨立記錄兩項：
+### Route B｜Fresh Session Confirmation
 
-1. 被Sweep嘅Liquidity Pool
-   - PDH／PDL
-   - PWH／PWL
+> 主判弱
+> ＋次判已建立健康反方向Trend
+> ＋P1／P2或P2-effective
+> ＋Native Q3
+> ＋新Session獨立Confirmation
+> ＋主判工作結構突破維持
+> ＋去主判主結／第一硬障礙至少1.5R
+> ＋未到成熟逆向腿尾
+> ＋未貼近主判主結
 
-2. Sweep發生Session
-   - Asia
-   - Europe／London
+P1：
+- Route B可以成立及記錄
+- P1本身按Matrix
+- Route B唔額外加Size
 
-四個組合全部可以正式記錄：
+P2／P2-effective：
+- Route B可以解鎖逆弱主判最高0.25
 
-- Asia Sweep PDH／PDL
-- Europe Sweep PDH／PDL
-- Asia Sweep PWH／PWL
-- Europe Sweep PWH／PWL
+## P1順風改成完全獨立
 
-XAU仍沿用Matrix V1.3：
+P1順風、Route A、Route B係三個獨立事實：
 
-- PWH／PWL高質Sweep＝E+
-- PDH／PDL高質Sweep＝E+
-- Raw P3可按既有條件取得P2-effective
-- Native Q永久保留
-- Q2唔會因E+改名Q3
-- E+唔會創造方向權限
+- 可以同時存在
+- P1順風有效唔會再disable Route A/B selector
+- 可以記錄Tailwind同時又有Route A/B
+- 多條資格永遠唔疊加Size
 
-內部Setup代碼 `xau_asia_pdh_pdl` 暫時保留，避免破壞舊紀錄相容性；只更新其正式名稱與判定範圍。
+P2／P2-effective＋Native Q3：
 
-## FX新增正式Setup
+> P1順風 OR Route A OR Route B
+> → 逆弱主判最高0.25
 
-新增：
+即使三條全部成立：
 
-> FX-B｜Sweep PDH／PDL 或 PWH／PWL
+> 仍然最高0.25
 
-同樣記錄：
+P1＋Native Q3：
 
-- PDH／PDL 或 PWH／PWL
-- Asia 或 Europe／London Sweep
+> 本身按conflictSecondary Matrix最高0.5
+> Route A/B只作Confirmation，唔會0.5再加上去
 
-但V1.28.1暫時：
+## Live Decision
 
-> FX Previous H/L Sweep本身冇自動E、冇P3→P2-effective權力。
+Live模式嘅P1順風保留獨立select。
 
-所以FX仍然按Raw P＋Native Q＋Market State Matrix處理，等後續sample再決定有冇instrument-specific E。
+Route A/B selector改成只記：
+- None
+- Route A
+- Route B
 
-原本FX普通Liquidity Sweep改名：
+唔再將P1順風塞入同一個Route selector，所以可以同時選：
+- P1順風有效
+- Route A / Route B
 
-> FX-Other｜普通Liquidity Sweep
+## 相容性
 
-邏輯不變。
-
-## Journal／CSV
-
-新增4個欄位：
-
-- Previous H/L來源代碼
-- Previous H/L來源
-- Previous H/L Sweep Session代碼
-- Previous H/L Sweep Session
-
-舊CSV仍可匯入；舊紀錄未有呢4欄時保持空白。
-
-## 保留
-
-- Master Trade Matrix V1.3 Frozen size rules
-- Transition Type
-- Control Alignment
-- Q2 subtype
-- Trade Objective
-- XAU E/E+原有規則
-- 批量刪除
-- 紀錄視窗點擊外圍關閉
-- 原有LocalStorage及圖片IndexedDB
+- 原有counterP2欄位及CSV欄位保持
+- CSV維持149欄
+- 舊紀錄／舊CSV可繼續讀取
+- V1.28.1 Previous H/L Sweep更新全部保留
+- XAU/FX Previous H/L Setup不變
+- Matrix V1.3其他route、Q2 subtype、Transition、Objective規則不變

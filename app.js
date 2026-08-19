@@ -3101,7 +3101,7 @@ function freshSessionSetupInfo(
   };
 }
 
-function counterP2EligibilityInfo(
+function weakCounterRouteConfirmationInfo(
   positionOverride = null,
   qualityOverride = null,
   baseTriggerOverride = null,
@@ -3120,6 +3120,12 @@ function counterP2EligibilityInfo(
     positionOverride ||
     $("positionLevel").value;
 
+  const quality =
+    qualityOverride ||
+    setupResultOverride?.effectiveQuality ||
+    currentAsia2B?.effectiveQuality ||
+    "Q1";
+
   const setupResult =
     setupResultOverride ||
     currentAsia2B;
@@ -3127,6 +3133,228 @@ function counterP2EligibilityInfo(
   const baseTrigger =
     baseTriggerOverride ||
     currentBaseTrigger;
+
+  const path =
+    $("counterP2WeakPermissionPath")
+      .value;
+
+  const applicable =
+    route.code ===
+      "conflictSecondary" &&
+    isWeak(mainState) &&
+    ["P1","P2"].includes(
+      position
+    );
+
+  if (!applicable) {
+    return {
+      applicable: false,
+      confirmed: false,
+      path,
+      basis: "none",
+      reason:
+        "Route A／B Confirmation目前不適用。",
+      missing: []
+    };
+  }
+
+  if (path === "none") {
+    return {
+      applicable: true,
+      confirmed: false,
+      path,
+      basis: "none",
+      reason:
+        position === "P1"
+          ? "P1目前未揀Route A／B；P1仍按本身Matrix判Size。"
+          : "P2／P2-E目前未揀Route A／B；P1順風仍會獨立判定。",
+      missing: []
+    };
+  }
+
+  if (quality !== "Q3") {
+    return {
+      applicable: true,
+      confirmed: false,
+      path,
+      basis: path,
+      reason:
+        "Route A／B都要求Native Q3；目前Q唔合格。",
+      missing: [
+        "Native Q3"
+      ]
+    };
+  }
+
+  if (
+    path === "weakBreakRetest"
+  ) {
+    return {
+      applicable: true,
+      confirmed: true,
+      path,
+      basis:
+        "weakBreakRetest",
+      reason:
+        `Route A成立：弱主判＋主判次結／工作結構有效Break＋Acceptance＋第一次Retest＋${position}＋Native Q3。${position === "P1" ? "P1本身按Matrix，Route A只作Confirmation，唔加Size。" : "P2／P2-E可由Route A解鎖最高0.25。"}`,
+      missing: []
+    };
+  }
+
+  if (
+    path === "weakFreshSession"
+  ) {
+    const setupInfo =
+      freshSessionSetupInfo(
+        setupResult,
+        baseTrigger
+      );
+
+    const obstacleR =
+      numericInputValue(
+        "counterP2WeakHardObstacleR"
+      );
+
+    const checks = [
+      {
+        ok:
+          isHealthy(
+            secondaryState
+          ),
+        text:
+          "次判必須係健康反方向Trend"
+      },
+      {
+        ok:
+          checked(
+            "counterP2WeakWorkStructureHeld"
+          ),
+        text:
+          "主判近端次結／工作結構已突破、Acceptance，而且未Reclaim"
+      },
+      {
+        ok:
+          checked(
+            "counterP2WeakIndependentSession"
+          ),
+        text:
+          "今次必須係全新、獨立Session催化"
+      },
+      {
+        ok:
+          setupInfo.recognized,
+        text:
+          "Setup必須係EU-B／高質EU-D／其他同級開市後Setup"
+      },
+      {
+        ok:
+          setupInfo.coreValid,
+        text:
+          "Session Setup核心確認必須完整"
+      },
+      {
+        ok:
+          setupInfo.openingFresh,
+        text:
+          "Opening／Session故事必須仍然新鮮"
+      },
+      {
+        ok:
+          obstacleR !== null &&
+          obstacleR >= 1.5,
+        text:
+          "去主判主結／第一硬障礙至少1.5R"
+      },
+      {
+        ok:
+          checked(
+            "counterP2WeakNotMatureLeg"
+          ),
+        text:
+          "唔可以處於次判成熟逆向腿尾段"
+      },
+      {
+        ok:
+          checked(
+            "counterP2WeakNotNearMainStructure"
+          ),
+        text:
+          "唔可以貼近主判主結／第一硬障礙"
+      }
+    ];
+
+    const missing =
+      checks
+        .filter(
+          (item) =>
+            !item.ok
+        )
+        .map(
+          (item) =>
+            item.text
+        );
+
+    if (
+      missing.length === 0
+    ) {
+      return {
+        applicable: true,
+        confirmed: true,
+        path,
+        basis:
+          "weakFreshSession",
+        reason:
+          `Route B成立：弱主判＋健康逆向次判＋${setupInfo.label}新Session獨立Confirmation＋${position}＋Native Q3＋硬障礙${obstacleR.toFixed(2)}R。${position === "P1" ? "P1本身按Matrix，Route B只作Confirmation，唔加Size。" : "P2／P2-E可由Route B解鎖最高0.25。"}`,
+        missing: [],
+        setupInfo,
+        obstacleR
+      };
+    }
+
+    return {
+      applicable: true,
+      confirmed: false,
+      path,
+      basis:
+        "weakFreshSession",
+      reason:
+        `Route B未完整：${missing.join("；")}。`,
+      missing,
+      setupInfo,
+      obstacleR
+    };
+  }
+
+  return {
+    applicable: true,
+    confirmed: false,
+    path,
+    basis: "none",
+    reason:
+      "未識別Route A／B選項。",
+    missing: []
+  };
+}
+
+function counterP2EligibilityInfo(
+  positionOverride = null,
+  qualityOverride = null,
+  baseTriggerOverride = null,
+  setupResultOverride = null
+) {
+  const route =
+    marketRouteInfo();
+
+  const mainState =
+    $("mainState").value;
+
+  const position =
+    positionOverride ||
+    $("positionLevel").value;
+
+  const setupResult =
+    setupResultOverride ||
+    currentAsia2B;
 
   const quality =
     qualityOverride ||
@@ -3142,7 +3370,7 @@ function counterP2EligibilityInfo(
       eligible: false,
       basis: "none",
       reason:
-        "逆主判P2特殊資格目前不適用。",
+        "P2／P2-E解鎖資格目前不適用；P1如有Route A／B只作Confirmation，Size仍按P1 Matrix。",
       missing: []
     };
   }
@@ -3152,43 +3380,36 @@ function counterP2EligibilityInfo(
       eligible: false,
       basis: "none",
       reason:
-        "逆主判P2所有資格都只接受Entry-time Q3；Q2固定0注。",
+        "逆主判P2所有解鎖資格都只接受Native Q3；Q2固定0注。",
       missing: [
-        "Entry-time必須Q3"
+        "Native Q3"
       ]
     };
   }
-
-  const trendMain =
-    isHealthy(mainState) ||
-    isWeak(mainState);
 
   const p1TailwindValid =
     $("p1BackgroundTailwind")
       .value === "valid";
 
   if (
-    trendMain &&
-    p1TailwindValid
-  ) {
-    return {
-      eligible: true,
-      basis:
-        "p1Tailwind",
-      reason:
-        "P1順風路徑成立：有效P1順風＋P2／P2-E＋Q3，健康或弱主判均可；逆主判方向最高0.25。多條資格同時成立都唔疊加。",
-      missing: []
-    };
-  }
-
-  if (
     isHealthy(mainState)
   ) {
+    if (p1TailwindValid) {
+      return {
+        eligible: true,
+        basis:
+          "p1Tailwind",
+        reason:
+          "主判健康：有效P1順風＋P2／P2-E＋Native Q3成立，逆主判最高0.25。Route A／B只適用弱主判。",
+        missing: []
+      };
+    }
+
     return {
       eligible: false,
       basis: "none",
       reason:
-        "主判健康：逆向P2必須有仍有效P1順風；路徑A／B只適用弱主判。",
+        "主判健康：逆向P2只可以靠仍有效P1順風；Route A／B只適用弱主判。",
       missing: [
         "有效P1順風"
       ]
@@ -3198,149 +3419,66 @@ function counterP2EligibilityInfo(
   if (
     isWeak(mainState)
   ) {
-    const path =
-      $("counterP2WeakPermissionPath")
-        .value;
+    const routeConfirmation =
+      weakCounterRouteConfirmationInfo(
+        position,
+        quality,
+        baseTriggerOverride,
+        setupResultOverride
+      );
+
+    const qualifiers = [];
+
+    if (p1TailwindValid) {
+      qualifiers.push(
+        "P1順風"
+      );
+    }
 
     if (
-      path === "weakBreakRetest"
+      routeConfirmation.confirmed
+    ) {
+      qualifiers.push(
+        routeConfirmation.basis ===
+          "weakBreakRetest"
+          ? "Route A"
+          : "Route B"
+      );
+    }
+
+    if (
+      qualifiers.length > 0
     ) {
       return {
         eligible: true,
         basis:
-          "weakBreakRetest",
+          p1TailwindValid
+            ? "p1Tailwind"
+            : routeConfirmation.basis,
         reason:
-          "路徑A成立：弱主判＋主判次結有效突破／Acceptance＋第一次Retest＋P2／P2-E＋Q3，最高0.25。",
-        missing: []
-      };
-    }
-
-    if (
-      path === "weakFreshSession"
-    ) {
-      const setupInfo =
-        freshSessionSetupInfo(
-          setupResult,
-          baseTrigger
-        );
-
-      const obstacleR =
-        numericInputValue(
-          "counterP2WeakHardObstacleR"
-        );
-
-      const checks = [
-        {
-          ok:
-            isHealthy(
-              secondaryState
-            ),
-          text:
-            "次判必須係健康反方向趨勢"
-        },
-        {
-          ok:
-            checked(
-              "counterP2WeakWorkStructureHeld"
-            ),
-          text:
-            "主判近端次結／工作結構已突破、Acceptance，而且未Reclaim"
-        },
-        {
-          ok:
-            checked(
-              "counterP2WeakIndependentSession"
-            ),
-          text:
-            "今次必須係全新、獨立Session催化"
-        },
-        {
-          ok:
-            setupInfo.recognized,
-          text:
-            "Setup必須係EU-B／高質EU-D／其他同級開市後Setup"
-        },
-        {
-          ok:
-            setupInfo.coreValid,
-          text:
-            "Session Setup核心確認必須完整"
-        },
-        {
-          ok:
-            setupInfo.openingFresh,
-          text:
-            "Opening／Session故事必須仍然新鮮"
-        },
-        {
-          ok:
-            obstacleR !== null &&
-            obstacleR >= 1.5,
-          text:
-            "去主判主結／第一硬障礙至少1.5R"
-        },
-        {
-          ok:
-            checked(
-              "counterP2WeakNotMatureLeg"
-            ),
-          text:
-            "唔可以處於次判成熟逆向腿尾段"
-        },
-        {
-          ok:
-            checked(
-              "counterP2WeakNotNearMainStructure"
-            ),
-          text:
-            "唔可以貼近主判主結／第一硬障礙"
-        }
-      ];
-
-      const missing =
-        checks
-          .filter(
-            (item) =>
-              !item.ok
-          )
-          .map(
-            (item) =>
-              item.text
-          );
-
-      if (missing.length === 0) {
-        return {
-          eligible: true,
-          basis:
-            "weakFreshSession",
-          reason:
-            `路徑B成立：弱主判＋健康逆向次判＋${setupInfo.label}重新啟動趨勢＋P2／P2-E＋Q3＋硬障礙${obstacleR.toFixed(2)}R；最高0.25，永遠唔升0.5。`,
-          missing: [],
-          setupInfo,
-          obstacleR
-        };
-      }
-
-      return {
-        eligible: false,
-        basis:
-          "weakFreshSession",
-        reason:
-          `路徑B未完整：${missing.join("；")}。`,
-        missing,
-        setupInfo,
-        obstacleR
+          `逆弱主判P2解鎖成立：${qualifiers.join("＋")}；P2／P2-E＋Native Q3最高0.25。多條資格同時成立都唔疊加。${routeConfirmation.path !== "none" ? ` ${routeConfirmation.reason}` : ""}`,
+        missing: [],
+        routeConfirmation
       };
     }
 
     return {
       eligible: false,
-      basis: "none",
+      basis:
+        routeConfirmation.basis ||
+        "none",
       reason:
-        "弱主判未有有效P1順風；請揀路徑A「主判次結首次Retest」或路徑B「健康次判＋新Session獨立確認」。",
-      missing: [
-        "有效P1順風、路徑A或路徑B均未成立"
-      ]
+        routeConfirmation.path !==
+          "none"
+          ? `${routeConfirmation.reason} 同時P1順風亦未成立，所以P2／P2-E仍然0注。`
+          : "弱主判：P2／P2-E＋Native Q3要由P1順風、Route A或Route B其中一條解鎖；三者可以同時存在，但唔疊加。",
+      missing:
+        routeConfirmation.missing?.length
+          ? routeConfirmation.missing
+          : [
+              "P1順風、Route A、Route B均未成立"
+            ],
+      routeConfirmation
     };
   }
 
@@ -3352,7 +3490,6 @@ function counterP2EligibilityInfo(
     missing: []
   };
 }
-
 
 function transitionP1TailwindEligibilityInfo(
   positionOverride = null,
@@ -5101,19 +5238,25 @@ function updateCounterP2PermissionUI(
     effectivePosition ||
     $("positionLevel").value;
 
-  const showCounterP2 =
+  const showCounterContext =
     route.code ===
       "conflictSecondary" &&
+    ["P1","P2"].includes(
+      resolvedPosition
+    );
+
+  const showCounterP2 =
+    showCounterContext &&
     resolvedPosition === "P2";
 
   $("counterP2EligibilityNote")
     .classList.toggle(
       "hidden",
-      !showCounterP2
+      !showCounterContext
     );
 
   const showWeakPanel =
-    showCounterP2 &&
+    showCounterContext &&
     isWeak(mainState);
 
   $("counterP2WeakPermissionPanel")
@@ -5127,14 +5270,8 @@ function updateCounterP2PermissionUI(
       .value = "none";
   }
 
-  const p1TailwindActive =
-    $("p1BackgroundTailwind")
-      .value === "valid";
-
   $("counterP2WeakPermissionPath")
-    .disabled =
-      showWeakPanel &&
-      p1TailwindActive;
+    .disabled = false;
 
   const selectedPath =
     $("counterP2WeakPermissionPath")
@@ -5142,13 +5279,11 @@ function updateCounterP2PermissionUI(
 
   $("counterP2WeakBreakRetest")
     .checked =
-      !p1TailwindActive &&
       selectedPath ===
         "weakBreakRetest";
 
   const showFreshPanel =
     showWeakPanel &&
-    !p1TailwindActive &&
     selectedPath ===
       "weakFreshSession";
 
@@ -5174,15 +5309,31 @@ function updateCounterP2PermissionUI(
             : "目前核心Setup唔係App自動識別嘅EU-B／高質EU-D／高質Session Setup；只有真正同級Setup先可手動勾選。";
   }
 
-  if (showCounterP2) {
-    $("counterP2EligibilityNote")
-      .textContent =
-        counterP2EligibilityInfo(
+  if (showCounterContext) {
+    if (
+      resolvedPosition === "P1"
+    ) {
+      const confirmation =
+        weakCounterRouteConfirmationInfo(
           resolvedPosition,
           effectiveQuality,
           baseTrigger,
           setupResult
-        ).reason;
+        );
+
+      $("counterP2EligibilityNote")
+        .textContent =
+          `P1逆弱主判：P1＋Native Q3本身按Matrix最高0.5；Route A／B只作Confirmation，唔會加Size。${confirmation.reason}`;
+    } else {
+      $("counterP2EligibilityNote")
+        .textContent =
+          counterP2EligibilityInfo(
+            resolvedPosition,
+            effectiveQuality,
+            baseTrigger,
+            setupResult
+          ).reason;
+    }
   }
 }
 
@@ -6131,9 +6282,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.28.1",
+      "PracticeJournal-V1.28.2",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r1-PreviousHLSweep",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r2-WeakMainABIndependent",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7541,6 +7692,17 @@ async function openRecord(recordId) {
       )
     )}
     <br>
+    <strong>逆弱主判 Route A／B Confirmation：</strong>
+    ${escapeHtml(
+      record.counterP2WeakPermissionPath ===
+        "weakBreakRetest"
+        ? "Route A｜Structure Break Route"
+        : record.counterP2WeakPermissionPath ===
+            "weakFreshSession"
+          ? "Route B｜Fresh Session Confirmation"
+          : "冇A／B"
+    )}
+    <br>
     <strong>路徑B資料：</strong>
     ${escapeHtml(
       record.counterP2Basis ===
@@ -8071,7 +8233,7 @@ function buildCsv(records) {
     "逆主判P2特殊資格",
     "逆主判P2資格基礎",
     "逆主判P2資格原因",
-    "逆弱主判P2權限路徑",
+    "逆弱主判Route A/B",
     "主判弱勢次結突破首次Retest",
     "路徑B主判工作結構突破維持",
     "路徑B獨立Session催化",
@@ -9821,6 +9983,7 @@ function recordFromCsvRow(row) {
     counterP2WeakPermissionPath:
       firstCsvValue(
         row,
+        "逆弱主判Route A/B",
         "逆弱主判P2權限路徑"
       ) || (
         csvBoolean(
@@ -11430,22 +11593,33 @@ function recalculateLiveDecision() {
     $("liveP3ConflictTestable").checked = false;
   }
 
-  const showCounterP2 =
+  const showCounterContext =
     routeCode === "conflictSecondary" &&
+    ["P1","P2"].includes(
+      effectivePosition
+    );
+
+  const showCounterP2 =
+    showCounterContext &&
     effectivePosition === "P2";
+
   $("liveCounterP2BasisRow").classList.toggle(
     "hidden",
-    !showCounterP2
+    !showCounterContext
   );
-  if (!showCounterP2) {
+
+  if (!showCounterContext) {
     $("liveCounterP2Basis").value = "none";
   }
 
   const liveCounterBasis =
     $("liveCounterP2Basis").value;
+
   const showLiveFreshSession =
-    showCounterP2 &&
-    liveCounterBasis === "weakFreshSession";
+    showCounterContext &&
+    liveCounterBasis ===
+      "weakFreshSession";
+
   $("liveWeakFreshSessionPanel").classList.toggle(
     "hidden",
     !showLiveFreshSession
@@ -11455,7 +11629,8 @@ function recalculateLiveDecision() {
     numericInputValue(
       "liveWeakFreshHardObstacleR"
     );
-  const freshSessionEligible =
+
+  const freshSessionConfirmationComplete =
     showLiveFreshSession &&
     nativeQuality === "Q3" &&
     checked("liveWeakFreshWorkStructureHeld") &&
@@ -11466,15 +11641,26 @@ function recalculateLiveDecision() {
     checked("liveWeakFreshNotMatureLeg") &&
     checked("liveWeakFreshNotNearMainStructure");
 
+  const weakBreakConfirmationComplete =
+    showCounterContext &&
+    liveCounterBasis ===
+      "weakBreakRetest" &&
+    nativeQuality === "Q3";
+
   const p1TailwindEligible =
     showCounterP2 &&
-    liveCounterBasis === "p1Tailwind" &&
-    $("liveP1Tailwind").value === "valid" &&
+    $("liveP1Tailwind").value ===
+      "valid" &&
     nativeQuality === "Q3";
+
   const weakBreakRetestEligible =
     showCounterP2 &&
-    liveCounterBasis === "weakBreakRetest" &&
-    nativeQuality === "Q3";
+    weakBreakConfirmationComplete;
+
+  const freshSessionEligible =
+    showCounterP2 &&
+    freshSessionConfirmationComplete;
+
   const counterP2Eligible =
     p1TailwindEligible ||
     weakBreakRetestEligible ||
@@ -11771,6 +11957,11 @@ function recalculateLiveDecision() {
   const notes = [
     `Matrix V1.3 Frozen｜市場：${MARKET_CONFIG[marketCode(true)].label}。`,
     `Setup：${definition.label}。`,
+    showCounterContext
+      ? effectivePosition === "P1"
+        ? `逆弱主判Confirmation：${liveCounterBasis === "weakBreakRetest" ? "Route A" : liveCounterBasis === "weakFreshSession" ? "Route B" : "冇A/B"}；P1本身按Matrix，A/B唔加Size。`
+        : `逆弱主判P2解鎖：P1順風${$("liveP1Tailwind").value === "valid" ? "有效" : "未成立"}／${liveCounterBasis === "weakBreakRetest" ? "Route A" : liveCounterBasis === "weakFreshSession" ? "Route B" : "冇A/B"}；任一合格最高0.25，唔疊加。`
+      : "",
     livePreviousHLInfo.applicable
       ? `Previous H/L Sweep：${livePreviousHLInfo.sourceLabel}｜${livePreviousHLInfo.sessionLabel}。`
       : "",

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.28.1</span>
+    <span class="version-badge">V1.28.2</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -201,7 +201,7 @@
         </article>
 
         <article class="card live-step">
-          <div class="live-step-title"><span>STEP 3</span><h2>位置P＋逆主判P2資格</h2></div>
+          <div class="live-step-title"><span>STEP 3</span><h2>位置P＋逆弱主判 Confirmation</h2></div>
           <label>
             原始Entry位置
             <select id="livePosition">
@@ -223,12 +223,11 @@
 
           <div id="liveCounterP2BasisRow" class="conditional-panel hidden">
             <label>
-              逆主判P2特殊資格
+              逆弱主判｜Route A／B Confirmation
               <select id="liveCounterP2Basis">
-                <option value="none">冇｜P2正常0注</option>
-                <option value="p1Tailwind">P1順風｜健康／弱主判均適用</option>
-                <option value="weakBreakRetest">路徑A｜弱主判次結突破＋首次Retest</option>
-                <option value="weakFreshSession">路徑B｜弱主判＋健康次判＋新Session確認</option>
+                <option value="none">冇A／B｜P1順風由上方獨立判定</option>
+                <option value="weakBreakRetest">Route A｜弱主判次結／工作結構Break＋Acceptance＋首次Retest</option>
+                <option value="weakFreshSession">Route B｜弱主判＋健康次判＋新Session Confirmation</option>
               </select>
             </label>
 
@@ -264,7 +263,7 @@
               </label>
             </div>
 
-            <p class="state-note">P1順風、路徑A、路徑B三者任一成立即可；全部只限P2／P2-E＋Q3，最高0.25。多條同時成立都唔疊加，永遠唔升0.5。</p>
+            <p class="state-note">P1順風、Route A、Route B可以同時存在。P1＋Native Q3本身按Matrix，A/B只作Confirmation；P2／P2-E＋Native Q3就由三者任一解鎖最高0.25，多條同時成立都唔疊加。</p>
           </div>
 
           <div id="liveHTFP1ReversalExceptionRow" class="conditional-panel hidden">
@@ -836,16 +835,16 @@
 
           <div id="counterP2WeakPermissionPanel" class="conditional-panel hidden">
             <div class="principle-box">
-              <strong>P1順風會自動優先判定</strong>
-              <span>上方P1順風仍有效＋P2／P2-E＋Entry-time Q3，即可取得逆主判最高0.25；健康或弱主判都適用，唔需要再揀路徑A／B。</span>
+              <strong>P1順風、Route A、Route B係獨立事實｜可以同時成立</strong>
+              <span>P1＋Native Q3本身按Matrix最高0.5；A/B只作Confirmation。P2／P2-E＋Native Q3就由P1順風、Route A、Route B其中一條解鎖最高0.25。多條同時成立永遠唔疊加。</span>
             </div>
 
             <label>
-              冇有效P1順風時｜逆弱主判備用路徑
+              逆弱主判｜Route A／B Confirmation
               <select id="counterP2WeakPermissionPath">
-                <option value="none" selected>冇額外路徑｜P1順風有效仍會自動取得資格</option>
-                <option value="weakBreakRetest">路徑A｜主判次結突破＋Acceptance＋首次Retest</option>
-                <option value="weakFreshSession">路徑B｜健康次判＋新Session獨立確認</option>
+                <option value="none" selected>冇A／B｜P1順風仍會獨立判定</option>
+                <option value="weakBreakRetest">Route A｜主判次結／工作結構Break＋Acceptance＋首次Retest</option>
+                <option value="weakFreshSession">Route B｜健康次判＋新Session獨立Confirmation</option>
               </select>
             </label>
 
@@ -853,8 +852,8 @@
 
             <div id="counterP2WeakFreshSessionPanel" class="conditional-panel hidden">
               <div class="principle-box">
-                <strong>路徑B只係窄義例外</strong>
-                <span>只限弱主判；次判已健康逆向，再由全新Session催化重新啟動。全部條件成立都只係最高0.25注。</span>
+                <strong>Route B｜Fresh Session Confirmation</strong>
+                <span>只限弱主判；次判已健康逆向，再由全新Session獨立Confirmation。P1成立時只作Confirmation；P2／P2-E成立時先解鎖最高0.25。</span>
               </div>
 
               <label class="toggle-row">
@@ -1416,9 +1415,10 @@
           <li><strong>順次判、逆主判：</strong>Counter-main Q2目前正式0注；P2／P2-E只限Route A／B或Active P1 Tailwind＋Native Q3，最高0.25。P1 Q3按窄義反轉／方向規則處理。</li>
           <li><strong>P1順風路徑：</strong>健康／弱主判按原規則；主判Transition只限中性，或交易方向順主判偏向。仍有效P1順風＋P2／P2-E＋Q3＝最高0.25。</li>
           <li><strong>Transition反例：</strong>轉換偏升做Short、轉換偏跌做Long，都唔可以借P1順風取得P2權限。</li>
-          <li><strong>弱主判路徑A：</strong>主判次結／工作結構突破＋Acceptance＋第一次Retest。</li>
-          <li><strong>弱主判路徑B：</strong>健康逆向次判＋全新獨立高質Session Setup＋至少1.5R＋未到成熟腿尾／未貼近主判主結。</li>
-          <li><strong>三條資格：</strong>任一成立即可；多條同時成立唔疊加，最高0.25，永遠唔升0.5。</li>
+          <li><strong>弱主判Route A：</strong>主判次結／工作結構Break＋Acceptance＋第一次Retest＋P1/P2以上＋Native Q3。</li>
+          <li><strong>弱主判Route B：</strong>健康逆向次判＋P1/P2/P2-E＋Native Q3＋全新獨立高質Session Confirmation＋至少1.5R＋未到成熟腿尾／未貼近主判主結。</li>
+          <li><strong>P1：</strong>Route A/B可以成立同記錄，但P1本身按Matrix；A/B唔疊加Size。</li>
+          <li><strong>P2／P2-E：</strong>P1順風、Route A、Route B任一成立即可解鎖最高0.25；三者可以同時成立但永遠唔疊加。</li>
           <li><strong>雙轉換／Range：</strong>只做邊界；Range中間固定0。</li>
         </ul>
       </article>

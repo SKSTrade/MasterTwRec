@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.28.1",
+  "name": "Master Trade System V1.28.2",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with XAU-B and FX-B Previous High/Low Sweep setup selection for PDH/PDL or PWH/PWL and Asia or Europe/London session.",
+  "description": "Master Trade Matrix V1.3 Frozen with weak-main Route A/B confirmation available for P1 and P2/P2-effective, independent from P1 tailwind.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
