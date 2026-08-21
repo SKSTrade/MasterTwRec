@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-28-3-route-correction";
+const CACHE_NAME = "master-trade-system-v1-28-6-obstacle-presence-gate";
 const ASSETS = [
   "./",
   "./index.html",

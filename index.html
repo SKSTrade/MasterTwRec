@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.28.3</span>
+    <span class="version-badge">V1.28.6</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -353,23 +353,43 @@
             </select>
           </label>
 
-          <label>
-            第一真實障礙距離
-            <select id="liveObstacle">
-              <option value="standard" selected>≥2R｜Clean｜正常／Expansion候選</option>
-              <option value="rfManaged">1.5R–&lt;2R｜Reaction｜RF／Partial優先</option>
-              <option value="veto">&lt;1.5R｜RR Veto｜0注</option>
-              <option value="inside">已處於重大HTF障礙區｜Size再降一級</option>
-            </select>
+          <label class="toggle-row">
+            <input id="liveHasFirstObstacle" type="checkbox">
+            <span><strong>有第一真實障礙阻住</strong><small>冇就正常按Matrix；Tick後先計距離／類型。</small></span>
           </label>
 
-          <label>
-            障礙類型
-            <select id="liveObstacleKind">
-              <option value="soft" selected>軟障礙｜日內／局部結構</option>
-              <option value="hard">硬障礙｜HTF P1／大型Range／主判主結</option>
-            </select>
-          </label>
+          <div id="liveFirstObstaclePanel" class="conditional-panel hidden">
+            <label>
+              第一真實障礙距離 R
+              <input id="liveFirstObstacleR" type="number" step="0.1" min="0" inputmode="decimal" placeholder="例如 1.7">
+            </label>
+
+            <label>
+              障礙類型
+              <select id="liveObstacleKind">
+                <option value="soft" selected>普通／Soft｜日內／局部結構</option>
+                <option value="hard">重大HTF／Hard｜P1、大型Range、主判主結</option>
+              </select>
+            </label>
+
+            <label>
+              預定管理
+              <select id="liveObstacleManagementPlan">
+                <option value="normal" selected>正常／按結構管理</option>
+                <option value="rf">到障礙推RF</option>
+                <option value="partial">障礙前Partial＋餘倉RF</option>
+              </select>
+            </label>
+          </div>
+
+          <select id="liveObstacle" class="hidden" hidden aria-hidden="true">
+            <option value="none" selected>冇第一真實障礙</option>
+            <option value="standard">≥2R｜Clean</option>
+            <option value="rfManaged">1.5R–&lt;2R</option>
+            <option value="veto">&lt;1.5R</option>
+            <option value="inside">重大HTF障礙</option>
+            <option value="pending">已Tick但未填距離</option>
+          </select>
 
           <div id="liveRFManagedPanel" class="conditional-panel hidden">
             <label class="toggle-row"><input id="liveObstacleSpaceBeyond" type="checkbox"><span>障礙後仍有清楚空間去2R</span></label>
@@ -966,7 +986,7 @@
             <label class="toggle-row"><input id="q2FastRetest" type="checkbox"><span><strong>Q2-F｜Fast Retest</strong><small>時間短、overlap少、progression efficiency高，但未足以Invalid。</small></span></label>
             <label class="toggle-row"><input id="q2DeepRetest" type="checkbox"><span><strong>Q2-D｜Deep Retest</strong><small>約0.786–0.88；接近1／impulse origin重新Acceptance應判Q1。</small></span></label>
             <label class="toggle-row"><input id="q2StrongRetest" type="checkbox"><span><strong>Q2-S｜Strong Retest</strong><small>反向K／displacement偏強，但未建立完整反方向Control。</small></span></label>
-            <p class="state-note">Q2-R由Reclaim／Acceptance普通自動標記；Q2-RR由第一障礙1.5R–&lt;2R自動標記。F＋D＋S同時成立通常直接Q1。</p>
+            <p class="state-note">Q2-R由Reclaim／Acceptance普通自動標記；Q2-RR只會喺有Tick第一障礙而距離1.5R–&lt;2R時自動標記。F＋D＋S同時成立通常直接Q1。</p>
           </div>
 
           <div class="principle-box">
@@ -978,7 +998,6 @@
         <div id="rbTradeSpace" class="hidden" hidden aria-hidden="true">
           <input id="tradeSpace" type="hidden" value="full">
           <input id="obstacleState" type="hidden" value="standard">
-          <select id="obstacleKind"><option value="soft" selected></option></select>
           <div id="rfManagedPanel" class="hidden">
             <input id="obstacleSpaceBeyond" type="checkbox" hidden>
             <input id="obstacleRFPlan" type="checkbox" hidden>
@@ -991,9 +1010,6 @@
             <select id="hardObstacleTreatment"><option value="downgrade" selected></option></select>
           </div>
           <input id="insideMajorObstacle" type="checkbox" hidden>
-          <span id="obstacleBandLabel"></span>
-          <span id="obstacleManagementLabel"></span>
-          <p id="obstacleNote"></p>
         </div>
 
         <article class="card">
@@ -1022,14 +1038,49 @@
 
         <article id="rbObstacle" class="card obstacle-card rulebook-anchor">
           <h2>障礙速查</h2>
-          <p class="large-rule">Clean ≥2R＝正常／Expansion候選｜1.5R–&lt;2R＝Reaction＋RF／Partial｜&lt;1.5R＝通常RR Veto</p>
+          <p class="large-rule">冇第一真實障礙＝正常按Matrix｜≥2R＝正常／Expansion候選｜1.5R–&lt;2R＝Reaction＋RF／Partial｜重大HTF障礙＝降一級｜&lt;1.5R＝RR Veto</p>
+
+          <label class="toggle-row">
+            <input id="hasFirstObstacle" type="checkbox">
+            <span><strong>有第一真實障礙阻住</strong><small>只係真係有一個會影響今次Trade管理／空間嘅障礙先Tick；冇就唔套Obstacle限制。</small></span>
+          </label>
+
+          <div id="firstObstaclePanel" class="conditional-panel hidden">
+            <label>
+              第一真實障礙距離 R
+              <input id="firstObstacleR" type="number" step="0.1" min="0" inputmode="decimal" placeholder="例如 1.7">
+            </label>
+
+            <label>
+              障礙類型
+              <select id="obstacleKind">
+                <option value="soft" selected>普通／Soft｜日內、局部結構</option>
+                <option value="hard">重大HTF／Hard｜P1、大型Range、主判主結</option>
+              </select>
+            </label>
+
+            <label>
+              預定管理
+              <select id="obstacleManagementChoice">
+                <option value="normal" selected>正常／按結構管理</option>
+                <option value="rf">到障礙推RF</option>
+                <option value="partial">障礙前Partial＋餘倉RF</option>
+              </select>
+            </label>
+
+            <div class="result-lines compact">
+              <div><span>障礙Band</span><strong id="obstacleBandLabel">未填</strong></div>
+              <div><span>管理提示</span><strong id="obstacleManagementLabel">未填</strong></div>
+            </div>
+            <p id="obstacleNote" class="state-note"></p>
+          </div>
         </article>
 
         <article class="card">
           <h2>五項硬性否決</h2>
 
           <p class="muted">
-            五個Hard Veto：P4／Range中間／追價；冇有效Sweep-Reclaim或Breakout Setup；Retest快深強；第一真實障礙低於1R或管理資格不完整；違反時間／風險。
+            五個Hard Veto：P4／Range中間／追價；冇有效Sweep-Reclaim或Breakout Setup；Retest快深強；已Tick第一真實障礙而距離低於1.5R，或者未填距離；違反時間／風險。
           </p>
 
           <label class="toggle-row">
@@ -1111,17 +1162,17 @@
           </div>
 
           <div class="yes-no-grid">
-            <label>第一真實障礙 R<input id="firstObstacleR" type="number" step="0.1" min="0" inputmode="decimal" value="2" placeholder="例如 1.7"></label>
             <label>MFE R<input id="mfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.35"></label>
             <label>MAE R<input id="maeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 -0.65"></label>
-            <label>Time to RF（分鐘）<input id="timeToRF" type="number" step="1" min="0" inputmode="numeric"></label>
-            <label>Time to MFE（分鐘）<input id="timeToMFE" type="number" step="1" min="0" inputmode="numeric"></label>
+            <label>Time to RF（H/M）<input id="timeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空"></label>
+            <label>Time to MFE（H/M）<input id="timeToMFE" type="text" inputmode="text" autocomplete="off" placeholder="例如 2H05M 或 45M"></label>
           </div>
 
           <div class="yes-no-grid">
-            <label>Reviewed Session<select id="reviewedSession"><option value="Yes">Yes｜完整Review</option><option value="No" selected>No</option></select></label>
             <label>Valid Candidate<select id="validCandidate"><option value="Yes">Yes｜符合V1.3候選定義</option><option value="No" selected>No</option></select></label>
           </div>
+
+          <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
 
           <div id="euOpeningBacktestPanel" class="hidden" hidden aria-hidden="true">
             <input id="openingStoryId" type="hidden" value="">
@@ -1287,7 +1338,7 @@
           <div><span>到RF比率</span><strong id="statRFRate">未有資料</strong></div>
           <div><span>到TP2比率</span><strong id="statTP2Rate">未有資料</strong></div>
           <div><span>實戰紀錄</span><strong id="statLive">0</strong></div>
-          <div><span>Opportunity Rate</span><strong id="statOpportunityRate">未有資料</strong><small>Valid Candidate ÷ Reviewed Session</small></div>
+          <div><span>Valid Candidate</span><strong id="statValidCandidates">0</strong><small>Trade-level候選數；Opportunity Rate留待Session Review層計</small></div>
         </div>
       </article>
 
@@ -1425,6 +1476,16 @@
           <li><strong>K鎖死：</strong>冇Route A/B＝0；P1都唔例外。P1順風只作背景記錄，唔係第三條Permission。</li>
           <li><strong>L｜逆健康主判：</strong>正常0；Active HTF P1第一反應＋P1/P2/P2-E＋Native Q3右側反轉先0.25。</li>
           <li><strong>雙轉換／Range：</strong>只做邊界；Range中間固定0。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>V1.28.4｜Journal Session Metric Cleanup</h2>
+        <ul>
+          <li><strong>Reviewed Session：</strong>由逐Trade Journal移走；同一Session多單Trade唔再重複計分母。</li>
+          <li><strong>Valid Candidate：</strong>保留做Trade-level研究欄位。</li>
+          <li><strong>Opportunity Rate：</strong>唔再由Trade紀錄計算；統計卡改為Valid Candidate數量，真正Opportunity Rate留待獨立Session Review層。</li>
+          <li><strong>舊資料：</strong>舊CSV／舊紀錄內Reviewed Session仍可讀，CSV欄位保留相容。</li>
         </ul>
       </article>
 

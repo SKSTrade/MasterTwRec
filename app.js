@@ -4466,17 +4466,33 @@ function applyRangePosition(size) {
   };
 }
 
+function hasFirstObstacle() {
+  return checked(
+    "hasFirstObstacle"
+  );
+}
+
 function firstObstacleRValue() {
+  if (!hasFirstObstacle()) {
+    return null;
+  }
+
+  const raw =
+    $("firstObstacleR").value
+      .trim();
+
+  if (raw === "") {
+    return null;
+  }
+
   const value =
-    Number(
-      $("firstObstacleR").value
-    );
+    Number(raw);
 
   if (
     !Number.isFinite(value) ||
     value < 0
   ) {
-    return 0;
+    return null;
   }
 
   return value;
@@ -4484,16 +4500,21 @@ function firstObstacleRValue() {
 
 function obstacleBandFromR(
   firstObstacleR,
-  insideMajorObstacle = false
+  kind = "soft",
+  obstaclePresent = true
 ) {
-  if (insideMajorObstacle) return "inside";
+  if (!obstaclePresent) return "none";
+  if (!Number.isFinite(firstObstacleR)) return "pending";
   if (firstObstacleR < 1.5) return "veto";
+  if (kind === "hard") return "inside";
   if (firstObstacleR < 2) return "rfManaged";
   return "standard";
 }
 
 function obstacleBandLabel(state) {
   const labels = {
+    none: "冇第一真實障礙｜正常按Matrix",
+    pending: "已Tick障礙｜請填距離",
     standard: "≥2R｜Clean Space｜標準",
     rfManaged: "1.5R–<2R｜Reaction／RF-Partial",
     veto: "<1.5R｜RR Veto",
@@ -4505,6 +4526,8 @@ function obstacleBandLabel(state) {
 
 function obstacleManagementLabel(state) {
   const labels = {
+    none: "冇障礙限制｜按Matrix／其他條件決定Objective",
+    pending: "請先填第一真實障礙距離R",
     standard: "Expansion可考慮固定2R／Runner",
     rfManaged: "Reaction：第一結構／1–1.5R優先RF或Partial",
     veto: "不開新倉",
@@ -4519,26 +4542,73 @@ function applyObstacle(
   position,
   quality
 ) {
-  const firstObstacleR = firstObstacleRValue();
-  const inside = checked("insideMajorObstacle");
-  const state = obstacleBandFromR(firstObstacleR, inside);
-  const kind = $("obstacleKind").value;
-  const hardTreatment = $("hardObstacleTreatment").value;
+  const obstaclePresent =
+    hasFirstObstacle();
 
-  const result = (adjustedSize, explanation, management, {eligible=true,hardVeto=false,reason=""}={}) => ({
-    state, firstObstacleR, kind, hardTreatment, adjustedSize, explanation, management,
-    managementMode: state, eligible, hardVeto, reason
+  const firstObstacleR =
+    firstObstacleRValue();
+
+  const kind =
+    $("obstacleKind").value;
+
+  const managementChoice =
+    $("obstacleManagementChoice")
+      .value;
+
+  const state =
+    obstacleBandFromR(
+      firstObstacleR,
+      kind,
+      obstaclePresent
+    );
+
+  const hardTreatment =
+    "downgrade";
+
+  const result = (
+    adjustedSize,
+    explanation,
+    management,
+    {
+      eligible = true,
+      hardVeto = false,
+      reason = ""
+    } = {}
+  ) => ({
+    state,
+    obstaclePresent,
+    firstObstacleR,
+    kind,
+    hardTreatment,
+    managementChoice,
+    adjustedSize,
+    explanation,
+    management,
+    managementMode: state,
+    eligible,
+    hardVeto,
+    reason
   });
 
-  if (state === "inside") {
-    const adjusted =
-      (position === "P1" || position === "P2")
-        ? downgradeOneLevel(matrixSize)
-        : 0;
+  if (state === "none") {
     return result(
-      adjusted,
-      `已身處重大HTF obstacle：V1.3 Size由${SIZE_LABELS[matrixSize]}再降一級至${SIZE_LABELS[adjusted]}。`,
-      "預設Reaction；第一結構優先RF／Partial，除非Post-entry真正改變HTF structure。"
+      matrixSize,
+      "冇Tick第一真實障礙：Obstacle層唔降注／唔Veto，維持Matrix／Range修正後Size。",
+      "冇特定Obstacle管理；按原本Trade Plan處理。"
+    );
+  }
+
+  if (state === "pending") {
+    return result(
+      0,
+      "已Tick有第一真實障礙，但未填有效距離R。",
+      "先量度Entry至第一真實障礙嘅R距離。",
+      {
+        eligible: false,
+        hardVeto: true,
+        reason:
+          "已確認有第一真實障礙，但未填距離R。"
+      }
     );
   }
 
@@ -4547,22 +4617,58 @@ function applyObstacle(
       0,
       `第一真實障礙只有${firstObstacleR.toFixed(2)}R，低於V1.3最低可接受約1.5R。`,
       "Hard Veto：RR不足，不開新倉。",
-      {eligible:false, hardVeto:true, reason:"第一真實障礙低於約1.5R。"}
+      {
+        eligible: false,
+        hardVeto: true,
+        reason:
+          "第一真實障礙低於約1.5R。"
+      }
+    );
+  }
+
+  if (state === "inside") {
+    const adjusted =
+      downgradeOneLevel(
+        matrixSize
+      );
+
+    const management =
+      managementChoice === "partial"
+        ? "重大HTF障礙：Size降一級；障礙前Partial＋餘倉RF。"
+        : managementChoice === "rf"
+          ? "重大HTF障礙：Size降一級；到障礙推RF。"
+          : "重大HTF障礙：Size降一級；Objective預設Reaction。";
+
+    return result(
+      adjusted,
+      `有重大HTF／Hard obstacle阻住：V1.3 Size由${SIZE_LABELS[matrixSize]}降一級至${SIZE_LABELS[adjusted]}。`,
+      management
     );
   }
 
   if (state === "rfManaged") {
+    const management =
+      managementChoice === "partial"
+        ? "障礙前Partial＋餘倉RF；Objective預設Reaction。"
+        : managementChoice === "rf"
+          ? "到第一障礙推RF，再視乎Price Action延伸。"
+          : "1.5R–<2R：建議到第一結構／障礙RF或Partial；Objective預設Reaction。";
+
     return result(
       matrixSize,
-      `第一真實障礙${firstObstacleR.toFixed(2)}R：屬1.5R–<2R可交易區，Size唔因距離自動下降，但Trade Objective通常Reaction。`,
-      "到第一結構／約1–1.5R優先RF或Partial；唔預設一定完成2R Expansion。"
+      `第一真實障礙${firstObstacleR.toFixed(2)}R：屬1.5R–<2R可交易區，Size唔因距離自動下降。`,
+      management
     );
   }
 
   return result(
     matrixSize,
-    `第一真實障礙${firstObstacleR.toFixed(2)}R，Clean ≥2R；維持${SIZE_LABELS[matrixSize]}。`,
-    "標準模式；若方向／P／Native Q都高質，可列Expansion。"
+    `第一真實障礙${firstObstacleR.toFixed(2)}R，而且屬普通／Soft obstacle；≥2R維持${SIZE_LABELS[matrixSize]}。`,
+    managementChoice === "partial"
+      ? "空間≥2R但計劃Partial＋RF；Size不變。"
+      : managementChoice === "rf"
+        ? "空間≥2R但計劃到障礙推RF；Size不變。"
+        : "標準模式；方向／P／Native Q合格時可列Expansion。"
   );
 }
 
@@ -4659,6 +4765,7 @@ function tradeObjectiveInfo({
   setupResult,
   baseTrigger,
   firstObstacleR,
+  obstacleState,
   control,
   transitionType
 }) {
@@ -4668,7 +4775,17 @@ function tradeObjectiveInfo({
 
   const nativeQ3 = baseTrigger.quality === "Q3";
   const highLocation = ["P1","P2"].includes(setupResult.effectivePosition);
-  const cleanSpace = firstObstacleR >= 2;
+  const obstaclePresent =
+    firstObstacleR !== null &&
+    firstObstacleR !== undefined;
+  const cleanSpace =
+    (
+      !obstaclePresent ||
+      firstObstacleR >= 2
+    ) &&
+    ["none","standard"].includes(
+      obstacleState
+    );
   const alignedRoute = [
     "healthyAligned",
     "weakAligned",
@@ -4722,7 +4839,11 @@ function tradeObjectiveInfo({
   if (baseTrigger.quality === "Q2") reactionReasons.push("Native Q2");
   if (conflictLike) reactionReasons.push("Direction Conflict／Counter-main／Transition Conflict");
   if (control.code === "Opposing") reactionReasons.push("Immediate Control Opposing");
-  if (firstObstacleR < 2) reactionReasons.push("第一障礙<2R");
+  if (
+    obstaclePresent &&
+    firstObstacleR < 2
+  ) reactionReasons.push("第一障礙<2R");
+  if (obstacleState === "inside") reactionReasons.push("重大HTF obstacle");
   if (["Mixed","Neutral"].includes(transitionType.code)) reactionReasons.push(`${transitionType.code} Transition`);
   if (setupResult.positionTreatment === "p2Effective") reactionReasons.push("P2-E execution");
 
@@ -4774,6 +4895,7 @@ function evaluateDecision(
     setupResult,
     baseTrigger,
     firstObstacleR: obstacle.firstObstacleR,
+    obstacleState: obstacle.state,
     control,
     transitionType
   });
@@ -4902,8 +5024,10 @@ function evaluateDecision(
     rangeState: range.state,
     rangeSize: range.adjustedSize,
     obstacleState: obstacle.state,
+    hasFirstObstacle: obstacle.obstaclePresent,
     firstObstacleR: obstacle.firstObstacleR,
     obstacleKind: obstacle.kind,
+    obstacleManagementChoice: obstacle.managementChoice,
     hardObstacleTreatment: obstacle.hardTreatment,
     obstacleSize: obstacle.adjustedSize,
     obstacleManagement: obstacle.management,
@@ -5049,6 +5173,8 @@ function renderAsia2B(result) {
 
 function obstacleDisplayLabel(state) {
   const labels = {
+    none: "冇第一真實障礙",
+    pending: "有障礙｜未填距離",
     standard: "≥2R｜標準2R模式",
     rfManaged: "1.5R–2R｜RF-managed",
     partial: "舊版｜1–1.5R｜V1.3已Veto",
@@ -5214,64 +5340,69 @@ function renderDecision(decision) {
 }
 
 function syncObstacleModelInputs() {
+  const obstaclePresent =
+    hasFirstObstacle();
+
+  $("firstObstaclePanel")
+    .classList.toggle(
+      "hidden",
+      !obstaclePresent
+    );
+
   const firstObstacleR =
     firstObstacleRValue();
+
+  const kind =
+    $("obstacleKind").value;
 
   const state =
     obstacleBandFromR(
       firstObstacleR,
-      checked(
-        "insideMajorObstacle"
-      )
+      kind,
+      obstaclePresent
     );
 
   $("obstacleState").value =
     state;
 
+  $("insideMajorObstacle")
+    .checked =
+      obstaclePresent &&
+      kind === "hard";
+
+  const managementChoice =
+    $("obstacleManagementChoice")
+      .value;
+
+  $("obstacleRFPlan").checked =
+    obstaclePresent &&
+    (
+      managementChoice === "rf" ||
+      managementChoice === "partial"
+    );
+
+  $("obstaclePartialPlan").checked =
+    obstaclePresent &&
+    managementChoice === "partial";
+
+  $("hardObstacleTreatment").value =
+    "downgrade";
+
   $("tradeSpace").value =
     state === "veto"
       ? "insufficient"
-      : state === "standard"
-        ? "full"
-        : "managed";
-
-  const rfVisible =
-    state === "rfManaged";
-
-  const partialVisible =
-    state === "partial" ||
-    (
-      state === "rfManaged" &&
-      $("obstacleKind").value ===
-        "hard" &&
-      $("hardObstacleTreatment")
-        .value === "partial"
-    );
-
-  const hardVisible =
-    state !== "standard" &&
-    state !== "veto" &&
-    state !== "inside" &&
-    $("obstacleKind").value ===
-      "hard";
+      : state === "rfManaged" ||
+          state === "inside" ||
+          state === "pending"
+        ? "managed"
+        : "full";
 
   $("rfManagedPanel")
-    .classList.toggle(
-      "hidden",
-      !rfVisible
-    );
-
+    .classList.add("hidden");
   $("partialObstaclePanel")
-    .classList.toggle(
-      "hidden",
-      !partialVisible
-    );
-
+    .classList.add("hidden");
   $("hardObstacleTreatmentPanel")
-    .classList.toggle(
-      "hidden",
-      !hardVisible
-    );
+    .classList.add("hidden");
 
   $("obstacleBandLabel")
     .textContent =
@@ -5285,34 +5416,56 @@ function syncObstacleModelInputs() {
 }
 
 function updateObstacleNote() {
+  const obstaclePresent =
+    hasFirstObstacle();
+
   const firstObstacleR =
     firstObstacleRValue();
+
+  const kind =
+    $("obstacleKind").value;
 
   const state =
     obstacleBandFromR(
       firstObstacleR,
-      checked(
-        "insideMajorObstacle"
-      )
+      kind,
+      obstaclePresent
     );
 
-  const kind =
-    $("obstacleKind").value ===
-      "hard"
-      ? "硬障礙"
-      : "軟障礙";
+  const managementChoice =
+    $("obstacleManagementChoice")
+      .value;
+
+  const managementLabel = {
+    normal: "正常／按結構管理",
+    rf: "到障礙推RF",
+    partial: "障礙前Partial＋餘倉RF"
+  }[managementChoice] || managementChoice;
+
+  if (state === "none") {
+    $("obstacleNote").textContent =
+      "冇第一真實障礙阻住：Obstacle層唔限制Size；Objective仍由方向、P/Q、Control等條件決定。";
+    return;
+  }
+
+  if (state === "pending") {
+    $("obstacleNote").textContent =
+      "已Tick有障礙，但未填距離R；未量度清楚之前暫時唔應落單。";
+    return;
+  }
+
+  const distance =
+    firstObstacleR.toFixed(2);
 
   const notes = {
     standard:
-      `${firstObstacleR.toFixed(2)}R：至少2R，標準模式，正常按Matrix，固定2R TP。`,
+      `${distance}R普通障礙：≥2R，Size正常；管理＝${managementLabel}。`,
     rfManaged:
-      `${firstObstacleR.toFixed(2)}R：1.5R–2R，${kind}。軟障礙要P1／P2 Q3或P1 Q2、障礙後有2R空間、事前寫明到障礙推RF；硬障礙另選降注／部分食糊／Skip。`,
-    partial:
-      `${firstObstacleR.toFixed(2)}R：1R–1.5R，只限P1＋Q3、健康同向或明確結構轉換、軟障礙，並30%–50%部分食糊。`,
+      `${distance}R普通障礙：1.5R–<2R，Size不自動下降，Objective預設Reaction；管理＝${managementLabel}。`,
     veto:
-      `${firstObstacleR.toFixed(2)}R：低於約1.5R，Hard Veto，0注。`,
+      `${distance}R：低於1.5R，RR Hard Veto，0注。`,
     inside:
-      "已處於重大障礙區內做Continuation：P1 Q3最多0.5、P2 Q3最多0.25、P3／P4為0。"
+      `${distance}R重大HTF障礙：Size降一級，Objective預設Reaction；管理＝${managementLabel}。`
   };
 
   $("obstacleNote").textContent =
@@ -5844,6 +5997,133 @@ function optionalNumberFromInput(id) {
   return Number.isFinite(number)
     ? number
     : null;
+}
+
+function parseDurationMinutes(
+  value
+) {
+  const raw =
+    String(value ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, "");
+
+  if (raw === "") {
+    return null;
+  }
+
+  // Backward-friendly: plain number means minutes.
+  if (/^\d+$/.test(raw)) {
+    return Number(raw);
+  }
+
+  const match =
+    raw.match(
+      /^(?:(\d+)H)?(?:(\d+)M)?$/
+    );
+
+  if (
+    !match ||
+    (
+      match[1] === undefined &&
+      match[2] === undefined
+    )
+  ) {
+    return Number.NaN;
+  }
+
+  const hours =
+    Number(match[1] || 0);
+
+  const minutes =
+    Number(match[2] || 0);
+
+  if (
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes) ||
+    hours < 0 ||
+    minutes < 0
+  ) {
+    return Number.NaN;
+  }
+
+  return (
+    hours * 60 +
+    minutes
+  );
+}
+
+function durationMinutesFromInput(
+  id
+) {
+  return parseDurationMinutes(
+    $(id).value
+  );
+}
+
+function formatDurationMinutes(
+  value
+) {
+  const numeric =
+    Number(value);
+
+  if (
+    !Number.isFinite(numeric) ||
+    numeric < 0
+  ) {
+    return "N/A";
+  }
+
+  const totalMinutes =
+    Math.round(numeric);
+
+  const hours =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minutes =
+    totalMinutes % 60;
+
+  if (hours > 0) {
+    return minutes > 0
+      ? `${hours}H${String(minutes).padStart(2, "0")}M`
+      : `${hours}H`;
+  }
+
+  return `${minutes}M`;
+}
+
+function normalizeDurationInput(
+  id
+) {
+  const input =
+    $(id);
+
+  const parsed =
+    parseDurationMinutes(
+      input.value
+    );
+
+  if (parsed === null) {
+    input.setCustomValidity("");
+    return;
+  }
+
+  if (
+    Number.isNaN(parsed)
+  ) {
+    input.setCustomValidity(
+      "請用例如 11H45M、2H、45M；純數字會當分鐘。"
+    );
+    return;
+  }
+
+  input.setCustomValidity("");
+  input.value =
+    formatDurationMinutes(
+      parsed
+    );
 }
 
 function triggerChecklistLines() {
@@ -6400,6 +6680,40 @@ async function saveDecision(event) {
     return;
   }
 
+  const timeToRFMinutes =
+    durationMinutesFromInput(
+      "timeToRF"
+    );
+
+  if (
+    Number.isNaN(
+      timeToRFMinutes
+    )
+  ) {
+    showToast(
+      "Time to RF格式錯誤；請輸入例如11H45M、2H或45M"
+    );
+    $("timeToRF").focus();
+    return;
+  }
+
+  const timeToMFEMinutes =
+    durationMinutesFromInput(
+      "timeToMFE"
+    );
+
+  if (
+    Number.isNaN(
+      timeToMFEMinutes
+    )
+  ) {
+    showToast(
+      "Time to MFE格式錯誤；請輸入例如11H45M、2H或45M"
+    );
+    $("timeToMFE").focus();
+    return;
+  }
+
   const timeframes =
     timeframeValues();
 
@@ -6422,9 +6736,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.28.3",
+      "PracticeJournal-V1.28.6",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r3-RouteCorrection",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r6-ObstaclePresenceGate",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -6710,10 +7024,15 @@ async function saveDecision(event) {
 
     obstacleState:
       currentDecision.obstacleState,
+    hasFirstObstacle:
+      currentDecision.hasFirstObstacle,
     firstObstacleR:
       currentDecision.firstObstacleR,
     obstacleKind:
       currentDecision.obstacleKind,
+    obstacleManagementChoice:
+      currentDecision.obstacleManagementChoice ||
+      $("obstacleManagementChoice").value,
     obstacleManagementMode:
       currentDecision.obstacleManagementMode,
     obstacleManagement:
@@ -6802,11 +7121,9 @@ async function saveDecision(event) {
     maeR:
       optionalNumberFromInput("maeR"),
     timeToRF:
-      optionalNumberFromInput("timeToRF"),
+      timeToRFMinutes,
     timeToMFE:
-      optionalNumberFromInput("timeToMFE"),
-    reviewedSession:
-      $("reviewedSession").value,
+      timeToMFEMinutes,
     validCandidate:
       $("validCandidate").value,
     reachedRF:
@@ -6857,7 +7174,6 @@ async function saveDecision(event) {
   $("maeR").value = "";
   $("timeToRF").value = "";
   $("timeToMFE").value = "";
-  $("reviewedSession").value = "No";
   $("validCandidate").value = "No";
   $("entryTimeQ").value = "Auto";
   $("postEntryQ").value = "N/A";
@@ -7126,20 +7442,13 @@ function renderHistory() {
         record.recordMode === "Live"
     ).length;
 
-  const reviewedRecords =
-    allRecords.filter(
-      (record) =>
-        record.reviewedSession === "Yes"
-    );
   const validCandidates =
-    reviewedRecords.filter(
+    allRecords.filter(
       (record) =>
         record.validCandidate === "Yes"
     ).length;
-  $("statOpportunityRate").textContent =
-    reviewedRecords.length > 0
-      ? `${(validCandidates / reviewedRecords.length * 100).toFixed(1)}%｜${validCandidates}/${reviewedRecords.length}`
-      : "未有資料";
+  $("statValidCandidates").textContent =
+    validCandidates;
 
   const winRateTrades =
     allRecords.filter(
@@ -7965,14 +8274,20 @@ async function openRecord(recordId) {
       )
     )}
     <br>
+    <strong>第一真實障礙：</strong>
+    ${record.hasFirstObstacle || Number.isFinite(record.firstObstacleR)
+      ? `${Number.isFinite(record.firstObstacleR) ? `${record.firstObstacleR}R` : "有｜未記距離"}｜${escapeHtml(record.obstacleKind === "hard" ? "重大HTF／Hard" : "普通／Soft")}`
+      : "冇"}
+    <br>
     <strong>MFE／MAE：</strong>
     ${Number.isFinite(record.mfeR) ? `${record.mfeR}R` : "N/A"}／${Number.isFinite(record.maeR) ? `${record.maeR}R` : "N/A"}
     <br>
     <strong>Time to RF／MFE：</strong>
-    ${Number.isFinite(record.timeToRF) ? `${record.timeToRF}分鐘` : "N/A"}／${Number.isFinite(record.timeToMFE) ? `${record.timeToMFE}分鐘` : "N/A"}
+    ${formatDurationMinutes(record.timeToRF)}／${formatDurationMinutes(record.timeToMFE)}
     <br>
-    <strong>Reviewed／Valid Candidate：</strong>
-    ${escapeHtml(record.reviewedSession || "No")}／${escapeHtml(record.validCandidate || "No")}
+    <strong>Valid Candidate：</strong>
+    ${escapeHtml(record.validCandidate || "No")}
+    ${record.reviewedSession ? `<br><strong>Legacy Reviewed Session：</strong>${escapeHtml(record.reviewedSession)}` : ""}
   `;
 
   $("editTradeDate").value =
@@ -8779,7 +9094,7 @@ function buildCsv(records) {
         : Number.isFinite(record.profitR)
           ? record.profitR
           : "",
-      record.reviewedSession || "No",
+      record.reviewedSession || "",
       record.validCandidate || "No",
       record.checklistSummary || "",
       record.note || ""
@@ -9649,6 +9964,20 @@ function obstacleStateFromCsv(value) {
     String(value || "");
 
   if (
+    text.includes("冇第一真實障礙") ||
+    text === "none"
+  ) {
+    return "none";
+  }
+
+  if (
+    text.includes("未填距離") ||
+    text === "pending"
+  ) {
+    return "pending";
+  }
+
+  if (
     text.includes("<1R") ||
     text.includes("Hard Veto") ||
     text.includes("不足") ||
@@ -10417,6 +10746,23 @@ function recordFromCsvRow(row) {
           "第一障礙R"
         )
       ),
+    hasFirstObstacle:
+      (() => {
+        const r = csvNumber(
+          firstCsvValue(
+            row,
+            "第一障礙R"
+          )
+        );
+        const state = obstacleStateFromCsv(
+          firstCsvValue(
+            row,
+            "大局障礙"
+          )
+        );
+        return Number.isFinite(r) ||
+          !["none", "standard"].includes(state);
+      })(),
     obstacleKind:
       firstCsvValue(
         row,
@@ -10427,6 +10773,22 @@ function recordFromCsvRow(row) {
         row,
         "障礙管理模式"
       ),
+    obstacleManagementChoice:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "部分食糊計劃"
+        )
+      )
+        ? "partial"
+        : csvBoolean(
+            firstCsvValue(
+              row,
+              "到障礙推RF計劃"
+            )
+          )
+          ? "rf"
+          : "normal",
     hardObstacleTreatment:
       firstCsvValue(
         row,
@@ -10863,7 +11225,7 @@ function recordFromCsvRow(row) {
     actualR:
       csvNumber(firstCsvValue(row, "Actual R")) ?? profitR,
     reviewedSession:
-      firstCsvValue(row, "Reviewed Session") || "No",
+      firstCsvValue(row, "Reviewed Session") || "",
     validCandidate:
       firstCsvValue(row, "Valid Candidate") || "No",
     checklistSummary:
@@ -11550,6 +11912,49 @@ function liveRouteCap(value) {
   return caps[value] ?? 0;
 }
 
+function syncLiveObstacleInputs() {
+  const present =
+    checked("liveHasFirstObstacle");
+
+  $("liveFirstObstaclePanel")
+    .classList.toggle(
+      "hidden",
+      !present
+    );
+
+  if (!present) {
+    $("liveObstacle").value =
+      "none";
+    return "none";
+  }
+
+  const raw =
+    $("liveFirstObstacleR")
+      .value.trim();
+
+  const r =
+    raw === ""
+      ? null
+      : Number(raw);
+
+  const kind =
+    $("liveObstacleKind").value;
+
+  const state =
+    obstacleBandFromR(
+      Number.isFinite(r) && r >= 0
+        ? r
+        : null,
+      kind,
+      true
+    );
+
+  $("liveObstacle").value =
+    state;
+
+  return state;
+}
+
 function recalculateLiveDecision() {
   const routeCode =
     $("liveMarketRoute").value;
@@ -11916,56 +12321,65 @@ function recalculateLiveDecision() {
   }
 
   const obstacleState =
-    $("liveObstacle").value;
+    syncLiveObstacleInputs();
+
+  const liveObstaclePresent =
+    checked("liveHasFirstObstacle");
+
+  const liveObstacleRRaw =
+    $("liveFirstObstacleR")
+      .value.trim();
+
+  const liveObstacleR =
+    liveObstacleRRaw === ""
+      ? null
+      : Number(liveObstacleRRaw);
+
+  const liveObstacleKind =
+    $("liveObstacleKind").value;
+
+  const liveManagementPlan =
+    $("liveObstacleManagementPlan")
+      .value;
+
   let obstacleSize =
     rangeSize;
   let obstacleNote = "";
   const obstacleVetoes = [];
 
-  $("liveRFManagedPanel").classList.toggle(
-    "hidden",
-    obstacleState !== "rfManaged"
-  );
-  $("livePartialModePanel").classList.add(
-    "hidden"
-  );
-  $("liveHardObstaclePanel").classList.toggle(
-    "hidden",
-    obstacleState !== "inside"
-  );
+  $("liveRFManagedPanel")
+    .classList.add("hidden");
+  $("livePartialModePanel")
+    .classList.add("hidden");
+  $("liveHardObstaclePanel")
+    .classList.add("hidden");
 
-  if (
-    obstacleState === "veto" ||
-    obstacleState === "partial"
-  ) {
+  if (obstacleState === "pending") {
+    obstacleSize = 0;
+    obstacleVetoes.push(
+      "已Tick有第一真實障礙，但未填有效距離R。"
+    );
+  } else if (obstacleState === "veto") {
     obstacleSize = 0;
     obstacleVetoes.push(
       "第一真正障礙低於約1.5R，V1.3 RR Veto。"
     );
-  } else if (
-    obstacleState === "rfManaged"
-  ) {
-    obstacleNote =
-      "第一障礙1.5–<2R：Size唔自動降，但Trade Objective預設Reaction；到第一結構／障礙RF或Partial優先。";
-  } else if (
-    obstacleState === "inside"
-  ) {
-    const treatment =
-      $("liveHardObstacleTreatment").value;
-    if (treatment === "skip") {
-      obstacleSize = 0;
-      obstacleVetoes.push(
-        "重大HTF障礙必須先突破，今次Skip。"
+  } else if (obstacleState === "inside") {
+    obstacleSize =
+      downgradeOneLevel(
+        rangeSize
       );
-    } else {
-      obstacleSize =
-        downgradeOneLevel(rangeSize);
-      obstacleNote =
-        "已身處重大HTF障礙區：V1.3 Size再降一級。";
-    }
+    obstacleNote =
+      `重大HTF障礙：Size降一級；${liveManagementPlan === "partial" ? "Partial＋RF" : liveManagementPlan === "rf" ? "到障礙推RF" : "Objective預設Reaction"}。`;
+  } else if (obstacleState === "rfManaged") {
+    obstacleNote =
+      `第一障礙${liveObstacleR.toFixed(2)}R：Size唔自動降，Objective預設Reaction；${liveManagementPlan === "partial" ? "Partial＋RF" : liveManagementPlan === "rf" ? "到障礙推RF" : "建議RF／Partial管理"}。`;
+  } else if (obstacleState === "standard") {
+    obstacleNote =
+      `第一障礙${liveObstacleR.toFixed(2)}R普通／Soft：≥2R，Size正常。`;
   } else {
     obstacleNote =
-      "Clean ≥2R：正常執行，Expansion候選。";
+      "冇第一真實障礙：Obstacle層唔限制Size。";
   }
 
   const vetoes = [
@@ -12037,14 +12451,18 @@ function recalculateLiveDecision() {
       nativeQuality === "Q3" &&
       alignedRoutes.includes(routeCode) &&
       controlAlignment !== "Opposing" &&
-      obstacleState === "standard";
+      ["none","standard"].includes(
+        obstacleState
+      );
     const expansion =
       (
         nativeQuality === "Q3" &&
         ["P1","P2"].includes(effectivePosition) &&
         alignedRoutes.includes(routeCode) &&
         controlAlignment !== "Opposing" &&
-        obstacleState === "standard" &&
+        ["none","standard"].includes(
+          obstacleState
+        ) &&
         !["mixedTransition","neutralTransition"].includes(routeCode)
       ) ||
       hsiOprContinuationExpansion;
@@ -12622,14 +13040,10 @@ function setupEvents() {
     );
 
   [
+    "hasFirstObstacle",
     "firstObstacleR",
     "obstacleKind",
-    "obstacleSpaceBeyond",
-    "obstacleRFPlan",
-    "obstaclePartialPlan",
-    "obstacleClearTransition",
-    "hardObstacleTreatment",
-    "insideMajorObstacle"
+    "obstacleManagementChoice"
   ].forEach((id) => {
     $(id).addEventListener(
       "input",
@@ -12663,6 +13077,25 @@ function setupEvents() {
       () => {
         syncPreviousHLSweepToXau(true);
         recalculateLiveDecision();
+      }
+    );
+  });
+
+  [
+    "timeToRF",
+    "timeToMFE"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "input",
+      () => {
+        $(id).setCustomValidity("");
+      }
+    );
+
+    $(id).addEventListener(
+      "blur",
+      () => {
+        normalizeDurationInput(id);
       }
     );
   });

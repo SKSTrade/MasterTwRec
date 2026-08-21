@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.28.3",
+  "name": "Master Trade System V1.28.6",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen route corrections for C/E/J/K/L/M, global P2-E Q2 cap and XAU location enhancement decoupled from Q2 subtype.",
+  "description": "Master Trade Matrix V1.3 Frozen with an explicit first-obstacle presence gate, distance/type/management inputs, and matching Live Decision obstacle handling.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
