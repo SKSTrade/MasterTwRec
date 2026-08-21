@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.28.6",
+  "name": "Master Trade System V1.28.7",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with an explicit first-obstacle presence gate, distance/type/management inputs, and matching Live Decision obstacle handling.",
+  "description": "Master Trade Matrix V1.3 Frozen with a null-safe obstacle result renderer so no-obstacle decisions render obstacle status, final size and explanations correctly.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

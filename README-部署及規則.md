@@ -1,41 +1,29 @@
-# Master Trade System V1.28.6｜Obstacle Presence Gate
+# Master Trade System V1.28.7｜Obstacle Render Null Fix
 
-## 障礙速查更新
+## 修正Bug
 
-Rulebook新增：
+V1.28.6新增「有第一真實障礙阻住」checkbox後，當使用者**冇Tick障礙**時：
 
-> ☐ 有第一真實障礙阻住
+- `firstObstacleR = null`
+- 結果畫面仍然執行 `firstObstacleR.toFixed(2)`
+- JavaScript因此中斷Render
 
-未Tick：
-- Obstacle層唔限制Size
-- 唔需要填第一障礙R
-- 唔會因空白／預設數值產生RR Veto
+造成：
 
-Tick後先展開：
-- 第一真實障礙距離R
-- 障礙類型：普通／Soft 或 重大HTF／Hard
-- 預定管理：正常、到障礙推RF、Partial＋RF
+- 「大局障礙修正」空白
+- 「最終注碼」可能停留舊值／顯示0
+- 下方計算原因／警告／硬性否決全部消失
 
-## Size規則
+## V1.28.7修正
 
-- 冇第一真實障礙：正常按Matrix／Range修正
-- 普通障礙 ≥2R：Size不變，可按其他條件判Expansion
-- 普通障礙 1.5–<2R：Size不變，Objective預設Reaction
-- 重大HTF／Hard obstacle，且距離≥1.5R：Size降一級，Objective預設Reaction
-- 任何第一真實障礙 <1.5R：Hard Veto＝0
-- Tick有障礙但未填距離：暫時0，避免未量度空間就落單
+Obstacle Result Render改成null-safe：
 
-## Live Decision
+- 冇障礙：顯示 `冇第一真實障礙 → 原Size`
+- 有障礙＋有距離：顯示 `x.xxR｜障礙狀態 → 修正Size`
+- 有障礙但未填R：顯示 `有障礙｜未填距離 → 0注`
 
-Live STEP 5同步改成同一套checkbox＋距離＋類型＋管理方式。
+唔再對null呼叫`.toFixed()`。
 
-## Journal
+## 邏輯不變
 
-「第一真實障礙R」由結果紀錄區移到「障礙速查」，避免令人以為每單Trade都一定要填。
-
-CSV維持149欄：
-- 冇障礙時「第一障礙R」留空
-- 舊CSV仍可讀
-- 原有障礙RF／Partial欄繼續保存管理選擇
-
-Matrix V1.3其他Route、P/Q、E/E+、Q2 subtype、Trade Objective規則不改。
+V1.28.6 Obstacle規則、Matrix Route、P/Q、E/E+、Trade Objective、CSV及Storage全部保持不變。

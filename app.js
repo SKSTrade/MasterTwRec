@@ -5302,8 +5302,15 @@ function renderDecision(decision) {
     SIZE_LABELS[
       decision.rangeSize
     ];
+  const obstacleDistanceLabel =
+    Number.isFinite(
+      decision.firstObstacleR
+    )
+      ? `${decision.firstObstacleR.toFixed(2)}R｜`
+      : "";
+
   $("resultObstacleSize").textContent =
-    `${decision.firstObstacleR.toFixed(2)}R｜${obstacleDisplayLabel(
+    `${obstacleDistanceLabel}${obstacleDisplayLabel(
       decision.obstacleState
     )} → ${SIZE_LABELS[
       decision.obstacleSize
@@ -6736,9 +6743,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.28.6",
+      "PracticeJournal-V1.28.7",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r6-ObstaclePresenceGate",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r7-ObstacleRenderNullFix",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
