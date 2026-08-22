@@ -1,29 +1,16 @@
-# Master Trade System V1.28.7｜Obstacle Render Null Fix
+# Master Trade System V1.28.8｜Editable Performance Metrics
 
-## 修正Bug
+## 紀錄庫編輯功能
 
-V1.28.6新增「有第一真實障礙阻住」checkbox後，當使用者**冇Tick障礙**時：
+打開任何一筆紀錄後，可以修改：
 
-- `firstObstacleR = null`
-- 結果畫面仍然執行 `firstObstacleR.toFixed(2)`
-- JavaScript因此中斷Render
+- MFE R
+- MAE R
+- Time to RF
+- Time to MFE
 
-造成：
+Time欄使用H/M格式，例如11H45M、2H05M、45M；內部仍保存總分鐘，所以CSV同舊資料相容。
 
-- 「大局障礙修正」空白
-- 「最終注碼」可能停留舊值／顯示0
-- 下方計算原因／警告／硬性否決全部消失
+如果冇去到RF，Time to RF留空。
 
-## V1.28.7修正
-
-Obstacle Result Render改成null-safe：
-
-- 冇障礙：顯示 `冇第一真實障礙 → 原Size`
-- 有障礙＋有距離：顯示 `x.xxR｜障礙狀態 → 修正Size`
-- 有障礙但未填R：顯示 `有障礙｜未填距離 → 0注`
-
-唔再對null呼叫`.toFixed()`。
-
-## 邏輯不變
-
-V1.28.6 Obstacle規則、Matrix Route、P/Q、E/E+、Trade Objective、CSV及Storage全部保持不變。
+Matrix V1.3、Route、P/Q、E/E+、Obstacle、Trade Objective邏輯全部不變。

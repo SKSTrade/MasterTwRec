@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.28.7",
+  "name": "Master Trade System V1.28.8",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with a null-safe obstacle result renderer so no-obstacle decisions render obstacle status, final size and explanations correctly.",
+  "description": "Master Trade Matrix V1.3 Frozen with editable MFE, MAE, Time to RF and Time to MFE fields in the record library.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

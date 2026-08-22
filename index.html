@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.28.7</span>
+    <span class="version-badge">V1.28.8</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1762,6 +1762,28 @@
         獲利R
         <input id="editProfitR" type="number" step="0.01" inputmode="decimal">
       </label>
+
+      <div class="yes-no-grid">
+        <label>
+          MFE R
+          <input id="editMfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.35">
+        </label>
+
+        <label>
+          MAE R
+          <input id="editMaeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 0.65">
+        </label>
+
+        <label>
+          Time to RF（H/M）
+          <input id="editTimeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空">
+        </label>
+
+        <label>
+          Time to MFE（H/M）
+          <input id="editTimeToMFE" type="text" inputmode="text" autocomplete="off" placeholder="例如 2H05M 或 45M">
+        </label>
+      </div>
 
       <div class="yes-no-grid">
         <label>

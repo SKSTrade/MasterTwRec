@@ -6743,9 +6743,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.28.7",
+      "PracticeJournal-V1.28.8",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r7-ObstacleRenderNullFix",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r8-EditablePerformanceMetrics",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -8324,6 +8324,27 @@ async function openRecord(recordId) {
     )
       ? record.profitR
       : "";
+
+  $("editMfeR").value =
+    Number.isFinite(record.mfeR)
+      ? record.mfeR
+      : "";
+
+  $("editMaeR").value =
+    Number.isFinite(record.maeR)
+      ? record.maeR
+      : "";
+
+  $("editTimeToRF").value =
+    Number.isFinite(record.timeToRF)
+      ? formatDurationMinutes(record.timeToRF)
+      : "";
+
+  $("editTimeToMFE").value =
+    Number.isFinite(record.timeToMFE)
+      ? formatDurationMinutes(record.timeToMFE)
+      : "";
+
   $("editReachedRF").value =
     record.reachedRF ||
     "No";
@@ -8500,6 +8521,36 @@ async function saveRecordEdit() {
 
   if (index === -1) return;
 
+  const editedTimeToRF =
+    durationMinutesFromInput(
+      "editTimeToRF"
+    );
+
+  if (
+    Number.isNaN(editedTimeToRF)
+  ) {
+    showToast(
+      "Time to RF格式錯誤；請輸入例如11H45M、2H或45M"
+    );
+    $("editTimeToRF").focus();
+    return;
+  }
+
+  const editedTimeToMFE =
+    durationMinutesFromInput(
+      "editTimeToMFE"
+    );
+
+  if (
+    Number.isNaN(editedTimeToMFE)
+  ) {
+    showToast(
+      "Time to MFE格式錯誤；請輸入例如11H45M、2H或45M"
+    );
+    $("editTimeToMFE").focus();
+    return;
+  }
+
   records[index].tradeDate =
     $("editTradeDate").value ||
     recordTradeDate(records[index]) ||
@@ -8520,6 +8571,18 @@ async function saveRecordEdit() {
     optionalNumberFromInput(
       "editProfitR"
     );
+  records[index].mfeR =
+    optionalNumberFromInput(
+      "editMfeR"
+    );
+  records[index].maeR =
+    optionalNumberFromInput(
+      "editMaeR"
+    );
+  records[index].timeToRF =
+    editedTimeToRF;
+  records[index].timeToMFE =
+    editedTimeToMFE;
   records[index].reachedRF =
     $("editReachedRF").value;
   records[index].reachedTP2 =
@@ -13090,7 +13153,9 @@ function setupEvents() {
 
   [
     "timeToRF",
-    "timeToMFE"
+    "timeToMFE",
+    "editTimeToRF",
+    "editTimeToMFE"
   ].forEach((id) => {
     $(id).addEventListener(
       "input",
