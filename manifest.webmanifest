@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.28.8",
+  "name": "Master Trade System V1.28.9",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with editable MFE, MAE, Time to RF and Time to MFE fields in the record library.",
+  "description": "Master Trade Matrix V1.3 Frozen with chronological record numbering in the record library while preserving all existing matrix and journal logic.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

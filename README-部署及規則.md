@@ -1,16 +1,24 @@
-# Master Trade System V1.28.8｜Editable Performance Metrics
+# Master Trade System V1.28.9｜Chronological Record Numbering
 
-## 紀錄庫編輯功能
+## 紀錄庫編號
 
-打開任何一筆紀錄後，可以修改：
+紀錄庫每筆Trade會按紀錄建立時間固定編號：
 
-- MFE R
-- MAE R
-- Time to RF
-- Time to MFE
+- 最早紀錄 = #1
+- 之後按建立時間 = #2、#3、#4...
 
-Time欄使用H/M格式，例如11H45M、2H05M、45M；內部仍保存總分鐘，所以CSV同舊資料相容。
+編號係全紀錄庫時間序號，使用篩選時唔會重新編號。
 
-如果冇去到RF，Time to RF留空。
+例如全庫：
+#1 #2 #3 #4 #5
 
-Matrix V1.3、Route、P/Q、E/E+、Obstacle、Trade Objective邏輯全部不變。
+如果只篩選Live，畫面可能顯示：
+#2 #5
+
+代表原本全庫嘅時間序號，唔係篩選後重新編號。
+
+打開紀錄詳情亦會顯示相同「紀錄編號」。
+
+刪除紀錄後，剩餘紀錄會按建立時間重新順序編號。
+
+Matrix、Route、P/Q、E/E+、Obstacle、Trade Objective、CSV schema全部不變。

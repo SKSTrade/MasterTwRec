@@ -6743,9 +6743,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.28.8",
+      "PracticeJournal-V1.28.9",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r8-EditablePerformanceMetrics",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r9-ChronologicalRecordNumbering",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7423,8 +7423,97 @@ async function deleteSelectedHistoryRecords() {
   );
 }
 
+function recordChronologyTimestamp(
+  record
+) {
+  const created =
+    Date.parse(
+      record?.createdAt || ""
+    );
+
+  if (
+    Number.isFinite(created)
+  ) {
+    return created;
+  }
+
+  const tradeDate =
+    String(
+      recordTradeDate(record) || ""
+    ).trim();
+
+  if (tradeDate) {
+    const parsedTradeDate =
+      Date.parse(
+        `${tradeDate}T00:00:00`
+      );
+
+    if (
+      Number.isFinite(
+        parsedTradeDate
+      )
+    ) {
+      return parsedTradeDate;
+    }
+  }
+
+  return 0;
+}
+
+function recordSequenceMap(
+  records
+) {
+  const sorted =
+    [...records].sort(
+      (a, b) => {
+        const timeDiff =
+          recordChronologyTimestamp(a) -
+          recordChronologyTimestamp(b);
+
+        if (timeDiff !== 0) {
+          return timeDiff;
+        }
+
+        const dateDiff =
+          String(
+            recordTradeDate(a) || ""
+          ).localeCompare(
+            String(
+              recordTradeDate(b) || ""
+            )
+          );
+
+        if (dateDiff !== 0) {
+          return dateDiff;
+        }
+
+        return String(
+          a?.id || ""
+        ).localeCompare(
+          String(
+            b?.id || ""
+          )
+        );
+      }
+    );
+
+  return new Map(
+    sorted.map(
+      (record, index) => [
+        record.id,
+        index + 1
+      ]
+    )
+  );
+}
+
 function renderHistory() {
   const allRecords = loadRecords();
+
+  const sequenceMap =
+    recordSequenceMap(
+      allRecords
+    );
 
   $("statCount").textContent =
     allRecords.length;
@@ -7611,6 +7700,11 @@ function renderHistory() {
 
   list.innerHTML =
     filtered.map((record) => {
+      const recordNumber =
+        sequenceMap.get(
+          record.id
+        ) || "—";
+
       const profitText =
         Number.isFinite(record.profitR)
           ? `${record.profitR}R`
@@ -7735,7 +7829,10 @@ function renderHistory() {
         >
           ${selectionControl}
           <div class="history-top">
-            <strong>${escapeHtml(record.symbol)}</strong>
+            <div class="history-record-title">
+              <span class="history-record-number">#${escapeHtml(recordNumber)}</span>
+              <strong>${escapeHtml(record.symbol)}</strong>
+            </div>
             <strong>${escapeHtml(profitText)}</strong>
           </div>
 
@@ -7930,13 +8027,21 @@ async function displayRecordImage(
 }
 
 async function openRecord(recordId) {
+  const allRecords =
+    loadRecords();
+
   const record =
-    loadRecords().find(
+    allRecords.find(
       (item) =>
         item.id === recordId
     );
 
   if (!record) return;
+
+  const recordNumber =
+    recordSequenceMap(
+      allRecords
+    ).get(record.id) || "—";
 
   activeRecordId = recordId;
 
@@ -7971,6 +8076,9 @@ async function openRecord(recordId) {
       : "無";
 
   $("recordDetails").innerHTML = `
+    <strong>紀錄編號：</strong>
+    #${escapeHtml(recordNumber)}
+    <br>
     <strong>交易日期：</strong>
     ${escapeHtml(recordTradeDate(record) || "未記錄")}
     <br>

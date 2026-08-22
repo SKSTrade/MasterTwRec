@@ -1339,3 +1339,27 @@ dialog::backdrop {
     grid-column: 1 / -1;
   }
 }
+
+
+.history-record-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.history-record-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.7rem;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.035);
+}
