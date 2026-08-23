@@ -6743,9 +6743,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.29.0",
+      "PracticeJournal-V1.29.1",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r10-HistoryFiltersAndValidCandidateEdit",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r11-RecordImageLightbox",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -8083,6 +8083,8 @@ function renderHistory() {
 }
 
 function clearRecordImageDisplay() {
+  closeRecordImageLightbox();
+
   revokeObjectUrls(
     editingImageUrls
   );
@@ -8099,6 +8101,8 @@ function clearRecordImageDisplay() {
 }
 
 function renderRecordImageGallery() {
+  closeRecordImageLightbox();
+
   revokeObjectUrls(
     editingImageUrls
   );
@@ -8126,6 +8130,9 @@ function renderRecordImageGallery() {
             <img
               src="${url}"
               alt="Stored chart screenshot ${index + 1}"
+              data-open-record-image="${index}"
+              class="record-gallery-zoomable"
+              title="點擊放大"
             >
             <div class="multi-image-item-actions">
               <span>圖片 ${index + 1}</span>
@@ -8146,6 +8153,64 @@ function renderRecordImageGallery() {
         `
       )
       .join("");
+}
+
+function closeRecordImageLightbox() {
+  const dialog =
+    $("imageLightboxDialog");
+
+  if (dialog.open) {
+    dialog.close();
+  }
+
+  $("imageLightboxImage")
+    .removeAttribute("src");
+
+  $("imageLightboxCaption")
+    .textContent =
+      "Chart Screenshot";
+}
+
+function openRecordImageLightbox(
+  index
+) {
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= editingImageUrls.length
+  ) {
+    return;
+  }
+
+  const url =
+    editingImageUrls[index];
+
+  if (!url) return;
+
+  $("imageLightboxImage").src =
+    url;
+
+  $("imageLightboxCaption")
+    .textContent =
+      `圖片 ${index + 1} / ${editingImageUrls.length}`;
+
+  const dialog =
+    $("imageLightboxDialog");
+
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+}
+
+function handleImageLightboxBackdropClick(
+  event
+) {
+  const dialog =
+    $("imageLightboxDialog");
+
+  if (event.target === dialog) {
+    closeRecordImageLightbox();
+  }
 }
 
 async function displayRecordImage(
@@ -13693,7 +13758,43 @@ function setupEvents() {
                 .downloadRecordImage
             )
           );
+          return;
         }
+
+        const image =
+          event.target.closest(
+            "[data-open-record-image]"
+          );
+
+        if (image) {
+          openRecordImageLightbox(
+            Number(
+              image.dataset
+                .openRecordImage
+            )
+          );
+        }
+      }
+    );
+
+  $("imageLightboxClose")
+    .addEventListener(
+      "click",
+      closeRecordImageLightbox
+    );
+
+  $("imageLightboxDialog")
+    .addEventListener(
+      "click",
+      handleImageLightboxBackdropClick
+    );
+
+  $("imageLightboxDialog")
+    .addEventListener(
+      "close",
+      () => {
+        $("imageLightboxImage")
+          .removeAttribute("src");
       }
     );
 

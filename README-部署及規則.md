@@ -1,35 +1,21 @@
-# Master Trade System V1.29.0｜History Filters + Valid Candidate Edit
+# Master Trade System V1.29.1｜Record Image Lightbox
 
-## 紀錄庫
+## 紀錄庫圖片放大
 
-打開任何紀錄後，Valid Candidate可以修改 Yes / No。
+紀錄庫打開任何有Chart Screenshot嘅紀錄後：
 
-新增Filter：
-- 類型：全部 / 練習 / 實戰
-- 入市結果：Entry / Miss / Skip
-- 商品：按現有紀錄自動列出，例如 HSI、XAUUSD、EURUSD 等
-- 日期由 / 日期至
-- 清除篩選
+- 點擊縮圖即可全螢幕放大
+- 點背景可關閉
+- 點右上角 × 可關閉
+- 按 Esc 可關閉
+- 多張圖片各自都可以點擊放大
 
-所有Filter可以同時疊加。
-紀錄編號仍然按全紀錄庫建立時間，篩選後唔會重新編號。
-「全選目前結果」會跟目前Filter結果。
-
-## 練習／實戰結果紀錄版面
-
-以下5項已搬到「去唔去到TP2」下面、「圖片／Chart Screenshot」上面：
-- MFE R
-- MAE R
-- Time to RF（H/M）
-- Time to MFE（H/M）
-- Valid Candidate
-
-欄位ID、儲存格式及CSV欄位保持不變。
+原本下載、移除、編輯圖片功能全部保留。
 
 ## 相容性
 
+- 圖片仍然保存喺原有IndexedDB
+- 冇改圖片壓縮／儲存格式
 - CSV維持149欄
-- 舊CSV可讀
 - LocalStorage key不變
-- IndexedDB圖片DB不變
-- Matrix / Route / P / Q / E / Obstacle / Objective邏輯不變
+- Matrix、Route、P/Q、E/E+、Obstacle、Trade Objective全部不變

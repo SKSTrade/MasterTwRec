@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-29-0-history-filters-valid-candidate";
+const CACHE_NAME = "master-trade-system-v1-29-1-record-image-lightbox";
 const ASSETS = [
   "./",
   "./index.html",

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.29.0</span>
+    <span class="version-badge">V1.29.1</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1860,6 +1860,21 @@
         <button id="saveRecordEdit" type="button" class="primary-button compact-button">儲存修改</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="imageLightboxDialog" class="image-lightbox-dialog" aria-label="放大Chart Screenshot">
+    <div class="image-lightbox-shell">
+      <div class="image-lightbox-header">
+        <strong id="imageLightboxCaption">Chart Screenshot</strong>
+        <button id="imageLightboxClose" type="button" class="icon-button" aria-label="關閉放大圖片">×</button>
+      </div>
+
+      <div class="image-lightbox-stage">
+        <img id="imageLightboxImage" src="" alt="放大Chart Screenshot">
+      </div>
+
+      <p class="state-note image-lightbox-note">點背景、右上角 × 或按 Esc 關閉。</p>
+    </div>
   </dialog>
 
   <button
