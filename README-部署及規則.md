@@ -1,24 +1,35 @@
-# Master Trade System V1.28.9｜Chronological Record Numbering
+# Master Trade System V1.29.0｜History Filters + Valid Candidate Edit
 
-## 紀錄庫編號
+## 紀錄庫
 
-紀錄庫每筆Trade會按紀錄建立時間固定編號：
+打開任何紀錄後，Valid Candidate可以修改 Yes / No。
 
-- 最早紀錄 = #1
-- 之後按建立時間 = #2、#3、#4...
+新增Filter：
+- 類型：全部 / 練習 / 實戰
+- 入市結果：Entry / Miss / Skip
+- 商品：按現有紀錄自動列出，例如 HSI、XAUUSD、EURUSD 等
+- 日期由 / 日期至
+- 清除篩選
 
-編號係全紀錄庫時間序號，使用篩選時唔會重新編號。
+所有Filter可以同時疊加。
+紀錄編號仍然按全紀錄庫建立時間，篩選後唔會重新編號。
+「全選目前結果」會跟目前Filter結果。
 
-例如全庫：
-#1 #2 #3 #4 #5
+## 練習／實戰結果紀錄版面
 
-如果只篩選Live，畫面可能顯示：
-#2 #5
+以下5項已搬到「去唔去到TP2」下面、「圖片／Chart Screenshot」上面：
+- MFE R
+- MAE R
+- Time to RF（H/M）
+- Time to MFE（H/M）
+- Valid Candidate
 
-代表原本全庫嘅時間序號，唔係篩選後重新編號。
+欄位ID、儲存格式及CSV欄位保持不變。
 
-打開紀錄詳情亦會顯示相同「紀錄編號」。
+## 相容性
 
-刪除紀錄後，剩餘紀錄會按建立時間重新順序編號。
-
-Matrix、Route、P/Q、E/E+、Obstacle、Trade Objective、CSV schema全部不變。
+- CSV維持149欄
+- 舊CSV可讀
+- LocalStorage key不變
+- IndexedDB圖片DB不變
+- Matrix / Route / P / Q / E / Obstacle / Objective邏輯不變

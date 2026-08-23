@@ -6743,9 +6743,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.28.9",
+      "PracticeJournal-V1.29.0",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r9-ChronologicalRecordNumbering",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r10-HistoryFiltersAndValidCandidateEdit",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7507,6 +7507,68 @@ function recordSequenceMap(
   );
 }
 
+function updateHistorySymbolFilter(
+  records
+) {
+  const select =
+    $("historySymbolFilter");
+
+  const selected =
+    select.value || "All";
+
+  const symbols =
+    [...new Set(
+      records
+        .map(
+          (record) =>
+            String(
+              record.symbol ||
+              record.marketCode ||
+              ""
+            ).trim()
+        )
+        .filter(Boolean)
+    )].sort(
+      (a, b) =>
+        a.localeCompare(
+          b,
+          undefined,
+          {
+            numeric: true,
+            sensitivity: "base"
+          }
+        )
+    );
+
+  select.innerHTML = [
+    '<option value="All">全部商品</option>',
+    ...symbols.map(
+      (symbol) =>
+        `<option value="${escapeHtml(symbol)}">${escapeHtml(symbol)}</option>`
+    )
+  ].join("");
+
+  select.value =
+    symbols.includes(selected)
+      ? selected
+      : "All";
+}
+
+function clearHistoryFilters() {
+  $("historyModeFilter").value =
+    "All";
+  $("historyEntryFilter").value =
+    "All";
+  $("historySymbolFilter").value =
+    "All";
+  $("historyDateFrom").value =
+    "";
+  $("historyDateTo").value =
+    "";
+
+  renderHistory();
+}
+
 function renderHistory() {
   const allRecords = loadRecords();
 
@@ -7638,10 +7700,20 @@ function renderHistory() {
       "未有資料";
   }
 
+  updateHistorySymbolFilter(
+    allRecords
+  );
+
   const modeFilter =
     $("historyModeFilter").value;
   const entryFilter =
     $("historyEntryFilter").value;
+  const symbolFilter =
+    $("historySymbolFilter").value;
+  const dateFrom =
+    $("historyDateFrom").value;
+  const dateTo =
+    $("historyDateTo").value;
 
   const filtered =
     allRecords.filter((record) => {
@@ -7655,11 +7727,79 @@ function renderHistory() {
         record.entryStatus ===
           entryFilter;
 
+      const recordSymbol =
+        String(
+          record.symbol ||
+          record.marketCode ||
+          ""
+        ).trim();
+
+      const symbolMatches =
+        symbolFilter === "All" ||
+        recordSymbol === symbolFilter;
+
+      const tradeDate =
+        String(
+          recordTradeDate(record) ||
+          ""
+        ).slice(0, 10);
+
+      const fromMatches =
+        !dateFrom ||
+        (
+          tradeDate &&
+          tradeDate >= dateFrom
+        );
+
+      const toMatches =
+        !dateTo ||
+        (
+          tradeDate &&
+          tradeDate <= dateTo
+        );
+
       return (
         modeMatches &&
-        entryMatches
+        entryMatches &&
+        symbolMatches &&
+        fromMatches &&
+        toMatches
       );
     });
+
+  const activeFilterParts = [];
+
+  if (modeFilter !== "All") {
+    activeFilterParts.push(
+      modeFilter === "Live"
+        ? "實戰"
+        : "練習"
+    );
+  }
+
+  if (entryFilter !== "All") {
+    activeFilterParts.push(
+      entryFilter
+    );
+  }
+
+  if (symbolFilter !== "All") {
+    activeFilterParts.push(
+      symbolFilter
+    );
+  }
+
+  if (dateFrom || dateTo) {
+    activeFilterParts.push(
+      `${dateFrom || "最早"} → ${dateTo || "最新"}`
+    );
+  }
+
+  $("historyFilterSummary")
+    .textContent =
+      activeFilterParts.length > 0
+        ? `顯示 ${filtered.length}/${allRecords.length} 筆｜${activeFilterParts.join("｜")}`
+        : `顯示全部 ${allRecords.length} 筆紀錄`;
 
   currentFilteredHistoryIds =
     filtered.map(
@@ -8459,6 +8599,10 @@ async function openRecord(recordId) {
   $("editReachedTP2").value =
     record.reachedTP2 ||
     "No";
+  $("editValidCandidate").value =
+    record.validCandidate === "Yes"
+      ? "Yes"
+      : "No";
   $("editNote").value =
     record.note || "";
 
@@ -8695,6 +8839,8 @@ async function saveRecordEdit() {
     $("editReachedRF").value;
   records[index].reachedTP2 =
     $("editReachedTP2").value;
+  records[index].validCandidate =
+    $("editValidCandidate").value;
   records[index].note =
     $("editNote").value.trim();
 
@@ -13346,6 +13492,30 @@ function setupEvents() {
     .addEventListener(
       "change",
       renderHistory
+    );
+
+  $("historySymbolFilter")
+    .addEventListener(
+      "change",
+      renderHistory
+    );
+
+  $("historyDateFrom")
+    .addEventListener(
+      "change",
+      renderHistory
+    );
+
+  $("historyDateTo")
+    .addEventListener(
+      "change",
+      renderHistory
+    );
+
+  $("historyClearFilters")
+    .addEventListener(
+      "click",
+      clearHistoryFilters
     );
 
   $("historySelectModeToggle")

@@ -1363,3 +1363,16 @@ dialog::backdrop {
   color: var(--muted);
   background: rgba(255, 255, 255, 0.035);
 }
+
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.filter-actions .state-note {
+  margin: 0;
+}

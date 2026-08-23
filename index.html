@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.28.9</span>
+    <span class="version-badge">V1.29.0</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1161,19 +1161,6 @@
             <span>新sample固定用同一版規則；唔因單一loss／win即時改權限。</span>
           </div>
 
-          <div class="yes-no-grid">
-            <label>MFE R<input id="mfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.35"></label>
-            <label>MAE R<input id="maeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 -0.65"></label>
-            <label>Time to RF（H/M）<input id="timeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空"></label>
-            <label>Time to MFE（H/M）<input id="timeToMFE" type="text" inputmode="text" autocomplete="off" placeholder="例如 2H05M 或 45M"></label>
-          </div>
-
-          <div class="yes-no-grid">
-            <label>Valid Candidate<select id="validCandidate"><option value="Yes">Yes｜符合V1.3候選定義</option><option value="No" selected>No</option></select></label>
-          </div>
-
-          <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
-
           <div id="euOpeningBacktestPanel" class="hidden" hidden aria-hidden="true">
             <input id="openingStoryId" type="hidden" value="">
             <div id="euDRequiredFields" class="hidden">
@@ -1274,6 +1261,25 @@
             </label>
           </div>
 
+          <div class="yes-no-grid">
+            <label>MFE R<input id="mfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.35"></label>
+            <label>MAE R<input id="maeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 -0.65"></label>
+            <label>Time to RF（H/M）<input id="timeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空"></label>
+            <label>Time to MFE（H/M）<input id="timeToMFE" type="text" inputmode="text" autocomplete="off" placeholder="例如 2H05M 或 45M"></label>
+          </div>
+
+          <div class="yes-no-grid">
+            <label>
+              Valid Candidate
+              <select id="validCandidate">
+                <option value="Yes">Yes｜符合V1.3候選定義</option>
+                <option value="No" selected>No</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
+
           <div class="paste-image-section">
             <span class="field-label">圖片／Chart Screenshot</span>
             <div
@@ -1362,6 +1368,30 @@
               <option value="Skip">Skip</option>
             </select>
           </label>
+
+          <label>
+            商品
+            <select id="historySymbolFilter">
+              <option value="All">全部商品</option>
+            </select>
+          </label>
+
+          <label>
+            日期由
+            <input id="historyDateFrom" type="date">
+          </label>
+
+          <label>
+            日期至
+            <input id="historyDateTo" type="date">
+          </label>
+        </div>
+
+        <div class="filter-actions">
+          <button id="historyClearFilters" class="secondary-button compact-button" type="button">
+            清除篩選
+          </button>
+          <span id="historyFilterSummary" class="state-note">顯示全部紀錄</span>
         </div>
 
         <div class="history-selection-entry">
@@ -1796,6 +1826,14 @@
           <select id="editReachedTP2"><option value="No">No</option><option value="Yes">Yes</option><option value="N/A">N/A｜掛盤但冇成交／不適用</option></select>
         </label>
       </div>
+
+      <label>
+        Valid Candidate
+        <select id="editValidCandidate">
+          <option value="Yes">Yes｜符合V1.3候選定義</option>
+          <option value="No">No</option>
+        </select>
+      </label>
 
       <div class="paste-image-section">
         <span class="field-label">更換／新增圖片</span>

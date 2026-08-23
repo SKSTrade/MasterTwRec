@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.28.9",
+  "name": "Master Trade System V1.29.0",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with chronological record numbering in the record library while preserving all existing matrix and journal logic.",
+  "description": "Master Trade Matrix V1.3 Frozen with editable Valid Candidate, record-library product/date filters, and reorganized journal performance fields.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

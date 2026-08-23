@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-28-9-chronological-record-numbering";
+const CACHE_NAME = "master-trade-system-v1-29-0-history-filters-valid-candidate";
 const ASSETS = [
   "./",
   "./index.html",
