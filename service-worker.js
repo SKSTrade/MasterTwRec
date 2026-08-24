@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-29-1-record-image-lightbox";
+const CACHE_NAME = "master-trade-system-v1-29-2-post-entry-price-pattern";
 const ASSETS = [
   "./",
   "./index.html",

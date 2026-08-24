@@ -6743,9 +6743,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.29.1",
+      "PracticeJournal-V1.29.2",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r11-RecordImageLightbox",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r12-PostEntryPricePattern",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7133,6 +7133,8 @@ async function saveDecision(event) {
       timeToMFEMinutes,
     validCandidate:
       $("validCandidate").value,
+    postEntryPricePattern:
+      $("postEntryPricePattern").value.trim(),
     reachedRF:
       $("reachedRF").value,
     reachedTP2:
@@ -7182,6 +7184,7 @@ async function saveDecision(event) {
   $("timeToRF").value = "";
   $("timeToMFE").value = "";
   $("validCandidate").value = "No";
+  $("postEntryPricePattern").value = "";
   $("entryTimeQ").value = "Auto";
   $("postEntryQ").value = "N/A";
   $("postEntryAction").value = "N/A";
@@ -8607,6 +8610,9 @@ async function openRecord(recordId) {
     <br>
     <strong>Valid Candidate：</strong>
     ${escapeHtml(record.validCandidate || "No")}
+    <br>
+    <strong>入市後 Price Pattern：</strong>
+    ${escapeHtml(record.postEntryPricePattern || "N/A")}
     ${record.reviewedSession ? `<br><strong>Legacy Reviewed Session：</strong>${escapeHtml(record.reviewedSession)}` : ""}
   `;
 
@@ -8668,6 +8674,8 @@ async function openRecord(recordId) {
     record.validCandidate === "Yes"
       ? "Yes"
       : "No";
+  $("editPostEntryPricePattern").value =
+    record.postEntryPricePattern || "";
   $("editNote").value =
     record.note || "";
 
@@ -8906,6 +8914,8 @@ async function saveRecordEdit() {
     $("editReachedTP2").value;
   records[index].validCandidate =
     $("editValidCandidate").value;
+  records[index].postEntryPricePattern =
+    $("editPostEntryPricePattern").value.trim();
   records[index].note =
     $("editNote").value.trim();
 
@@ -9178,6 +9188,7 @@ function buildCsv(records) {
     "Actual R",
     "Reviewed Session",
     "Valid Candidate",
+    "入市後 Price Pattern",
     "Checklist",
     "備註"
   ];
@@ -9485,6 +9496,7 @@ function buildCsv(records) {
           : "",
       record.reviewedSession || "",
       record.validCandidate || "No",
+      record.postEntryPricePattern || "",
       record.checklistSummary || "",
       record.note || ""
     ]);
@@ -11617,6 +11629,11 @@ function recordFromCsvRow(row) {
       firstCsvValue(row, "Reviewed Session") || "",
     validCandidate:
       firstCsvValue(row, "Valid Candidate") || "No",
+    postEntryPricePattern:
+      firstCsvValue(
+        row,
+        "入市後 Price Pattern"
+      ) || "",
     checklistSummary:
       firstCsvValue(
         row,

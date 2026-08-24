@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.29.1</span>
+    <span class="version-badge">V1.29.2</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1278,6 +1278,13 @@
             </label>
           </div>
 
+          <label>
+            入市後 Price Pattern
+            <textarea id="postEntryPricePattern" rows="3" placeholder="例如：5M HL形成後續升、Failed breakout、2B、Range／旗形、Lower High後續跌、Reclaim後第一次弱回測"></textarea>
+          </label>
+
+          <p class="state-note">記錄Entry之後實際出現嘅Price Action／Pattern；只作覆盤研究，唔會反向改動Entry-time Matrix判定。</p>
+
           <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
 
           <div class="paste-image-section">
@@ -1833,6 +1840,11 @@
           <option value="Yes">Yes｜符合V1.3候選定義</option>
           <option value="No">No</option>
         </select>
+      </label>
+
+      <label>
+        入市後 Price Pattern
+        <textarea id="editPostEntryPricePattern" rows="3" placeholder="例如：5M HL、Failed breakout、2B、Range、Lower High、Continuation"></textarea>
       </label>
 
       <div class="paste-image-section">

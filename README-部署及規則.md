@@ -1,21 +1,41 @@
-# Master Trade System V1.29.1｜Record Image Lightbox
+# Master Trade System V1.29.2｜Post-entry Price Pattern
 
-## 紀錄庫圖片放大
+## 新增 Trade-level 覆盤欄位
 
-紀錄庫打開任何有Chart Screenshot嘅紀錄後：
+「練習／實戰結果紀錄」新增：
 
-- 點擊縮圖即可全螢幕放大
-- 點背景可關閉
-- 點右上角 × 可關閉
-- 按 Esc 可關閉
-- 多張圖片各自都可以點擊放大
+> 入市後 Price Pattern
 
-原本下載、移除、編輯圖片功能全部保留。
+用途係記錄Entry之後實際出現嘅Price Action / Pattern，例如：
 
-## 相容性
+- 5M HL / LH
+- 2B
+- Failed breakout
+- Reclaim後第一次弱回測
+- Range / Flag
+- Continuation
+- Lower High / Higher Low
+- Impulse後失速／吸收
 
-- 圖片仍然保存喺原有IndexedDB
-- 冇改圖片壓縮／儲存格式
-- CSV維持149欄
-- LocalStorage key不變
-- Matrix、Route、P/Q、E/E+、Obstacle、Trade Objective全部不變
+呢個欄位只作事後研究，唔會反向改動Entry-time Matrix結果。
+
+## 紀錄庫
+
+打開任何紀錄後，可以修改：
+
+> 入市後 Price Pattern
+
+儲存修改後Record Detail同CSV都會更新。
+
+## CSV
+
+CSV新增一欄：
+
+> 入市後 Price Pattern
+
+CSV由149欄增至150欄。
+舊CSV冇呢欄時會自動當空白，所以仍然可以匯入。
+
+## 其他功能
+
+Matrix、Route、P/Q、E/E+、Obstacle、Trade Objective、紀錄Filter、圖片Lightbox等全部不變。

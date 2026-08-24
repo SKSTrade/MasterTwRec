@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.29.1",
+  "name": "Master Trade System V1.29.2",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with click-to-enlarge fullscreen lightbox viewing for record-library chart screenshots.",
+  "description": "Master Trade Matrix V1.3 Frozen with a post-entry Price Pattern journal field that can also be edited later from the record library.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
