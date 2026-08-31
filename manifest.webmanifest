@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.29.2",
+  "name": "Master Trade System V1.30.0",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with a post-entry Price Pattern journal field that can also be edited later from the record library.",
+  "description": "Master Trade Matrix V1.3 Frozen with the 2025 H2 Backtest Operating Matrix and Shadow Research Overlay: automatic cap reasons, normalized R, objective-at-entry classification, and Deep-RF / objective-upgrade research fields.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

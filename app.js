@@ -4759,6 +4759,96 @@ function enhancementEdgeInfo(
   return { marker:"", label:"None" };
 }
 
+function objectiveAtEntryCode({
+  finalSize,
+  routeCode,
+  nativeQ,
+  position,
+  firstObstacleR = null,
+  obstacleState = "none",
+  controlCode = "",
+  transitionTypeCode = "",
+  setupVariant = ""
+}) {
+  if (
+    !Number.isFinite(Number(finalSize)) ||
+    Number(finalSize) <= 0
+  ) {
+    return "Skip";
+  }
+
+  const nativeQ3 =
+    nativeQ === "Q3";
+
+  const highLocation =
+    ["P1", "P2"].includes(
+      position
+    );
+
+  const obstaclePresent =
+    firstObstacleR !== null &&
+    firstObstacleR !== undefined &&
+    firstObstacleR !== "" &&
+    Number.isFinite(
+      Number(firstObstacleR)
+    );
+
+  const cleanSpace =
+    (
+      !obstaclePresent ||
+      Number(firstObstacleR) >= 2
+    ) &&
+    ["none", "standard"].includes(
+      obstacleState
+    );
+
+  const controlAllows =
+    controlCode !== "Opposing";
+
+  const transitionAllows =
+    !["Mixed", "Neutral"].includes(
+      transitionTypeCode
+    );
+
+  const matureExpansion =
+    nativeQ3 &&
+    highLocation &&
+    cleanSpace &&
+    controlAllows &&
+    transitionAllows &&
+    routeCode === "healthyAligned";
+
+  const reactionFirstEligible =
+    nativeQ3 &&
+    highLocation &&
+    cleanSpace &&
+    controlAllows &&
+    transitionAllows &&
+    [
+      "weakAligned",
+      "alignedTransition",
+      "transitionConfirmed"
+    ].includes(routeCode);
+
+  const hsiOprHealthyExpansion =
+    setupVariant ===
+      "oprContinuation" &&
+    matureExpansion;
+
+  if (
+    matureExpansion ||
+    hsiOprHealthyExpansion
+  ) {
+    return "Expansion";
+  }
+
+  if (reactionFirstEligible) {
+    return "Reaction-first";
+  }
+
+  return "Reaction";
+}
+
 function tradeObjectiveInfo({
   finalSize,
   matrixRouteCode,
@@ -4769,89 +4859,462 @@ function tradeObjectiveInfo({
   control,
   transitionType
 }) {
-  if (finalSize <= 0) {
-    return { code:"Skip", label:"Skip", reason:"Final Size＝0／Hard Veto，唔建立Trade Objective。" };
+  const code =
+    objectiveAtEntryCode({
+      finalSize,
+      routeCode:
+        matrixRouteCode,
+      nativeQ:
+        baseTrigger.quality,
+      position:
+        setupResult.effectivePosition,
+      firstObstacleR,
+      obstacleState,
+      controlCode:
+        control.code,
+      transitionTypeCode:
+        transitionType.code,
+      setupVariant:
+        setupResult.setupVariant
+    });
+
+  if (code === "Skip") {
+    return {
+      code,
+      label: code,
+      reason:
+        "Final Size＝0／Hard Veto，唔建立Trade Objective。"
+    };
   }
 
-  const nativeQ3 = baseTrigger.quality === "Q3";
-  const highLocation = ["P1","P2"].includes(setupResult.effectivePosition);
-  const obstaclePresent =
-    firstObstacleR !== null &&
-    firstObstacleR !== undefined;
-  const cleanSpace =
-    (
-      !obstaclePresent ||
-      firstObstacleR >= 2
-    ) &&
-    ["none","standard"].includes(
-      obstacleState
-    );
-  const alignedRoute = [
-    "healthyAligned",
-    "weakAligned",
-    "alignedTransition",
-    "transitionConfirmed"
-  ].includes(matrixRouteCode);
-  const conflictLike = [
-    "conflictMain",
-    "conflictSecondary",
-    "reverseWeakMain",
-    "reverseHealthyMain",
-    "neutralMainConfirmed",
-    "neutralMainReverse",
-    "transitionVsConfirmedConflict",
-    "alignedReverse",
-    "transitionReverse",
-    "mixedTransition",
-    "neutralTransition"
-  ].includes(matrixRouteCode);
-
-  const hsiOprContinuationExpansion =
-    setupResult.setupVariant === "oprContinuation" &&
-    nativeQ3 &&
-    cleanSpace &&
-    alignedRoute &&
-    control.code !== "Opposing";
-
-  const expansion =
-    (
-      nativeQ3 &&
-      highLocation &&
-      cleanSpace &&
-      alignedRoute &&
-      !conflictLike &&
-      control.code !== "Opposing" &&
-      !["Mixed","Neutral"].includes(transitionType.code)
-    ) ||
-    hsiOprContinuationExpansion;
-
-  if (expansion) {
+  if (code === "Expansion") {
     return {
-      code:"Expansion",
-      label:"Expansion",
-      reason: hsiOprContinuationExpansion
-        ? "HSI-C Research：Native Q3＋1H/15M方向Alignment＋Clean ≥2R；Objective按Expansion記錄，但Setup仍冇E。"
-        : "Native Q3＋方向Alignment良好＋P1/P2/P2-E＋Clean ≥2R；有條件期待完整directional leg／TP2，Runner只按管理規則。"
+      code,
+      label: code,
+      reason:
+        "雙健康同向／成熟directional control＋Native Q3＋P1/P2/P2-E＋Clean ≥2R；有條件期待完整directional expansion。"
+    };
+  }
+
+  if (
+    code ===
+    "Reaction-first"
+  ) {
+    return {
+      code,
+      label:
+        "Reaction-first｜Expansion-eligible",
+      reason:
+        "Entry一刻control未成熟到直接Expansion；Frozen Size不變。事後只用Shadow記錄有冇出現足夠control confirmation令Reaction→Expansion。"
     };
   }
 
   const reactionReasons = [];
-  if (baseTrigger.quality === "Q2") reactionReasons.push("Native Q2");
-  if (conflictLike) reactionReasons.push("Direction Conflict／Counter-main／Transition Conflict");
-  if (control.code === "Opposing") reactionReasons.push("Immediate Control Opposing");
+  const obstaclePresent =
+    firstObstacleR !== null &&
+    firstObstacleR !== undefined &&
+    firstObstacleR !== "" &&
+    Number.isFinite(
+      Number(firstObstacleR)
+    );
+
+  if (
+    baseTrigger.quality ===
+    "Q2"
+  ) {
+    reactionReasons.push(
+      "Native Q2"
+    );
+  }
+
+  if (
+    [
+      "conflictMain",
+      "conflictSecondary",
+      "reverseWeakMain",
+      "reverseHealthyMain",
+      "neutralMainConfirmed",
+      "neutralMainReverse",
+      "transitionVsConfirmedConflict",
+      "alignedReverse",
+      "transitionReverse",
+      "mixedTransition",
+      "neutralTransition"
+    ].includes(
+      matrixRouteCode
+    )
+  ) {
+    reactionReasons.push(
+      "Direction Conflict／Counter-main／Transition Conflict"
+    );
+  }
+
+  if (
+    control.code ===
+    "Opposing"
+  ) {
+    reactionReasons.push(
+      "Immediate Control Opposing"
+    );
+  }
+
   if (
     obstaclePresent &&
-    firstObstacleR < 2
-  ) reactionReasons.push("第一障礙<2R");
-  if (obstacleState === "inside") reactionReasons.push("重大HTF obstacle");
-  if (["Mixed","Neutral"].includes(transitionType.code)) reactionReasons.push(`${transitionType.code} Transition`);
-  if (setupResult.positionTreatment === "p2Effective") reactionReasons.push("P2-E execution");
+    Number(firstObstacleR) < 2
+  ) {
+    reactionReasons.push(
+      "第一障礙<2R"
+    );
+  }
+
+  if (
+    obstacleState ===
+    "inside"
+  ) {
+    reactionReasons.push(
+      "重大HTF obstacle"
+    );
+  }
+
+  if (
+    ["Mixed", "Neutral"].includes(
+      transitionType.code
+    )
+  ) {
+    reactionReasons.push(
+      `${transitionType.code} Transition`
+    );
+  }
 
   return {
-    code:"Reaction",
-    label:"Reaction",
-    reason:`預設只期待可交易反應；第一結構／約1–1.5R優先RF／Partial。${reactionReasons.length ? ` 原因：${reactionReasons.join("、")}。` : ""}`
+    code,
+    label: code,
+    reason:
+      `預設只期待第一段可交易反應；第一結構／約1–1.5R優先RF／Partial。${reactionReasons.length ? ` 原因：${reactionReasons.join("、")}。` : ""}`
   };
+}
+
+function capReasonInfo({
+  finalSize,
+  routeCode,
+  rawPosition,
+  executionPosition,
+  positionTreatment = "",
+  nativeQ = "",
+  q2SubtypeLabel = "",
+  obstacleState = "none",
+  matrixSize = 0,
+  rangeSize = 0,
+  controlCode = ""
+}) {
+  if (
+    Number(finalSize) !==
+    0.25
+  ) {
+    return {
+      primary: "N/A",
+      flags: []
+    };
+  }
+
+  const flags = [];
+
+  const p2Effective =
+    rawPosition === "P3" &&
+    executionPosition === "P2" &&
+    positionTreatment ===
+      "p2Effective";
+
+  if (p2Effective) {
+    flags.push(
+      "Raw P3 → P2-E"
+    );
+  }
+
+  if (nativeQ === "Q2") {
+    flags.push(
+      q2SubtypeLabel
+        ? `Native ${q2SubtypeLabel}`
+        : "Native Q2"
+    );
+  }
+
+  if (
+    obstacleState ===
+    "rfManaged"
+  ) {
+    flags.push(
+      "Obstacle / RR 1.5–<2R"
+    );
+  }
+
+  if (
+    obstacleState ===
+    "inside"
+  ) {
+    flags.push(
+      "重大HTF Obstacle"
+    );
+  }
+
+  if (
+    Number(rangeSize) <
+    Number(matrixSize)
+  ) {
+    flags.push(
+      "Range 25% downgrade"
+    );
+  }
+
+  if (
+    controlCode ===
+    "Opposing"
+  ) {
+    flags.push(
+      "Opposing Control"
+    );
+  }
+
+  if (
+    [
+      "conflictMain",
+      "conflictSecondary",
+      "transitionVsConfirmedConflict"
+    ].includes(routeCode)
+  ) {
+    flags.push(
+      "Direction Conflict"
+    );
+  }
+
+  let primary =
+    "Other";
+
+  if (
+    obstacleState ===
+      "inside" &&
+    Number(rangeSize) >
+      0.25
+  ) {
+    primary =
+      "Obstacle / RR";
+  } else if (
+    routeCode ===
+    "alignedTransition"
+  ) {
+    primary =
+      "Aligned Transition";
+  } else if (
+    routeCode ===
+    "reverseWeakMain"
+  ) {
+    primary =
+      "Counter Weak Main";
+  } else if (
+    [
+      "reverseHealthyMain",
+      "alignedReverse",
+      "neutralMainReverse"
+    ].includes(routeCode)
+  ) {
+    primary =
+      "HTF P1 Probe";
+  } else if (
+    [
+      "mixedTransition",
+      "neutralTransition",
+      "bothTransition",
+      "transitionReverse"
+    ].includes(routeCode)
+  ) {
+    primary =
+      "Mixed Transition";
+  } else if (p2Effective) {
+    primary =
+      "Raw P3 → P2-E";
+  }
+
+  return {
+    primary,
+    flags:
+      [...new Set(flags)]
+  };
+}
+
+function normalizedRValue(
+  actualR,
+  finalSize
+) {
+  if (
+    actualR === null ||
+    actualR === undefined ||
+    actualR === "" ||
+    finalSize === null ||
+    finalSize === undefined ||
+    finalSize === ""
+  ) {
+    return null;
+  }
+
+  const actual =
+    Number(actualR);
+  const size =
+    Number(finalSize);
+
+  if (
+    !Number.isFinite(actual) ||
+    !Number.isFinite(size) ||
+    size <= 0
+  ) {
+    return null;
+  }
+
+  return actual / size;
+}
+
+function formatResearchR(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return "N/A";
+  }
+
+  return Number.isFinite(
+    Number(value)
+  )
+    ? `${Number(value).toFixed(2)}R`
+    : "N/A";
+}
+
+function syncDeepRFShadowUI(
+  editMode = false
+) {
+  const prefix =
+    editMode ? "edit" : "";
+
+  const triggeredId =
+    editMode
+      ? "editDeepRFTriggered"
+      : "deepRFTriggered";
+
+  const originalSLId =
+    editMode
+      ? "editDeepRFOriginalSLHit"
+      : "deepRFOriginalSLHit";
+
+  const shadowMfeId =
+    editMode
+      ? "editDeepRFShadowMfeR"
+      : "deepRFShadowMfeR";
+
+  const noRfFinalId =
+    editMode
+      ? "editDeepRFNoRfFinalR"
+      : "deepRFNoRfFinalR";
+
+  const enabled =
+    $(triggeredId).value ===
+    "Yes";
+
+  [
+    originalSLId,
+    shadowMfeId,
+    noRfFinalId
+  ].forEach((id) => {
+    $(id).disabled =
+      !enabled;
+  });
+
+  if (!enabled) {
+    $(originalSLId).value =
+      "N/A";
+    $(shadowMfeId).value =
+      "";
+    $(noRfFinalId).value =
+      "";
+  }
+}
+
+function syncObjectiveUpgradeUI(
+  editMode = false,
+  objectiveCode = ""
+) {
+  const id =
+    editMode
+      ? "editPostEntryObjectiveUpgrade"
+      : "postEntryObjectiveUpgrade";
+
+  const select =
+    $(id);
+
+  const eligible =
+    objectiveCode ===
+    "Reaction-first";
+
+  select.disabled =
+    !eligible;
+
+  if (!eligible) {
+    select.value =
+      "No";
+  }
+}
+
+function updateShadowResearchPreview() {
+  const decision =
+    currentDecision;
+
+  if (!decision) return;
+
+  const actualR =
+    optionalNumberFromInput(
+      "profitR"
+    );
+
+  const normalizedR =
+    normalizedRValue(
+      actualR,
+      decision.finalSize
+    );
+
+  $("shadowPrimaryCapReason")
+    .textContent =
+      decision.primaryCapReason ||
+      "N/A";
+
+  $("shadowAdditionalCapFlags")
+    .textContent =
+      decision.additionalCapFlags
+        ?.length
+        ? decision.additionalCapFlags
+            .join("｜")
+        : "N/A";
+
+  const objectiveCode =
+    decision.objectiveAtEntry ||
+    decision.tradeObjective ||
+    "N/A";
+
+  $("shadowObjectiveAtEntry")
+    .textContent =
+      objectiveCode;
+
+  $("shadowNormalizedR")
+    .textContent =
+      formatResearchR(
+        normalizedR
+      );
+
+  syncObjectiveUpgradeUI(
+    false,
+    objectiveCode
+  );
+
+  syncDeepRFShadowUI(false);
 }
 
 function evaluateDecision(
@@ -4906,6 +5369,31 @@ function evaluateDecision(
     baseTrigger.quality === "Q3"
       ? 0.5
       : null;
+
+  const capReason =
+    capReasonInfo({
+      finalSize,
+      routeCode:
+        matrix.routeCode,
+      rawPosition:
+        setupResult.basePosition,
+      executionPosition:
+        setupResult.effectivePosition,
+      positionTreatment:
+        setupResult.positionTreatment,
+      nativeQ:
+        baseTrigger.quality,
+      q2SubtypeLabel:
+        q2Subtype.label,
+      obstacleState:
+        obstacle.state,
+      matrixSize:
+        matrix.size,
+      rangeSize:
+        range.adjustedSize,
+      controlCode:
+        control.code
+    });
 
   const reasons = [
     ...setupResult.reasons,
@@ -5035,6 +5523,12 @@ function evaluateDecision(
     obstacleEligible: obstacle.eligible,
     tradeObjective: objective.code,
     tradeObjectiveReason: objective.reason,
+    objectiveAtEntry:
+      objective.code,
+    primaryCapReason:
+      capReason.primary,
+    additionalCapFlags:
+      capReason.flags,
     finalSize,
     reasons,
     warnings,
@@ -5280,7 +5774,20 @@ function renderDecision(decision) {
       ? decision.q2Subtype
       : "N/A";
   $("resultTradeObjective").textContent =
+    decision.objectiveAtEntry ||
     decision.tradeObjective;
+
+  $("resultPrimaryCapReason").textContent =
+    decision.primaryCapReason ||
+    "N/A";
+
+  $("resultAdditionalCapFlags").textContent =
+    decision.additionalCapFlags
+      ?.length
+      ? decision.additionalCapFlags
+          .join("｜")
+      : "N/A";
+
   $("resultShadowSize").textContent =
     decision.shadowAlignedTransitionSize === null
       ? "N/A"
@@ -5989,6 +6496,7 @@ function recalculate() {
   renderBaseTrigger(currentBaseTrigger);
   renderAsia2B(currentAsia2B);
   renderDecision(currentDecision);
+  updateShadowResearchPreview();
 }
 
 function yesNo(value) {
@@ -6721,6 +7229,17 @@ async function saveDecision(event) {
     return;
   }
 
+  const profitRValue =
+    optionalNumberFromInput(
+      "profitR"
+    );
+
+  const normalizedR =
+    normalizedRValue(
+      profitRValue,
+      currentDecision?.finalSize
+    );
+
   const timeframes =
     timeframeValues();
 
@@ -6743,9 +7262,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.29.2",
+      "PracticeJournal-V1.30.0",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r12-PostEntryPricePattern",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r13-2025H2ShadowOverlay",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -6863,6 +7382,17 @@ async function saveDecision(event) {
       currentDecision.tradeObjective,
     tradeObjectiveReason:
       currentDecision.tradeObjectiveReason,
+    objectiveAtEntry:
+      currentDecision.objectiveAtEntry ||
+      currentDecision.tradeObjective,
+    shadowResearchVersion:
+      "2025 H2 Shadow Overlay v1",
+    primaryCapReason:
+      currentDecision.primaryCapReason ||
+      "N/A",
+    additionalCapFlags:
+      currentDecision.additionalCapFlags ||
+      [],
     shadowAlignedTransitionSize:
       currentDecision.shadowAlignedTransitionSize,
     setupFamily:
@@ -7120,9 +7650,10 @@ async function saveDecision(event) {
     tpPlan:
       $("tpPlan").value,
     profitR:
-      optionalNumberFromInput("profitR"),
+      profitRValue,
     actualR:
-      optionalNumberFromInput("profitR"),
+      profitRValue,
+    normalizedR,
     mfeR:
       optionalNumberFromInput("mfeR"),
     maeR:
@@ -7135,6 +7666,20 @@ async function saveDecision(event) {
       $("validCandidate").value,
     postEntryPricePattern:
       $("postEntryPricePattern").value.trim(),
+    postEntryObjectiveUpgrade:
+      $("postEntryObjectiveUpgrade").value,
+    deepRFTriggered:
+      $("deepRFTriggered").value,
+    deepRFOriginalSLHit:
+      $("deepRFOriginalSLHit").value,
+    deepRFShadowMfeR:
+      optionalNumberFromInput(
+        "deepRFShadowMfeR"
+      ),
+    deepRFNoRfFinalR:
+      optionalNumberFromInput(
+        "deepRFNoRfFinalR"
+      ),
     reachedRF:
       $("reachedRF").value,
     reachedTP2:
@@ -7185,6 +7730,11 @@ async function saveDecision(event) {
   $("timeToMFE").value = "";
   $("validCandidate").value = "No";
   $("postEntryPricePattern").value = "";
+  $("postEntryObjectiveUpgrade").value = "No";
+  $("deepRFTriggered").value = "No";
+  $("deepRFOriginalSLHit").value = "N/A";
+  $("deepRFShadowMfeR").value = "";
+  $("deepRFNoRfFinalR").value = "";
   $("entryTimeQ").value = "Auto";
   $("postEntryQ").value = "N/A";
   $("postEntryAction").value = "N/A";
@@ -7192,6 +7742,7 @@ async function saveDecision(event) {
   $("reachedTP2").value = "No";
   $("note").value = "";
 
+  updateShadowResearchPreview();
   renderHistory();
   showToast(
     "已儲存全市場Matrix紀錄"
@@ -8530,8 +9081,27 @@ async function openRecord(recordId) {
     <strong>舊版／Execution Q欄：</strong>
     ${escapeHtml(effectiveTrigger)}
     <br>
-    <strong>Trade Objective：</strong>
-    ${escapeHtml(record.tradeObjective || "N/A")}${record.tradeObjectiveReason ? `｜${escapeHtml(record.tradeObjectiveReason)}` : ""}
+    <strong>Objective at Entry：</strong>
+    ${escapeHtml(record.objectiveAtEntry || record.tradeObjective || "N/A")}${record.tradeObjectiveReason ? `｜${escapeHtml(record.tradeObjectiveReason)}` : ""}
+    <br>
+    <strong>0.25 Primary Cap Reason：</strong>
+    ${escapeHtml(record.primaryCapReason || "N/A")}
+    <br>
+    <strong>Additional Cap Flags：</strong>
+    ${escapeHtml(Array.isArray(record.additionalCapFlags) ? (record.additionalCapFlags.join("｜") || "N/A") : (record.additionalCapFlags || "N/A"))}
+    <br>
+    <strong>Normalized R：</strong>
+    ${formatResearchR(
+      Number.isFinite(record.normalizedR)
+        ? record.normalizedR
+        : normalizedRValue(
+            Number.isFinite(record.actualR) ? record.actualR : record.profitR,
+            record.finalSize
+          )
+    )}
+    <br>
+    <strong>Shadow Research Version：</strong>
+    ${escapeHtml(record.shadowResearchVersion || "Legacy／N/A")}
     <br>
     <strong>Aligned Transition Shadow：</strong>
     ${Number.isFinite(record.shadowAlignedTransitionSize) ? escapeHtml(safeSizeLabel(record.shadowAlignedTransitionSize)) + "｜Research only" : "N/A"}
@@ -8613,6 +9183,21 @@ async function openRecord(recordId) {
     <br>
     <strong>入市後 Price Pattern：</strong>
     ${escapeHtml(record.postEntryPricePattern || "N/A")}
+    <br>
+    <strong>Post-entry Objective Upgrade：</strong>
+    ${escapeHtml(record.postEntryObjectiveUpgrade || "No")}
+    <br>
+    <strong>Deep-RF Triggered：</strong>
+    ${escapeHtml(record.deepRFTriggered || "No")}
+    <br>
+    <strong>RF後原SL被打：</strong>
+    ${escapeHtml(record.deepRFOriginalSLHit || "N/A")}
+    <br>
+    <strong>RF後 Shadow MFE：</strong>
+    ${formatResearchR(record.deepRFShadowMfeR)}
+    <br>
+    <strong>如果冇RF｜最終結果：</strong>
+    ${formatResearchR(record.deepRFNoRfFinalR)}
     ${record.reviewedSession ? `<br><strong>Legacy Reviewed Session：</strong>${escapeHtml(record.reviewedSession)}` : ""}
   `;
 
@@ -8676,6 +9261,42 @@ async function openRecord(recordId) {
       : "No";
   $("editPostEntryPricePattern").value =
     record.postEntryPricePattern || "";
+
+  $("editPostEntryObjectiveUpgrade").value =
+    record.postEntryObjectiveUpgrade ||
+    "No";
+
+  $("editDeepRFTriggered").value =
+    record.deepRFTriggered ||
+    "No";
+
+  $("editDeepRFOriginalSLHit").value =
+    record.deepRFOriginalSLHit ||
+    "N/A";
+
+  $("editDeepRFShadowMfeR").value =
+    Number.isFinite(
+      record.deepRFShadowMfeR
+    )
+      ? record.deepRFShadowMfeR
+      : "";
+
+  $("editDeepRFNoRfFinalR").value =
+    Number.isFinite(
+      record.deepRFNoRfFinalR
+    )
+      ? record.deepRFNoRfFinalR
+      : "";
+
+  syncObjectiveUpgradeUI(
+    true,
+    record.objectiveAtEntry ||
+      record.tradeObjective ||
+      ""
+  );
+
+  syncDeepRFShadowUI(true);
+
   $("editNote").value =
     record.note || "";
 
@@ -8896,6 +9517,13 @@ async function saveRecordEdit() {
     optionalNumberFromInput(
       "editProfitR"
     );
+  records[index].actualR =
+    records[index].profitR;
+  records[index].normalizedR =
+    normalizedRValue(
+      records[index].actualR,
+      records[index].finalSize
+    );
   records[index].mfeR =
     optionalNumberFromInput(
       "editMfeR"
@@ -8916,6 +9544,20 @@ async function saveRecordEdit() {
     $("editValidCandidate").value;
   records[index].postEntryPricePattern =
     $("editPostEntryPricePattern").value.trim();
+  records[index].postEntryObjectiveUpgrade =
+    $("editPostEntryObjectiveUpgrade").value;
+  records[index].deepRFTriggered =
+    $("editDeepRFTriggered").value;
+  records[index].deepRFOriginalSLHit =
+    $("editDeepRFOriginalSLHit").value;
+  records[index].deepRFShadowMfeR =
+    optionalNumberFromInput(
+      "editDeepRFShadowMfeR"
+    );
+  records[index].deepRFNoRfFinalR =
+    optionalNumberFromInput(
+      "editDeepRFNoRfFinalR"
+    );
   records[index].note =
     $("editNote").value.trim();
 
@@ -9189,6 +9831,16 @@ function buildCsv(records) {
     "Reviewed Session",
     "Valid Candidate",
     "入市後 Price Pattern",
+    "Shadow Research Version",
+    "0.25 Primary Cap Reason",
+    "0.25 Additional Cap Flags",
+    "Normalized R",
+    "Objective at Entry",
+    "Post-entry Objective Upgrade",
+    "Deep-RF Triggered",
+    "Deep-RF RF後原SL被打",
+    "Deep-RF Shadow MFE R",
+    "Deep-RF No-RF Final R",
     "Checklist",
     "備註"
   ];
@@ -9497,6 +10149,40 @@ function buildCsv(records) {
       record.reviewedSession || "",
       record.validCandidate || "No",
       record.postEntryPricePattern || "",
+      record.shadowResearchVersion || "",
+      record.primaryCapReason || "",
+      Array.isArray(record.additionalCapFlags)
+        ? record.additionalCapFlags.join("｜")
+        : record.additionalCapFlags || "",
+      Number.isFinite(record.normalizedR)
+        ? record.normalizedR
+        : Number.isFinite(
+            normalizedRValue(
+              Number.isFinite(record.actualR)
+                ? record.actualR
+                : record.profitR,
+              record.finalSize
+            )
+          )
+          ? normalizedRValue(
+              Number.isFinite(record.actualR)
+                ? record.actualR
+                : record.profitR,
+              record.finalSize
+            )
+          : "",
+      record.objectiveAtEntry ||
+        record.tradeObjective ||
+        "",
+      record.postEntryObjectiveUpgrade || "No",
+      record.deepRFTriggered || "No",
+      record.deepRFOriginalSLHit || "N/A",
+      Number.isFinite(record.deepRFShadowMfeR)
+        ? record.deepRFShadowMfeR
+        : "",
+      Number.isFinite(record.deepRFNoRfFinalR)
+        ? record.deepRFNoRfFinalR
+        : "",
       record.checklistSummary || "",
       record.note || ""
     ]);
@@ -11634,6 +12320,71 @@ function recordFromCsvRow(row) {
         row,
         "入市後 Price Pattern"
       ) || "",
+    shadowResearchVersion:
+      firstCsvValue(
+        row,
+        "Shadow Research Version"
+      ) || "",
+    primaryCapReason:
+      firstCsvValue(
+        row,
+        "0.25 Primary Cap Reason"
+      ) || "N/A",
+    additionalCapFlags:
+      String(
+        firstCsvValue(
+          row,
+          "0.25 Additional Cap Flags"
+        ) || ""
+      )
+        .split("｜")
+        .map(
+          (item) =>
+            item.trim()
+        )
+        .filter(Boolean),
+    normalizedR:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "Normalized R"
+        )
+      ),
+    objectiveAtEntry:
+      firstCsvValue(
+        row,
+        "Objective at Entry",
+        "Trade Objective V1.3"
+      ) || "",
+    postEntryObjectiveUpgrade:
+      firstCsvValue(
+        row,
+        "Post-entry Objective Upgrade"
+      ) || "No",
+    deepRFTriggered:
+      firstCsvValue(
+        row,
+        "Deep-RF Triggered"
+      ) || "No",
+    deepRFOriginalSLHit:
+      firstCsvValue(
+        row,
+        "Deep-RF RF後原SL被打"
+      ) || "N/A",
+    deepRFShadowMfeR:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "Deep-RF Shadow MFE R"
+        )
+      ),
+    deepRFNoRfFinalR:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "Deep-RF No-RF Final R"
+        )
+      ),
     checklistSummary:
       firstCsvValue(
         row,
@@ -12844,37 +13595,56 @@ function recalculateLiveDecision() {
       ? 0
       : obstacleSize;
 
-  const alignedRoutes = [
-    "healthyAligned",
-    "weakAligned",
-    "alignedTransition",
-    "transitionConfirmed"
-  ];
-  let tradeObjective = "Skip";
-  if (finalSize > 0) {
-    const hsiOprContinuationExpansion =
-      variant === "oprContinuation" &&
-      nativeQuality === "Q3" &&
-      alignedRoutes.includes(routeCode) &&
-      controlAlignment !== "Opposing" &&
-      ["none","standard"].includes(
-        obstacleState
-      );
-    const expansion =
-      (
-        nativeQuality === "Q3" &&
-        ["P1","P2"].includes(effectivePosition) &&
-        alignedRoutes.includes(routeCode) &&
-        controlAlignment !== "Opposing" &&
-        ["none","standard"].includes(
-          obstacleState
-        ) &&
-        !["mixedTransition","neutralTransition"].includes(routeCode)
-      ) ||
-      hsiOprContinuationExpansion;
-    tradeObjective =
-      expansion ? "Expansion" : "Reaction";
-  }
+  const liveTransitionTypeCode =
+    routeCode === "mixedTransition"
+      ? "Mixed"
+      : routeCode === "neutralTransition"
+        ? "Neutral"
+        : "";
+
+  const tradeObjective =
+    objectiveAtEntryCode({
+      finalSize,
+      routeCode,
+      nativeQ:
+        nativeQuality,
+      position:
+        effectivePosition,
+      firstObstacleR:
+        liveObstaclePresent
+          ? liveObstacleR
+          : null,
+      obstacleState,
+      controlCode:
+        controlAlignment,
+      transitionTypeCode:
+        liveTransitionTypeCode,
+      setupVariant:
+        variant
+    });
+
+  const liveCapReason =
+    capReasonInfo({
+      finalSize,
+      routeCode,
+      rawPosition:
+        basePosition,
+      executionPosition:
+        effectivePosition,
+      positionTreatment:
+        livePositionTreatment,
+      nativeQ:
+        nativeQuality,
+      q2SubtypeLabel:
+        nativeQuality === "Q2"
+          ? "Q2"
+          : "",
+      obstacleState,
+      matrixSize,
+      rangeSize,
+      controlCode:
+        controlAlignment
+    });
 
   const shadowSize =
     routeCode === "alignedTransition" &&
@@ -12901,6 +13671,16 @@ function recalculateLiveDecision() {
     SIZE_LABELS[finalSize];
   $("liveTradeObjective").textContent =
     tradeObjective;
+
+  $("livePrimaryCapReason").textContent =
+    liveCapReason.primary ||
+    "N/A";
+
+  $("liveAdditionalCapFlags").textContent =
+    liveCapReason.flags.length > 0
+      ? liveCapReason.flags.join("｜")
+      : "N/A";
+
   $("liveShadowSize").textContent =
     shadowSize === null
       ? "N/A"
@@ -12960,7 +13740,7 @@ function recalculateLiveDecision() {
       ? "EU V1.3：EU-A POR 2B／EU-B Asia Sweep＋Post-open Confirmation／EU-D POR Full Repair；同一Opening thesis唔Double E／Size。"
       : "",
     obstacleNote,
-    `Trade Objective：${tradeObjective}。`
+    `Objective at Entry：${tradeObjective}。`
   ].filter(Boolean);
 
   if (vetoes.length > 0) {
@@ -13524,6 +14304,20 @@ function setupEvents() {
     .addEventListener(
       "submit",
       saveDecision
+    );
+
+  $("deepRFTriggered")
+    .addEventListener(
+      "change",
+      () =>
+        syncDeepRFShadowUI(false)
+    );
+
+  $("editDeepRFTriggered")
+    .addEventListener(
+      "change",
+      () =>
+        syncDeepRFShadowUI(true)
     );
 
   $("chartPasteZone")

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.29.2</span>
+    <span class="version-badge">V1.30.0</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -430,7 +430,9 @@
             <div><span>Setup Type＋P × Q</span><strong id="liveMatrixSize">0.5注</strong></div>
             <div><span>Range修正後</span><strong id="liveRangeSize">0.5注</strong></div>
             <div><span>大局修正後</span><strong id="liveObstacleSize">0.5注</strong></div>
-            <div><span>Trade Objective</span><strong id="liveTradeObjective">Reaction</strong></div>
+            <div><span>Objective at Entry</span><strong id="liveTradeObjective">Reaction</strong></div>
+            <div><span>0.25 Primary Cap Reason</span><strong id="livePrimaryCapReason">N/A</strong></div>
+            <div><span>Additional Cap Flags</span><strong id="liveAdditionalCapFlags">N/A</strong></div>
             <div><span>Aligned Transition Shadow</span><strong id="liveShadowSize">N/A</strong></div>
           </div>
 
@@ -461,6 +463,20 @@
         <h2>完整規則版</h2>
         <p class="large-rule">方向權限 → 市場關係上限 → P位置 → Setup → Q質素 → 第一真實障礙／R:R → 最終注碼</p>
         <p class="muted">全市場共用同一流程；大局只可限制方向、目標、注碼或否決空間不足，唔可以單獨加注。</p>
+      </article>
+
+      <article class="card shadow-research-panel">
+        <p class="eyebrow">2025 H2 BACKTEST OPERATING MATRIX + SHADOW RESEARCH OVERLAY</p>
+        <h2>Frozen V1.3｜研究Overlay</h2>
+        <p class="large-rule">當時Decision照Frozen V1.3；Shadow只記 Cap Reason / Objective Upgrade / Deep-RF Outcome / Strong data，唔准反改歷史判斷。</p>
+        <ul>
+          <li><strong>Research 1：</strong>0.25 P2Q3 Under-sizing｜Primary Cap Reason＋Additional Flags自動記。</li>
+          <li><strong>Research 2：</strong>Reaction-first → Expansion｜記Post-entry Objective Upgrade。</li>
+          <li><strong>Research 3：</strong>P2-E + Q2 × Market State × Control Alignment｜沿用Native Q2 Subtype。</li>
+          <li><strong>Research 4：</strong>Deep-RF Management｜記RF後原SL、Shadow MFE、No-RF counterfactual。</li>
+          <li><strong>Research 5：</strong>Strong Retest客觀化｜今版無market-data feed，所以唔加手填ATR負擔。</li>
+          <li><strong>Research 6：</strong>Instrument × Price-Action Regime × Loss Frequency｜沿用Instrument、Market State、Post-entry Price Pattern交叉研究。</li>
+        </ul>
       </article>
 
       <button id="quickNavToggle" class="quick-nav-toggle" type="button" aria-expanded="false" aria-controls="rulebookQuickNav">章節</button>
@@ -1136,7 +1152,9 @@
             <div><span>P×Q／方向Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>Range修正</span><strong id="resultRangeSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
-            <div><span>Trade Objective</span><strong id="resultTradeObjective"></strong></div>
+            <div><span>Objective at Entry</span><strong id="resultTradeObjective"></strong></div>
+            <div><span>0.25 Primary Cap Reason</span><strong id="resultPrimaryCapReason"></strong></div>
+            <div><span>Additional Cap Flags</span><strong id="resultAdditionalCapFlags"></strong></div>
             <div><span>Aligned Transition Shadow</span><strong id="resultShadowSize"></strong></div>
           </div>
 
@@ -1157,8 +1175,8 @@
           </label>
 
           <div class="principle-box">
-            <strong>Matrix V1.3 Frozen-version研究欄位</strong>
-            <span>新sample固定用同一版規則；唔因單一loss／win即時改權限。</span>
+            <strong>Master Trade Matrix V1.3 — Frozen｜2025 H2 Shadow Research Overlay</strong>
+            <span>正式決策全程跟Frozen V1.3；Shadow只記錄，唔反過來改Valid Candidate、P/Q、Size、Objective、Entry或Management。</span>
           </div>
 
           <div id="euOpeningBacktestPanel" class="hidden" hidden aria-hidden="true">
@@ -1284,6 +1302,59 @@
           </label>
 
           <p class="state-note">記錄Entry之後實際出現嘅Price Action／Pattern；只作覆盤研究，唔會反向改動Entry-time Matrix判定。</p>
+
+          <div class="shadow-research-panel">
+            <div class="shadow-research-heading">
+              <strong>2025 H2 Shadow Research｜唔改Frozen Decision</strong>
+              <span>Auto欄由App產生；Counterfactual欄只供事後研究。</span>
+            </div>
+
+            <div class="summary-grid shadow-auto-grid">
+              <div><span>0.25 Primary Cap Reason</span><strong id="shadowPrimaryCapReason">N/A</strong></div>
+              <div><span>Additional Cap Flags</span><strong id="shadowAdditionalCapFlags">N/A</strong></div>
+              <div><span>Objective at Entry</span><strong id="shadowObjectiveAtEntry">N/A</strong></div>
+              <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ Final Size；拆走Position Size影響</small></div>
+            </div>
+
+            <div class="yes-no-grid">
+              <label>
+                Post-entry Objective Upgrade
+                <select id="postEntryObjectiveUpgrade">
+                  <option value="No" selected>No</option>
+                  <option value="Reaction→Expansion">Reaction → Expansion</option>
+                </select>
+              </label>
+
+              <label>
+                Deep-RF Triggered？
+                <select id="deepRFTriggered">
+                  <option value="No" selected>No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </label>
+
+              <label>
+                RF後原SL有冇被打？
+                <select id="deepRFOriginalSLHit">
+                  <option value="N/A" selected>N/A</option>
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </label>
+
+              <label>
+                RF後 Shadow MFE R
+                <input id="deepRFShadowMfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.40">
+              </label>
+
+              <label>
+                如果冇RF｜最終結果 R
+                <input id="deepRFNoRfFinalR" type="number" step="0.01" inputmode="decimal" placeholder="例如 -1、0、2.5">
+              </label>
+            </div>
+
+            <p class="state-note">Fast Ratio／Reclaim Bars／Distance唔加。ATR14／Strong ATR metric因本PWA冇OHLC data feed，今版唔增加人手輸入。</p>
+          </div>
 
           <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
 
@@ -1846,6 +1917,50 @@
         入市後 Price Pattern
         <textarea id="editPostEntryPricePattern" rows="3" placeholder="例如：5M HL、Failed breakout、2B、Range、Lower High、Continuation"></textarea>
       </label>
+
+      <div class="shadow-research-panel">
+        <div class="shadow-research-heading">
+          <strong>Shadow Research｜事後可修改</strong>
+          <span>Auto Cap Reason／Objective at Entry保持當時Decision snapshot；以下Counterfactual可更新。</span>
+        </div>
+
+        <div class="yes-no-grid">
+          <label>
+            Post-entry Objective Upgrade
+            <select id="editPostEntryObjectiveUpgrade">
+              <option value="No">No</option>
+              <option value="Reaction→Expansion">Reaction → Expansion</option>
+            </select>
+          </label>
+
+          <label>
+            Deep-RF Triggered？
+            <select id="editDeepRFTriggered">
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </label>
+
+          <label>
+            RF後原SL有冇被打？
+            <select id="editDeepRFOriginalSLHit">
+              <option value="N/A">N/A</option>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </label>
+
+          <label>
+            RF後 Shadow MFE R
+            <input id="editDeepRFShadowMfeR" type="number" step="0.01" inputmode="decimal">
+          </label>
+
+          <label>
+            如果冇RF｜最終結果 R
+            <input id="editDeepRFNoRfFinalR" type="number" step="0.01" inputmode="decimal">
+          </label>
+        </div>
+      </div>
 
       <div class="paste-image-section">
         <span class="field-label">更換／新增圖片</span>

@@ -1476,3 +1476,28 @@ dialog::backdrop {
     padding: 6px;
   }
 }
+
+
+.shadow-research-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.shadow-research-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.shadow-research-heading span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.shadow-auto-grid {
+  margin-bottom: 12px;
+}
