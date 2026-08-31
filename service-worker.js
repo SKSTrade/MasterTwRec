@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-0-2025-h2-shadow-overlay";
+const CACHE_NAME = "master-trade-system-v1-30-1-objective-strong-shadow-fix";
 const ASSETS = [
   "./",
   "./index.html",

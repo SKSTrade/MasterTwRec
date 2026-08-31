@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.0",
+  "name": "Master Trade System V1.30.1",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with the 2025 H2 Backtest Operating Matrix and Shadow Research Overlay: automatic cap reasons, normalized R, objective-at-entry classification, and Deep-RF / objective-upgrade research fields.",
+  "description": "Master Trade Matrix V1.3 Frozen with explicit Expansion/Reaction/Not sure Trade Objective display, separate Reaction-first Shadow classification, and manual/auto Strong Retest ATR shadow measurement.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

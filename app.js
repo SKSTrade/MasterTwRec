@@ -4818,35 +4818,95 @@ function objectiveAtEntryCode({
     transitionAllows &&
     routeCode === "healthyAligned";
 
-  const reactionFirstEligible =
-    nativeQ3 &&
-    highLocation &&
+  if (matureExpansion) {
+    return "Expansion";
+  }
+
+  const clearReactionRoute =
+    [
+      "conflictMain",
+      "conflictSecondary",
+      "reverseWeakMain",
+      "reverseHealthyMain",
+      "neutralMainConfirmed",
+      "neutralMainReverse",
+      "transitionVsConfirmedConflict",
+      "alignedReverse",
+      "transitionReverse",
+      "mixedTransition",
+      "neutralTransition",
+      "bothTransition"
+    ].includes(routeCode);
+
+  const clearReaction =
+    !nativeQ3 ||
+    !highLocation ||
+    !cleanSpace ||
+    !controlAllows ||
+    !transitionAllows ||
+    clearReactionRoute;
+
+  if (clearReaction) {
+    return "Reaction";
+  }
+
+  // 方向仍有permission、Q3、位置及Space合格，
+  // 但control成熟度未足以正式叫Expansion。
+  return "Not sure";
+}
+
+function reactionFirstShadowClass({
+  tradeObjective,
+  routeCode,
+  nativeQ,
+  position,
+  firstObstacleR = null,
+  obstacleState = "none",
+  controlCode = "",
+  transitionTypeCode = ""
+}) {
+  if (
+    tradeObjective !== "Not sure"
+  ) {
+    return "N/A";
+  }
+
+  const obstaclePresent =
+    firstObstacleR !== null &&
+    firstObstacleR !== undefined &&
+    firstObstacleR !== "" &&
+    Number.isFinite(
+      Number(firstObstacleR)
+    );
+
+  const cleanSpace =
+    (
+      !obstaclePresent ||
+      Number(firstObstacleR) >= 2
+    ) &&
+    ["none", "standard"].includes(
+      obstacleState
+    );
+
+  const eligible =
+    nativeQ === "Q3" &&
+    ["P1", "P2"].includes(
+      position
+    ) &&
     cleanSpace &&
-    controlAllows &&
-    transitionAllows &&
+    controlCode !== "Opposing" &&
+    !["Mixed", "Neutral"].includes(
+      transitionTypeCode
+    ) &&
     [
       "weakAligned",
       "alignedTransition",
       "transitionConfirmed"
     ].includes(routeCode);
 
-  const hsiOprHealthyExpansion =
-    setupVariant ===
-      "oprContinuation" &&
-    matureExpansion;
-
-  if (
-    matureExpansion ||
-    hsiOprHealthyExpansion
-  ) {
-    return "Expansion";
-  }
-
-  if (reactionFirstEligible) {
-    return "Reaction-first";
-  }
-
-  return "Reaction";
+  return eligible
+    ? "Reaction-first / Expansion-eligible"
+    : "N/A";
 }
 
 function tradeObjectiveInfo({
@@ -4878,12 +4938,31 @@ function tradeObjectiveInfo({
         setupResult.setupVariant
     });
 
+  const shadowClass =
+    reactionFirstShadowClass({
+      tradeObjective:
+        code,
+      routeCode:
+        matrixRouteCode,
+      nativeQ:
+        baseTrigger.quality,
+      position:
+        setupResult.effectivePosition,
+      firstObstacleR,
+      obstacleState,
+      controlCode:
+        control.code,
+      transitionTypeCode:
+        transitionType.code
+    });
+
   if (code === "Skip") {
     return {
       code,
       label: code,
+      shadowClass,
       reason:
-        "Final Size＝0／Hard Veto，唔建立Trade Objective。"
+        "Final Size＝0／Hard Veto，冇正式Trade Objective。"
     };
   }
 
@@ -4891,21 +4970,21 @@ function tradeObjectiveInfo({
     return {
       code,
       label: code,
+      shadowClass,
       reason:
-        "雙健康同向／成熟directional control＋Native Q3＋P1/P2/P2-E＋Clean ≥2R；有條件期待完整directional expansion。"
+        "方向Alignment成熟＋Native Q3＋P1/P2/P2-E＋Clean ≥2R；有條件期待完整directional expansion。"
     };
   }
 
-  if (
-    code ===
-    "Reaction-first"
-  ) {
+  if (code === "Not sure") {
     return {
       code,
-      label:
-        "Reaction-first｜Expansion-eligible",
+      label: code,
+      shadowClass,
       reason:
-        "Entry一刻control未成熟到直接Expansion；Frozen Size不變。事後只用Shadow記錄有冇出現足夠control confirmation令Reaction→Expansion。"
+        shadowClass !== "N/A"
+          ? "方向、位置、Native Q3同Space合格，但Entry一刻control成熟度未足以正式歸類Expansion；Shadow標記Reaction-first / Expansion-eligible，事後研究有冇upgrade。"
+          : "Entry一刻未能清晰歸類Expansion或Reaction；保持Not sure，唔用事後資料反改當時Decision。"
     };
   }
 
@@ -4939,7 +5018,8 @@ function tradeObjectiveInfo({
       "alignedReverse",
       "transitionReverse",
       "mixedTransition",
-      "neutralTransition"
+      "neutralTransition",
+      "bothTransition"
     ].includes(
       matrixRouteCode
     )
@@ -4989,9 +5069,131 @@ function tradeObjectiveInfo({
   return {
     code,
     label: code,
+    shadowClass,
     reason:
-      `預設只期待第一段可交易反應；第一結構／約1–1.5R優先RF／Partial。${reactionReasons.length ? ` 原因：${reactionReasons.join("、")}。` : ""}`
+      `主要edge係第一段reaction，而唔係成熟directional expansion。${reactionReasons.length ? ` 原因：${reactionReasons.join("、")}。` : ""}`
   };
+}
+
+
+function strongRetestMetricValue({
+  atr14AtEntry = null,
+  largestOpposingCandleBody = null,
+  directMetric = null
+} = {}) {
+  const atr =
+    Number(atr14AtEntry);
+
+  const body =
+    Number(
+      largestOpposingCandleBody
+    );
+
+  if (
+    atr14AtEntry !== null &&
+    atr14AtEntry !== undefined &&
+    atr14AtEntry !== "" &&
+    largestOpposingCandleBody !== null &&
+    largestOpposingCandleBody !== undefined &&
+    largestOpposingCandleBody !== "" &&
+    Number.isFinite(atr) &&
+    atr > 0 &&
+    Number.isFinite(body) &&
+    body >= 0
+  ) {
+    return body / atr;
+  }
+
+  if (
+    directMetric !== null &&
+    directMetric !== undefined &&
+    directMetric !== ""
+  ) {
+    const direct =
+      Number(directMetric);
+
+    if (
+      Number.isFinite(direct) &&
+      direct >= 0
+    ) {
+      return direct;
+    }
+  }
+
+  return null;
+}
+
+function strongRetestShadowValues(
+  editMode = false
+) {
+  const atrId =
+    editMode
+      ? "editAtr14AtEntry"
+      : "atr14AtEntry";
+
+  const bodyId =
+    editMode
+      ? "editLargestOpposingCandleBody"
+      : "largestOpposingCandleBody";
+
+  const metricId =
+    editMode
+      ? "editStrongRetestShadowMetric"
+      : "strongRetestShadowMetric";
+
+  const atr14AtEntry =
+    optionalNumberFromInput(
+      atrId
+    );
+
+  const largestOpposingCandleBody =
+    optionalNumberFromInput(
+      bodyId
+    );
+
+  const directMetric =
+    optionalNumberFromInput(
+      metricId
+    );
+
+  return {
+    atr14AtEntry,
+    largestOpposingCandleBody,
+    strongRetestShadowMetric:
+      strongRetestMetricValue({
+        atr14AtEntry,
+        largestOpposingCandleBody,
+        directMetric
+      })
+  };
+}
+
+function syncStrongRetestShadowMetric(
+  editMode = false
+) {
+  const values =
+    strongRetestShadowValues(
+      editMode
+    );
+
+  const metricId =
+    editMode
+      ? "editStrongRetestShadowMetric"
+      : "strongRetestShadowMetric";
+
+  if (
+    values.atr14AtEntry !== null &&
+    values.largestOpposingCandleBody !== null &&
+    values.atr14AtEntry > 0 &&
+    values.largestOpposingCandleBody >= 0 &&
+    Number.isFinite(
+      values.strongRetestShadowMetric
+    )
+  ) {
+    $(metricId).value =
+      values.strongRetestShadowMetric
+        .toFixed(3);
+  }
 }
 
 function capReasonInfo({
@@ -5241,7 +5443,7 @@ function syncDeepRFShadowUI(
 
 function syncObjectiveUpgradeUI(
   editMode = false,
-  objectiveCode = ""
+  shadowClass = ""
 ) {
   const id =
     editMode
@@ -5252,8 +5454,8 @@ function syncObjectiveUpgradeUI(
     $(id);
 
   const eligible =
-    objectiveCode ===
-    "Reaction-first";
+    shadowClass ===
+    "Reaction-first / Expansion-eligible";
 
   select.disabled =
     !eligible;
@@ -5299,9 +5501,17 @@ function updateShadowResearchPreview() {
     decision.tradeObjective ||
     "N/A";
 
+  const shadowClass =
+    decision.reactionFirstShadowClass ||
+    "N/A";
+
   $("shadowObjectiveAtEntry")
     .textContent =
       objectiveCode;
+
+  $("shadowReactionFirstClass")
+    .textContent =
+      shadowClass;
 
   $("shadowNormalizedR")
     .textContent =
@@ -5311,7 +5521,11 @@ function updateShadowResearchPreview() {
 
   syncObjectiveUpgradeUI(
     false,
-    objectiveCode
+    shadowClass
+  );
+
+  syncStrongRetestShadowMetric(
+    false
   );
 
   syncDeepRFShadowUI(false);
@@ -5525,6 +5739,8 @@ function evaluateDecision(
     tradeObjectiveReason: objective.reason,
     objectiveAtEntry:
       objective.code,
+    reactionFirstShadowClass:
+      objective.shadowClass,
     primaryCapReason:
       capReason.primary,
     additionalCapFlags:
@@ -5776,6 +5992,10 @@ function renderDecision(decision) {
   $("resultTradeObjective").textContent =
     decision.objectiveAtEntry ||
     decision.tradeObjective;
+
+  $("resultReactionFirstShadow").textContent =
+    decision.reactionFirstShadowClass ||
+    "N/A";
 
   $("resultPrimaryCapReason").textContent =
     decision.primaryCapReason ||
@@ -7240,6 +7460,11 @@ async function saveDecision(event) {
       currentDecision?.finalSize
     );
 
+  const strongRetestShadow =
+    strongRetestShadowValues(
+      false
+    );
+
   const timeframes =
     timeframeValues();
 
@@ -7262,9 +7487,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.0",
+      "PracticeJournal-V1.30.1",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r13-2025H2ShadowOverlay",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r14-ObjectiveStrongShadowFix",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7385,8 +7610,11 @@ async function saveDecision(event) {
     objectiveAtEntry:
       currentDecision.objectiveAtEntry ||
       currentDecision.tradeObjective,
+    reactionFirstShadowClass:
+      currentDecision.reactionFirstShadowClass ||
+      "N/A",
     shadowResearchVersion:
-      "2025 H2 Shadow Overlay v1",
+      "2025 H2 Shadow Overlay v2",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -7668,6 +7896,12 @@ async function saveDecision(event) {
       $("postEntryPricePattern").value.trim(),
     postEntryObjectiveUpgrade:
       $("postEntryObjectiveUpgrade").value,
+    atr14AtEntry:
+      strongRetestShadow.atr14AtEntry,
+    largestOpposingCandleBody:
+      strongRetestShadow.largestOpposingCandleBody,
+    strongRetestShadowMetric:
+      strongRetestShadow.strongRetestShadowMetric,
     deepRFTriggered:
       $("deepRFTriggered").value,
     deepRFOriginalSLHit:
@@ -7731,6 +7965,9 @@ async function saveDecision(event) {
   $("validCandidate").value = "No";
   $("postEntryPricePattern").value = "";
   $("postEntryObjectiveUpgrade").value = "No";
+  $("atr14AtEntry").value = "";
+  $("largestOpposingCandleBody").value = "";
+  $("strongRetestShadowMetric").value = "";
   $("deepRFTriggered").value = "No";
   $("deepRFOriginalSLHit").value = "N/A";
   $("deepRFShadowMfeR").value = "";
@@ -7975,6 +8212,40 @@ async function deleteSelectedHistoryRecords() {
   showToast(
     `已一拼刪除 ${selectedCount} 筆紀錄`
   );
+}
+
+function recordFormalTradeObjective(
+  record
+) {
+  const raw =
+    record?.objectiveAtEntry ||
+    record?.tradeObjective ||
+    "";
+
+  return raw === "Reaction-first"
+    ? "Not sure"
+    : raw || "N/A";
+}
+
+function recordReactionFirstShadow(
+  record
+) {
+  if (
+    record?.reactionFirstShadowClass &&
+    record.reactionFirstShadowClass !==
+      "N/A"
+  ) {
+    return record.reactionFirstShadowClass;
+  }
+
+  return (
+    record?.objectiveAtEntry ===
+      "Reaction-first" ||
+    record?.tradeObjective ===
+      "Reaction-first"
+  )
+    ? "Reaction-first / Expansion-eligible"
+    : "N/A";
 }
 
 function recordChronologyTimestamp(
@@ -9081,8 +9352,11 @@ async function openRecord(recordId) {
     <strong>舊版／Execution Q欄：</strong>
     ${escapeHtml(effectiveTrigger)}
     <br>
-    <strong>Objective at Entry：</strong>
-    ${escapeHtml(record.objectiveAtEntry || record.tradeObjective || "N/A")}${record.tradeObjectiveReason ? `｜${escapeHtml(record.tradeObjectiveReason)}` : ""}
+    <strong>Trade Objective：</strong>
+    ${escapeHtml(recordFormalTradeObjective(record))}${record.tradeObjectiveReason ? `｜${escapeHtml(record.tradeObjectiveReason)}` : ""}
+    <br>
+    <strong>Reaction-first Shadow：</strong>
+    ${escapeHtml(recordReactionFirstShadow(record))}
     <br>
     <strong>0.25 Primary Cap Reason：</strong>
     ${escapeHtml(record.primaryCapReason || "N/A")}
@@ -9187,6 +9461,15 @@ async function openRecord(recordId) {
     <strong>Post-entry Objective Upgrade：</strong>
     ${escapeHtml(record.postEntryObjectiveUpgrade || "No")}
     <br>
+    <strong>ATR14 at Entry：</strong>
+    ${Number.isFinite(record.atr14AtEntry) ? escapeHtml(record.atr14AtEntry) : "N/A"}
+    <br>
+    <strong>Largest Opposing Candle Body：</strong>
+    ${Number.isFinite(record.largestOpposingCandleBody) ? escapeHtml(record.largestOpposingCandleBody) : "N/A"}
+    <br>
+    <strong>Strong Retest Shadow Metric：</strong>
+    ${Number.isFinite(record.strongRetestShadowMetric) ? escapeHtml(record.strongRetestShadowMetric.toFixed(3)) : "N/A"}
+    <br>
     <strong>Deep-RF Triggered：</strong>
     ${escapeHtml(record.deepRFTriggered || "No")}
     <br>
@@ -9266,6 +9549,27 @@ async function openRecord(recordId) {
     record.postEntryObjectiveUpgrade ||
     "No";
 
+  $("editAtr14AtEntry").value =
+    Number.isFinite(
+      record.atr14AtEntry
+    )
+      ? record.atr14AtEntry
+      : "";
+
+  $("editLargestOpposingCandleBody").value =
+    Number.isFinite(
+      record.largestOpposingCandleBody
+    )
+      ? record.largestOpposingCandleBody
+      : "";
+
+  $("editStrongRetestShadowMetric").value =
+    Number.isFinite(
+      record.strongRetestShadowMetric
+    )
+      ? record.strongRetestShadowMetric
+      : "";
+
   $("editDeepRFTriggered").value =
     record.deepRFTriggered ||
     "No";
@@ -9290,9 +9594,13 @@ async function openRecord(recordId) {
 
   syncObjectiveUpgradeUI(
     true,
-    record.objectiveAtEntry ||
-      record.tradeObjective ||
-      ""
+    recordReactionFirstShadow(
+      record
+    )
+  );
+
+  syncStrongRetestShadowMetric(
+    true
   );
 
   syncDeepRFShadowUI(true);
@@ -9546,6 +9854,19 @@ async function saveRecordEdit() {
     $("editPostEntryPricePattern").value.trim();
   records[index].postEntryObjectiveUpgrade =
     $("editPostEntryObjectiveUpgrade").value;
+
+  const editedStrongRetestShadow =
+    strongRetestShadowValues(
+      true
+    );
+
+  records[index].atr14AtEntry =
+    editedStrongRetestShadow.atr14AtEntry;
+  records[index].largestOpposingCandleBody =
+    editedStrongRetestShadow.largestOpposingCandleBody;
+  records[index].strongRetestShadowMetric =
+    editedStrongRetestShadow.strongRetestShadowMetric;
+
   records[index].deepRFTriggered =
     $("editDeepRFTriggered").value;
   records[index].deepRFOriginalSLHit =
@@ -9836,7 +10157,11 @@ function buildCsv(records) {
     "0.25 Additional Cap Flags",
     "Normalized R",
     "Objective at Entry",
+    "Reaction-first Shadow Class",
     "Post-entry Objective Upgrade",
+    "ATR14 at Entry",
+    "Largest Opposing Candle Body",
+    "Strong Retest Shadow Metric",
     "Deep-RF Triggered",
     "Deep-RF RF後原SL被打",
     "Deep-RF Shadow MFE R",
@@ -10171,10 +10496,22 @@ function buildCsv(records) {
               record.finalSize
             )
           : "",
-      record.objectiveAtEntry ||
-        record.tradeObjective ||
-        "",
+      recordFormalTradeObjective(
+        record
+      ),
+      recordReactionFirstShadow(
+        record
+      ),
       record.postEntryObjectiveUpgrade || "No",
+      Number.isFinite(record.atr14AtEntry)
+        ? record.atr14AtEntry
+        : "",
+      Number.isFinite(record.largestOpposingCandleBody)
+        ? record.largestOpposingCandleBody
+        : "",
+      Number.isFinite(record.strongRetestShadowMetric)
+        ? record.strongRetestShadowMetric
+        : "",
       record.deepRFTriggered || "No",
       record.deepRFOriginalSLHit || "N/A",
       Number.isFinite(record.deepRFShadowMfeR)
@@ -12356,11 +12693,37 @@ function recordFromCsvRow(row) {
         "Objective at Entry",
         "Trade Objective V1.3"
       ) || "",
+    reactionFirstShadowClass:
+      firstCsvValue(
+        row,
+        "Reaction-first Shadow Class"
+      ) || "N/A",
     postEntryObjectiveUpgrade:
       firstCsvValue(
         row,
         "Post-entry Objective Upgrade"
       ) || "No",
+    atr14AtEntry:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "ATR14 at Entry"
+        )
+      ),
+    largestOpposingCandleBody:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "Largest Opposing Candle Body"
+        )
+      ),
+    strongRetestShadowMetric:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "Strong Retest Shadow Metric"
+        )
+      ),
     deepRFTriggered:
       firstCsvValue(
         row,
@@ -13623,6 +13986,25 @@ function recalculateLiveDecision() {
         variant
     });
 
+  const liveReactionFirstShadow =
+    reactionFirstShadowClass({
+      tradeObjective,
+      routeCode,
+      nativeQ:
+        nativeQuality,
+      position:
+        effectivePosition,
+      firstObstacleR:
+        liveObstaclePresent
+          ? liveObstacleR
+          : null,
+      obstacleState,
+      controlCode:
+        controlAlignment,
+      transitionTypeCode:
+        liveTransitionTypeCode
+    });
+
   const liveCapReason =
     capReasonInfo({
       finalSize,
@@ -13671,6 +14053,9 @@ function recalculateLiveDecision() {
     SIZE_LABELS[finalSize];
   $("liveTradeObjective").textContent =
     tradeObjective;
+
+  $("liveReactionFirstShadow").textContent =
+    liveReactionFirstShadow;
 
   $("livePrimaryCapReason").textContent =
     liveCapReason.primary ||
@@ -13740,7 +14125,7 @@ function recalculateLiveDecision() {
       ? "EU V1.3：EU-A POR 2B／EU-B Asia Sweep＋Post-open Confirmation／EU-D POR Full Repair；同一Opening thesis唔Double E／Size。"
       : "",
     obstacleNote,
-    `Objective at Entry：${tradeObjective}。`
+    `Trade Objective：${tradeObjective}。`
   ].filter(Boolean);
 
   if (vetoes.length > 0) {
@@ -14305,6 +14690,28 @@ function setupEvents() {
       "submit",
       saveDecision
     );
+
+  [
+    "atr14AtEntry",
+    "largestOpposingCandleBody"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "input",
+      () =>
+        syncStrongRetestShadowMetric(false)
+    );
+  });
+
+  [
+    "editAtr14AtEntry",
+    "editLargestOpposingCandleBody"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "input",
+      () =>
+        syncStrongRetestShadowMetric(true)
+    );
+  });
 
   $("deepRFTriggered")
     .addEventListener(

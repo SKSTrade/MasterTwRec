@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.0</span>
+    <span class="version-badge">V1.30.1</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -430,7 +430,8 @@
             <div><span>Setup Type＋P × Q</span><strong id="liveMatrixSize">0.5注</strong></div>
             <div><span>Range修正後</span><strong id="liveRangeSize">0.5注</strong></div>
             <div><span>大局修正後</span><strong id="liveObstacleSize">0.5注</strong></div>
-            <div><span>Objective at Entry</span><strong id="liveTradeObjective">Reaction</strong></div>
+            <div><span>Trade Objective</span><strong id="liveTradeObjective">Not sure</strong></div>
+            <div><span>Reaction-first Shadow</span><strong id="liveReactionFirstShadow">N/A</strong></div>
             <div><span>0.25 Primary Cap Reason</span><strong id="livePrimaryCapReason">N/A</strong></div>
             <div><span>Additional Cap Flags</span><strong id="liveAdditionalCapFlags">N/A</strong></div>
             <div><span>Aligned Transition Shadow</span><strong id="liveShadowSize">N/A</strong></div>
@@ -1152,7 +1153,8 @@
             <div><span>P×Q／方向Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>Range修正</span><strong id="resultRangeSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
-            <div><span>Objective at Entry</span><strong id="resultTradeObjective"></strong></div>
+            <div><span>Trade Objective</span><strong id="resultTradeObjective"></strong></div>
+            <div><span>Reaction-first Shadow</span><strong id="resultReactionFirstShadow"></strong></div>
             <div><span>0.25 Primary Cap Reason</span><strong id="resultPrimaryCapReason"></strong></div>
             <div><span>Additional Cap Flags</span><strong id="resultAdditionalCapFlags"></strong></div>
             <div><span>Aligned Transition Shadow</span><strong id="resultShadowSize"></strong></div>
@@ -1312,7 +1314,8 @@
             <div class="summary-grid shadow-auto-grid">
               <div><span>0.25 Primary Cap Reason</span><strong id="shadowPrimaryCapReason">N/A</strong></div>
               <div><span>Additional Cap Flags</span><strong id="shadowAdditionalCapFlags">N/A</strong></div>
-              <div><span>Objective at Entry</span><strong id="shadowObjectiveAtEntry">N/A</strong></div>
+              <div><span>Trade Objective</span><strong id="shadowObjectiveAtEntry">N/A</strong></div>
+              <div><span>Reaction-first Shadow</span><strong id="shadowReactionFirstClass">N/A</strong></div>
               <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ Final Size；拆走Position Size影響</small></div>
             </div>
 
@@ -1323,6 +1326,21 @@
                   <option value="No" selected>No</option>
                   <option value="Reaction→Expansion">Reaction → Expansion</option>
                 </select>
+              </label>
+
+              <label>
+                ATR14 at Entry
+                <input id="atr14AtEntry" type="number" step="any" min="0" inputmode="decimal" placeholder="例如 4.25">
+              </label>
+
+              <label>
+                Largest Opposing Candle Body
+                <input id="largestOpposingCandleBody" type="number" step="any" min="0" inputmode="decimal" placeholder="同ATR相同價格單位">
+              </label>
+
+              <label>
+                Strong Retest Shadow Metric｜Body ÷ ATR14
+                <input id="strongRetestShadowMetric" type="number" step="0.001" min="0" inputmode="decimal" placeholder="例如 0.82">
               </label>
 
               <label>
@@ -1353,7 +1371,7 @@
               </label>
             </div>
 
-            <p class="state-note">Fast Ratio／Reclaim Bars／Distance唔加。ATR14／Strong ATR metric因本PWA冇OHLC data feed，今版唔增加人手輸入。</p>
+            <p class="state-note"><strong>Strong Retest Shadow：</strong>如果ATR14同Largest Opposing Candle Body都有填，App會自動計 Body ÷ ATR14；如果你已經喺圖表自行計好ratio，亦可以直接填Strong Retest Shadow Metric。呢個數值只作Threshold研究，唔會自動將Q降級。Fast Ratio／Reclaim-Retest Bars／Distance仍然唔加。</p>
           </div>
 
           <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
@@ -1931,6 +1949,21 @@
               <option value="No">No</option>
               <option value="Reaction→Expansion">Reaction → Expansion</option>
             </select>
+          </label>
+
+          <label>
+            ATR14 at Entry
+            <input id="editAtr14AtEntry" type="number" step="any" min="0" inputmode="decimal">
+          </label>
+
+          <label>
+            Largest Opposing Candle Body
+            <input id="editLargestOpposingCandleBody" type="number" step="any" min="0" inputmode="decimal">
+          </label>
+
+          <label>
+            Strong Retest Shadow Metric｜Body ÷ ATR14
+            <input id="editStrongRetestShadowMetric" type="number" step="0.001" min="0" inputmode="decimal">
           </label>
 
           <label>
