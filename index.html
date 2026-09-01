@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.2</span>
+    <span class="version-badge">V1.30.3</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1475,6 +1475,19 @@
           <label>
             日期至
             <input id="historyDateTo" type="date">
+          </label>
+
+          <label>
+            排序
+            <select id="historySort">
+              <option value="created-desc" selected>紀錄時間｜最新 → 最舊</option>
+              <option value="created-asc">紀錄時間｜最舊 → 最新</option>
+              <option value="trade-date-asc">入場／交易日期｜最早 → 最新</option>
+              <option value="trade-date-desc">入場／交易日期｜最新 → 最早</option>
+              <option value="sequence-asc">紀錄編號｜#1 → #N</option>
+              <option value="sequence-desc">紀錄編號｜#N → #1</option>
+              <option value="symbol-asc">商品｜A → Z</option>
+            </select>
           </label>
         </div>
 

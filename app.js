@@ -7411,9 +7411,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.2",
+      "PracticeJournal-V1.30.3",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r15-ReclaimRetestAtrRatio",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r16-HistorySorting",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -8303,6 +8303,213 @@ function updateHistorySymbolFilter(
       : "All";
 }
 
+function historyTradeDateValue(
+  record
+) {
+  const value =
+    String(
+      recordTradeDate(record) || ""
+    ).slice(0, 10);
+
+  if (!value) {
+    return null;
+  }
+
+  const timestamp =
+    Date.parse(
+      `${value}T00:00:00`
+    );
+
+  return Number.isFinite(
+    timestamp
+  )
+    ? timestamp
+    : null;
+}
+
+function historySortLabel(
+  sortMode
+) {
+  const labels = {
+    "created-desc":
+      "紀錄時間 最新→最舊",
+    "created-asc":
+      "紀錄時間 最舊→最新",
+    "trade-date-asc":
+      "入場／交易日期 最早→最新",
+    "trade-date-desc":
+      "入場／交易日期 最新→最早",
+    "sequence-asc":
+      "紀錄編號 #1→#N",
+    "sequence-desc":
+      "紀錄編號 #N→#1",
+    "symbol-asc":
+      "商品 A→Z"
+  };
+
+  return (
+    labels[sortMode] ||
+    labels["created-desc"]
+  );
+}
+
+function sortHistoryRecords(
+  records,
+  sortMode,
+  sequenceMap
+) {
+  const sorted =
+    [...records];
+
+  const compareMissingLast =
+    (
+      aValue,
+      bValue,
+      direction = 1
+    ) => {
+      const aMissing =
+        aValue === null ||
+        aValue === undefined;
+
+      const bMissing =
+        bValue === null ||
+        bValue === undefined;
+
+      if (
+        aMissing &&
+        bMissing
+      ) {
+        return 0;
+      }
+
+      if (aMissing) {
+        return 1;
+      }
+
+      if (bMissing) {
+        return -1;
+      }
+
+      return (
+        aValue - bValue
+      ) * direction;
+    };
+
+  sorted.sort((a, b) => {
+    let result = 0;
+
+    if (
+      sortMode ===
+      "created-asc"
+    ) {
+      result =
+        recordChronologyTimestamp(a) -
+        recordChronologyTimestamp(b);
+    } else if (
+      sortMode ===
+      "trade-date-asc"
+    ) {
+      result =
+        compareMissingLast(
+          historyTradeDateValue(a),
+          historyTradeDateValue(b),
+          1
+        );
+    } else if (
+      sortMode ===
+      "trade-date-desc"
+    ) {
+      result =
+        compareMissingLast(
+          historyTradeDateValue(a),
+          historyTradeDateValue(b),
+          -1
+        );
+    } else if (
+      sortMode ===
+      "sequence-asc"
+    ) {
+      result =
+        (
+          sequenceMap.get(a.id) ||
+          Number.MAX_SAFE_INTEGER
+        ) -
+        (
+          sequenceMap.get(b.id) ||
+          Number.MAX_SAFE_INTEGER
+        );
+    } else if (
+      sortMode ===
+      "sequence-desc"
+    ) {
+      result =
+        (
+          sequenceMap.get(b.id) ||
+          Number.MIN_SAFE_INTEGER
+        ) -
+        (
+          sequenceMap.get(a.id) ||
+          Number.MIN_SAFE_INTEGER
+        );
+    } else if (
+      sortMode ===
+      "symbol-asc"
+    ) {
+      result =
+        String(
+          a.symbol ||
+          a.marketCode ||
+          ""
+        ).localeCompare(
+          String(
+            b.symbol ||
+            b.marketCode ||
+            ""
+          ),
+          undefined,
+          {
+            numeric: true,
+            sensitivity: "base"
+          }
+        );
+    } else {
+      result =
+        recordChronologyTimestamp(b) -
+        recordChronologyTimestamp(a);
+    }
+
+    if (result !== 0) {
+      return result;
+    }
+
+    const sequenceA =
+      sequenceMap.get(a.id) || 0;
+
+    const sequenceB =
+      sequenceMap.get(b.id) || 0;
+
+    if (
+      [
+        "created-asc",
+        "trade-date-asc",
+        "sequence-asc"
+      ].includes(sortMode)
+    ) {
+      return (
+        sequenceA -
+        sequenceB
+      );
+    }
+
+    return (
+      sequenceB -
+      sequenceA
+    );
+  });
+
+  return sorted;
+}
+
 function clearHistoryFilters() {
   $("historyModeFilter").value =
     "All";
@@ -8463,9 +8670,13 @@ function renderHistory() {
     $("historyDateFrom").value;
   const dateTo =
     $("historyDateTo").value;
+  const sortMode =
+    $("historySort").value ||
+    "created-desc";
 
   const filtered =
-    allRecords.filter((record) => {
+    sortHistoryRecords(
+      allRecords.filter((record) => {
       const modeMatches =
         modeFilter === "All" ||
         record.recordMode ===
@@ -8514,7 +8725,10 @@ function renderHistory() {
         fromMatches &&
         toMatches
       );
-    });
+    }),
+      sortMode,
+      sequenceMap
+    );
 
   const activeFilterParts = [];
 
@@ -8544,11 +8758,14 @@ function renderHistory() {
     );
   }
 
+  const sortSummary =
+    `排序：${historySortLabel(sortMode)}`;
+
   $("historyFilterSummary")
     .textContent =
       activeFilterParts.length > 0
-        ? `顯示 ${filtered.length}/${allRecords.length} 筆｜${activeFilterParts.join("｜")}`
-        : `顯示全部 ${allRecords.length} 筆紀錄`;
+        ? `顯示 ${filtered.length}/${allRecords.length} 筆｜${activeFilterParts.join("｜")}｜${sortSummary}`
+        : `顯示全部 ${allRecords.length} 筆紀錄｜${sortSummary}`;
 
   currentFilteredHistoryIds =
     filtered.map(
@@ -14685,6 +14902,12 @@ function setupEvents() {
     );
 
   $("historyDateTo")
+    .addEventListener(
+      "change",
+      renderHistory
+    );
+
+  $("historySort")
     .addEventListener(
       "change",
       renderHistory

@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.2",
+  "name": "Master Trade System V1.30.3",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with simplified Strong Bar ATR Ratio shadow research: direct Reclaim and Retest ATR ratios, without separate ATR14/body inputs.",
+  "description": "Master Trade Matrix V1.3 Frozen with record-library sorting by record time, trade date, record number, or symbol while preserving existing filters and numbering.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
