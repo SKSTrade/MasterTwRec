@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-1-objective-strong-shadow-fix";
+const CACHE_NAME = "master-trade-system-v1-30-2-reclaim-retest-atr-ratio";
 const ASSETS = [
   "./",
   "./index.html",

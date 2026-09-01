@@ -5076,125 +5076,53 @@ function tradeObjectiveInfo({
 }
 
 
-function strongRetestMetricValue({
-  atr14AtEntry = null,
-  largestOpposingCandleBody = null,
-  directMetric = null
-} = {}) {
-  const atr =
-    Number(atr14AtEntry);
+function strongBarAtrRatioValues(
+  editMode = false
+) {
+  const reclaimId =
+    editMode
+      ? "editReclaimStrongBarAtrRatio"
+      : "reclaimStrongBarAtrRatio";
 
-  const body =
-    Number(
-      largestOpposingCandleBody
-    );
+  const retestId =
+    editMode
+      ? "editRetestStrongBarAtrRatio"
+      : "retestStrongBarAtrRatio";
 
+  return {
+    reclaimStrongBarAtrRatio:
+      optionalNumberFromInput(
+        reclaimId
+      ),
+    retestStrongBarAtrRatio:
+      optionalNumberFromInput(
+        retestId
+      )
+  };
+}
+
+function recordRetestStrongBarAtrRatio(
+  record
+) {
   if (
-    atr14AtEntry !== null &&
-    atr14AtEntry !== undefined &&
-    atr14AtEntry !== "" &&
-    largestOpposingCandleBody !== null &&
-    largestOpposingCandleBody !== undefined &&
-    largestOpposingCandleBody !== "" &&
-    Number.isFinite(atr) &&
-    atr > 0 &&
-    Number.isFinite(body) &&
-    body >= 0
+    Number.isFinite(
+      record?.retestStrongBarAtrRatio
+    )
   ) {
-    return body / atr;
+    return record.retestStrongBarAtrRatio;
   }
 
   if (
-    directMetric !== null &&
-    directMetric !== undefined &&
-    directMetric !== ""
+    Number.isFinite(
+      record?.strongRetestShadowMetric
+    )
   ) {
-    const direct =
-      Number(directMetric);
-
-    if (
-      Number.isFinite(direct) &&
-      direct >= 0
-    ) {
-      return direct;
-    }
+    return record.strongRetestShadowMetric;
   }
 
   return null;
 }
 
-function strongRetestShadowValues(
-  editMode = false
-) {
-  const atrId =
-    editMode
-      ? "editAtr14AtEntry"
-      : "atr14AtEntry";
-
-  const bodyId =
-    editMode
-      ? "editLargestOpposingCandleBody"
-      : "largestOpposingCandleBody";
-
-  const metricId =
-    editMode
-      ? "editStrongRetestShadowMetric"
-      : "strongRetestShadowMetric";
-
-  const atr14AtEntry =
-    optionalNumberFromInput(
-      atrId
-    );
-
-  const largestOpposingCandleBody =
-    optionalNumberFromInput(
-      bodyId
-    );
-
-  const directMetric =
-    optionalNumberFromInput(
-      metricId
-    );
-
-  return {
-    atr14AtEntry,
-    largestOpposingCandleBody,
-    strongRetestShadowMetric:
-      strongRetestMetricValue({
-        atr14AtEntry,
-        largestOpposingCandleBody,
-        directMetric
-      })
-  };
-}
-
-function syncStrongRetestShadowMetric(
-  editMode = false
-) {
-  const values =
-    strongRetestShadowValues(
-      editMode
-    );
-
-  const metricId =
-    editMode
-      ? "editStrongRetestShadowMetric"
-      : "strongRetestShadowMetric";
-
-  if (
-    values.atr14AtEntry !== null &&
-    values.largestOpposingCandleBody !== null &&
-    values.atr14AtEntry > 0 &&
-    values.largestOpposingCandleBody >= 0 &&
-    Number.isFinite(
-      values.strongRetestShadowMetric
-    )
-  ) {
-    $(metricId).value =
-      values.strongRetestShadowMetric
-        .toFixed(3);
-  }
-}
 
 function capReasonInfo({
   finalSize,
@@ -5522,10 +5450,6 @@ function updateShadowResearchPreview() {
   syncObjectiveUpgradeUI(
     false,
     shadowClass
-  );
-
-  syncStrongRetestShadowMetric(
-    false
   );
 
   syncDeepRFShadowUI(false);
@@ -7460,8 +7384,8 @@ async function saveDecision(event) {
       currentDecision?.finalSize
     );
 
-  const strongRetestShadow =
-    strongRetestShadowValues(
+  const strongBarAtrRatios =
+    strongBarAtrRatioValues(
       false
     );
 
@@ -7487,9 +7411,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.1",
+      "PracticeJournal-V1.30.2",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r14-ObjectiveStrongShadowFix",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r15-ReclaimRetestAtrRatio",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7896,12 +7820,13 @@ async function saveDecision(event) {
       $("postEntryPricePattern").value.trim(),
     postEntryObjectiveUpgrade:
       $("postEntryObjectiveUpgrade").value,
-    atr14AtEntry:
-      strongRetestShadow.atr14AtEntry,
-    largestOpposingCandleBody:
-      strongRetestShadow.largestOpposingCandleBody,
+    reclaimStrongBarAtrRatio:
+      strongBarAtrRatios.reclaimStrongBarAtrRatio,
+    retestStrongBarAtrRatio:
+      strongBarAtrRatios.retestStrongBarAtrRatio,
+    // Legacy alias for V1.30.1 compatibility.
     strongRetestShadowMetric:
-      strongRetestShadow.strongRetestShadowMetric,
+      strongBarAtrRatios.retestStrongBarAtrRatio,
     deepRFTriggered:
       $("deepRFTriggered").value,
     deepRFOriginalSLHit:
@@ -7965,9 +7890,8 @@ async function saveDecision(event) {
   $("validCandidate").value = "No";
   $("postEntryPricePattern").value = "";
   $("postEntryObjectiveUpgrade").value = "No";
-  $("atr14AtEntry").value = "";
-  $("largestOpposingCandleBody").value = "";
-  $("strongRetestShadowMetric").value = "";
+  $("reclaimStrongBarAtrRatio").value = "";
+  $("retestStrongBarAtrRatio").value = "";
   $("deepRFTriggered").value = "No";
   $("deepRFOriginalSLHit").value = "N/A";
   $("deepRFShadowMfeR").value = "";
@@ -9461,14 +9385,11 @@ async function openRecord(recordId) {
     <strong>Post-entry Objective Upgrade：</strong>
     ${escapeHtml(record.postEntryObjectiveUpgrade || "No")}
     <br>
-    <strong>ATR14 at Entry：</strong>
-    ${Number.isFinite(record.atr14AtEntry) ? escapeHtml(record.atr14AtEntry) : "N/A"}
+    <strong>Reclaim Strong Bar ATR Ratio：</strong>
+    ${Number.isFinite(record.reclaimStrongBarAtrRatio) ? escapeHtml(record.reclaimStrongBarAtrRatio.toFixed(3)) : "N/A"}
     <br>
-    <strong>Largest Opposing Candle Body：</strong>
-    ${Number.isFinite(record.largestOpposingCandleBody) ? escapeHtml(record.largestOpposingCandleBody) : "N/A"}
-    <br>
-    <strong>Strong Retest Shadow Metric：</strong>
-    ${Number.isFinite(record.strongRetestShadowMetric) ? escapeHtml(record.strongRetestShadowMetric.toFixed(3)) : "N/A"}
+    <strong>Retest Strong Bar ATR Ratio：</strong>
+    ${Number.isFinite(recordRetestStrongBarAtrRatio(record)) ? escapeHtml(recordRetestStrongBarAtrRatio(record).toFixed(3)) : "N/A"}
     <br>
     <strong>Deep-RF Triggered：</strong>
     ${escapeHtml(record.deepRFTriggered || "No")}
@@ -9549,25 +9470,23 @@ async function openRecord(recordId) {
     record.postEntryObjectiveUpgrade ||
     "No";
 
-  $("editAtr14AtEntry").value =
+  $("editReclaimStrongBarAtrRatio").value =
     Number.isFinite(
-      record.atr14AtEntry
+      record.reclaimStrongBarAtrRatio
     )
-      ? record.atr14AtEntry
+      ? record.reclaimStrongBarAtrRatio
       : "";
 
-  $("editLargestOpposingCandleBody").value =
-    Number.isFinite(
-      record.largestOpposingCandleBody
-    )
-      ? record.largestOpposingCandleBody
-      : "";
+  const existingRetestStrongBarAtrRatio =
+    recordRetestStrongBarAtrRatio(
+      record
+    );
 
-  $("editStrongRetestShadowMetric").value =
+  $("editRetestStrongBarAtrRatio").value =
     Number.isFinite(
-      record.strongRetestShadowMetric
+      existingRetestStrongBarAtrRatio
     )
-      ? record.strongRetestShadowMetric
+      ? existingRetestStrongBarAtrRatio
       : "";
 
   $("editDeepRFTriggered").value =
@@ -9597,10 +9516,6 @@ async function openRecord(recordId) {
     recordReactionFirstShadow(
       record
     )
-  );
-
-  syncStrongRetestShadowMetric(
-    true
   );
 
   syncDeepRFShadowUI(true);
@@ -9855,17 +9770,18 @@ async function saveRecordEdit() {
   records[index].postEntryObjectiveUpgrade =
     $("editPostEntryObjectiveUpgrade").value;
 
-  const editedStrongRetestShadow =
-    strongRetestShadowValues(
+  const editedStrongBarAtrRatios =
+    strongBarAtrRatioValues(
       true
     );
 
-  records[index].atr14AtEntry =
-    editedStrongRetestShadow.atr14AtEntry;
-  records[index].largestOpposingCandleBody =
-    editedStrongRetestShadow.largestOpposingCandleBody;
+  records[index].reclaimStrongBarAtrRatio =
+    editedStrongBarAtrRatios.reclaimStrongBarAtrRatio;
+  records[index].retestStrongBarAtrRatio =
+    editedStrongBarAtrRatios.retestStrongBarAtrRatio;
+  // Keep V1.30.1 internal alias synced for old exports/backups.
   records[index].strongRetestShadowMetric =
-    editedStrongRetestShadow.strongRetestShadowMetric;
+    editedStrongBarAtrRatios.retestStrongBarAtrRatio;
 
   records[index].deepRFTriggered =
     $("editDeepRFTriggered").value;
@@ -10159,9 +10075,8 @@ function buildCsv(records) {
     "Objective at Entry",
     "Reaction-first Shadow Class",
     "Post-entry Objective Upgrade",
-    "ATR14 at Entry",
-    "Largest Opposing Candle Body",
-    "Strong Retest Shadow Metric",
+    "Reclaim Strong Bar ATR Ratio",
+    "Retest Strong Bar ATR Ratio",
     "Deep-RF Triggered",
     "Deep-RF RF後原SL被打",
     "Deep-RF Shadow MFE R",
@@ -10503,14 +10418,13 @@ function buildCsv(records) {
         record
       ),
       record.postEntryObjectiveUpgrade || "No",
-      Number.isFinite(record.atr14AtEntry)
-        ? record.atr14AtEntry
+      Number.isFinite(record.reclaimStrongBarAtrRatio)
+        ? record.reclaimStrongBarAtrRatio
         : "",
-      Number.isFinite(record.largestOpposingCandleBody)
-        ? record.largestOpposingCandleBody
-        : "",
-      Number.isFinite(record.strongRetestShadowMetric)
-        ? record.strongRetestShadowMetric
+      Number.isFinite(
+        recordRetestStrongBarAtrRatio(record)
+      )
+        ? recordRetestStrongBarAtrRatio(record)
         : "",
       record.deepRFTriggered || "No",
       record.deepRFOriginalSLHit || "N/A",
@@ -12703,24 +12617,27 @@ function recordFromCsvRow(row) {
         row,
         "Post-entry Objective Upgrade"
       ) || "No",
-    atr14AtEntry:
+    reclaimStrongBarAtrRatio:
       csvNumber(
         firstCsvValue(
           row,
-          "ATR14 at Entry"
+          "Reclaim Strong Bar ATR Ratio"
         )
       ),
-    largestOpposingCandleBody:
+    retestStrongBarAtrRatio:
       csvNumber(
         firstCsvValue(
           row,
-          "Largest Opposing Candle Body"
+          "Retest Strong Bar ATR Ratio",
+          "Strong Retest Shadow Metric"
         )
       ),
+    // Legacy V1.30.1 alias retained only for compatibility.
     strongRetestShadowMetric:
       csvNumber(
         firstCsvValue(
           row,
+          "Retest Strong Bar ATR Ratio",
           "Strong Retest Shadow Metric"
         )
       ),
@@ -14690,28 +14607,6 @@ function setupEvents() {
       "submit",
       saveDecision
     );
-
-  [
-    "atr14AtEntry",
-    "largestOpposingCandleBody"
-  ].forEach((id) => {
-    $(id).addEventListener(
-      "input",
-      () =>
-        syncStrongRetestShadowMetric(false)
-    );
-  });
-
-  [
-    "editAtr14AtEntry",
-    "editLargestOpposingCandleBody"
-  ].forEach((id) => {
-    $(id).addEventListener(
-      "input",
-      () =>
-        syncStrongRetestShadowMetric(true)
-    );
-  });
 
   $("deepRFTriggered")
     .addEventListener(
