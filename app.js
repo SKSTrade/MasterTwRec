@@ -96,6 +96,59 @@ const STATES = {
 };
 
 
+const HSI_OPR_DIRECTION_CONTEXTS = {
+  alignedTrend: {
+    label: "順向順勢",
+    note: "OPR方向＝主判／次判方向＝Trade方向。"
+  },
+  reverseOprTrend: {
+    label: "反向順勢",
+    note: "OPR方向逆主判／次判，但Trade方向仍然順主判／次判。"
+  }
+};
+
+function hsiOprDirectionContextLabel(
+  code
+) {
+  return (
+    HSI_OPR_DIRECTION_CONTEXTS[
+      code
+    ]?.label || ""
+  );
+}
+
+function hsiOprDirectionContextFromLabel(
+  label
+) {
+  const entry =
+    Object.entries(
+      HSI_OPR_DIRECTION_CONTEXTS
+    ).find(
+      ([, info]) =>
+        info.label === label
+    );
+
+  return entry?.[0] || "";
+}
+
+function isHsiOprContinuationRecord(
+  record
+) {
+  return (
+    record?.setupTemplate ===
+      "hsi_opr_continuation" ||
+    record?.setupVariant ===
+      "oprContinuation" ||
+    String(
+      record?.setupTemplateLabel ||
+      record?.setupFamily ||
+      ""
+    ).includes(
+      "HSI-C"
+    )
+  );
+}
+
 const MARKET_CONFIG = {
   HSI: {
     label: "HSI",
@@ -185,12 +238,12 @@ const SETUP_DEFINITIONS = {
   },
   hsi_opr_continuation: {
     marketGroup: "HSI",
-    label: "HSI-C｜OPR Continuation Break & Retest｜Research",
+    label: "HSI-C｜OPR Continuation & Retest",
     type: "C",
-    classificationLabel: "HSI-C｜OPR Continuation｜Research",
+    classificationLabel: "HSI-C｜OPR Continuation & Retest",
     variant: "oprContinuation",
     provisional: true,
-    note: "V1.3 Research／Provisional：1H＋15M同方向；09:15–09:30 OPR完成；09:30後順勢有效Break OPR H/L＋Acceptance／Follow-through＋First Retest。Raw P3仍然P3，暫時冇E。"
+    note: "V1.3 Research／Provisional：主判＋次判必須雙同向，而且Trade方向順主／次判；09:15–09:30 OPR完成；09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。OPR Direction Context只分順向順勢／反向順勢。Raw P3仍然P3，暫時冇E。"
   },
   hsi_breakout_retest: {
     marketGroup: "HSI_LEGACY",
@@ -2209,9 +2262,18 @@ function evaluateBaseTrigger() {
       addPositive("HSI-C：09:30後先Break OPR。");
     }
     if (!checked("hsiOprTrendAligned")) {
-      addCoreFailure("HSI-C：1H＋15M未同交易方向一致。");
+      addCoreFailure("HSI-C：主判＋次判未雙同向，或者Trade方向未順主／次判。");
     } else {
-      addPositive("HSI-C：1H＋15M方向一致。");
+      addPositive("HSI-C：主判＋次判雙同向，而且Trade方向順主／次判。");
+
+      const oprDirectionContext =
+        $("hsiOprDirectionContext").value;
+
+      if (oprDirectionContext) {
+        addPositive(
+          `HSI-C OPR Direction Context：${hsiOprDirectionContextLabel(oprDirectionContext)}。`
+        );
+      }
     }
     evaluateBreakoutCore();
   } else if (
@@ -4047,7 +4109,7 @@ function applySetupMatrixConstraint(
     return {
       size,
       reason:
-        "HSI-C OPR Continuation屬Research／Provisional；Raw P同Execution P維持原Matrix，暫時冇E。"
+        "HSI-C OPR Continuation & Retest屬Research／Provisional；Raw P同Execution P維持原Matrix，暫時冇E。"
     };
   }
 
@@ -5605,7 +5667,16 @@ function evaluateDecision(
   }
 
   if (marketCode(false) === "HSI") {
-    warnings.push("HSI：10:30後唔開新Setup；HSI-C OPR Continuation仍屬Research／Provisional，暫時冇E。")
+    warnings.push("HSI：10:30後唔開新Setup；HSI-C OPR Continuation & Retest仍屬Research／Provisional，暫時冇E。");
+
+    if (
+      setupResult.setupVariant ===
+        "oprContinuation" &&
+      checked("hsiOprTrendAligned") &&
+      !$("hsiOprDirectionContext").value
+    ) {
+      warnings.push("HSI-C Research：未填OPR Direction Context；請標記順向順勢／反向順勢，方便之後比較Expectancy。");
+    }
   }
 
   if (["UK100","GER40"].includes(marketCode(false))) {
@@ -6472,6 +6543,13 @@ function updateInterface() {
       "hidden",
       variant !== "oprContinuation"
     );
+
+  if (
+    variant !== "oprContinuation"
+  ) {
+    $("hsiOprDirectionContext")
+      .value = "";
+  }
 
   if (
     $("typeCVariantNote")
@@ -7411,9 +7489,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.3",
+      "PracticeJournal-V1.30.4",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r16-HistorySorting",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r17-HSIC-OprDirectionContext",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7432,6 +7510,24 @@ async function saveDecision(event) {
       currentAsia2B.setupTemplateLabel,
     setupVariant:
       currentAsia2B.setupVariant,
+    oprDirectionContext:
+      currentAsia2B.setupVariant ===
+          "oprContinuation" &&
+        checked(
+          "hsiOprTrendAligned"
+        )
+        ? $("hsiOprDirectionContext").value
+        : "",
+    oprDirectionContextLabel:
+      currentAsia2B.setupVariant ===
+          "oprContinuation" &&
+        checked(
+          "hsiOprTrendAligned"
+        )
+        ? hsiOprDirectionContextLabel(
+            $("hsiOprDirectionContext").value
+          )
+        : "",
     previousHLSweepSource:
       currentAsia2B.previousHLSweepSource || "",
     previousHLSweepSourceLabel:
@@ -8900,6 +8996,22 @@ function renderHistory() {
                   )}</span>`
                 : "";
 
+      const oprContextTag =
+        isHsiOprContinuationRecord(
+          record
+        ) &&
+        (
+          record.oprDirectionContextLabel ||
+          record.oprDirectionContext
+        )
+          ? `<span class="history-tag">${escapeHtml(
+              record.oprDirectionContextLabel ||
+              hsiOprDirectionContextLabel(
+                record.oprDirectionContext
+              )
+            )}</span>`
+          : "";
+
       const mainState =
         record.mainState ||
         "未記錄";
@@ -8962,6 +9074,7 @@ function renderHistory() {
             ${triggerModelTag}
             ${twoBTag}
             ${engineTag}
+            ${oprContextTag}
             ${imageTag}
           </div>
 
@@ -9285,6 +9398,17 @@ async function openRecord(recordId) {
       "舊版未記錄"
     )}
     <br>
+    ${
+      isHsiOprContinuationRecord(record)
+        ? `<strong>OPR Direction Context：</strong>${escapeHtml(
+            record.oprDirectionContextLabel ||
+            hsiOprDirectionContextLabel(
+              record.oprDirectionContext
+            ) ||
+            "未記錄"
+          )}<br>`
+        : ""
+    }
     <strong>大局背景：</strong>
     ${escapeHtml(
       record.backgroundTimeframe || ""
@@ -9631,6 +9755,29 @@ async function openRecord(recordId) {
   $("editEntryStatus").value =
     record.entryStatus ||
     "Entry";
+
+  const editIsHsiC =
+    isHsiOprContinuationRecord(
+      record
+    );
+
+  $("editHsiOprDirectionContextRow")
+    .classList.toggle(
+      "hidden",
+      !editIsHsiC
+    );
+
+  $("editHsiOprDirectionContext").value =
+    editIsHsiC
+      ? (
+          record.oprDirectionContext ||
+          hsiOprDirectionContextFromLabel(
+            record.oprDirectionContextLabel
+          ) ||
+          ""
+        )
+      : "";
+
   $("editEntryTimeQ").value =
     record.entryTimeQ ||
     "N/A";
@@ -9945,6 +10092,25 @@ async function saveRecordEdit() {
     $("editRecordMode").value;
   records[index].entryStatus =
     $("editEntryStatus").value;
+
+  if (
+    isHsiOprContinuationRecord(
+      records[index]
+    )
+  ) {
+    records[index].oprDirectionContext =
+      $("editHsiOprDirectionContext").value;
+    records[index].oprDirectionContextLabel =
+      hsiOprDirectionContextLabel(
+        records[index].oprDirectionContext
+      );
+  } else {
+    records[index].oprDirectionContext =
+      "";
+    records[index].oprDirectionContextLabel =
+      "";
+  }
+
   records[index].entryTimeQ =
     $("editEntryTimeQ").value;
   records[index].postEntryQ =
@@ -10149,6 +10315,7 @@ function buildCsv(records) {
     "核心Setup",
     "Setup代碼",
     "Setup子類型",
+    "OPR Direction Context",
     "Previous H/L來源代碼",
     "Previous H/L來源",
     "Previous H/L Sweep Session代碼",
@@ -10318,6 +10485,11 @@ function buildCsv(records) {
         "",
       record.setupTemplate || "",
       record.setupVariant || "",
+      record.oprDirectionContextLabel ||
+        hsiOprDirectionContextLabel(
+          record.oprDirectionContext
+        ) ||
+        "",
       record.previousHLSweepSource || "",
       record.previousHLSweepSourceLabel || "",
       record.previousHLSweepSession || "",
@@ -11669,6 +11841,18 @@ function recordFromCsvRow(row) {
       firstCsvValue(
         row,
         "Setup子類型"
+      ),
+    oprDirectionContextLabel:
+      firstCsvValue(
+        row,
+        "OPR Direction Context"
+      ),
+    oprDirectionContext:
+      hsiOprDirectionContextFromLabel(
+        firstCsvValue(
+          row,
+          "OPR Direction Context"
+        )
       ),
     previousHLSweepSource:
       (() => {
@@ -14253,7 +14437,7 @@ function recalculateLiveDecision() {
       ? "Counter-main Q2正式0注；Subtype只作研究記錄。"
       : "",
     variant === "oprContinuation"
-      ? "HSI-C OPR Continuation：Research／Provisional，暫時冇E。"
+      ? "HSI-C OPR Continuation & Retest：Research／Provisional，暫時冇E。"
       : "",
     ["UK100","GER40"].includes(marketCode(true))
       ? "EU V1.3：EU-A POR 2B／EU-B Asia Sweep＋Post-open Confirmation／EU-D POR Full Repair；同一Opening thesis唔Double E／Size。"

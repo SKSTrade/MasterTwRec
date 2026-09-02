@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.3</span>
+    <span class="version-badge">V1.30.4</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -822,10 +822,20 @@
             </div>
 
             <div id="hsiOprContinuationPanel" class="conditional-panel hidden">
-              <div class="principle-box"><strong>HSI-C｜Research／Provisional</strong><span>暫時冇E；Raw P3仍然P3。只記新sample，唔因單一case升權。</span></div>
+              <div class="principle-box"><strong>HSI-C｜OPR Continuation & Retest</strong><span>主判＋次判必須雙同向，Trade亦必須順主／次判；OPR Direction Context只作Subtype Research，唔改Frozen Size。</span></div>
               <label class="toggle-row"><input id="hsiOprWindowComplete" type="checkbox"><span>09:15–09:30 OPR已完成</span></label>
-              <label class="toggle-row"><input id="hsiOprAfter0930" type="checkbox"><span>Break發生喺09:30後</span></label>
-              <label class="toggle-row"><input id="hsiOprTrendAligned" type="checkbox"><span>1H＋15M方向同交易方向一致</span></label>
+              <label class="toggle-row"><input id="hsiOprAfter0930" type="checkbox"><span>Full Reclaim／Break發生喺09:30後</span></label>
+              <label class="toggle-row"><input id="hsiOprTrendAligned" type="checkbox"><span>主判＋次判方向一致，而且Trade方向順主判／次判</span></label>
+
+              <label>
+                OPR Direction Context
+                <select id="hsiOprDirectionContext">
+                  <option value="" selected>請選擇Subtype</option>
+                  <option value="alignedTrend">順向順勢｜OPR方向＝主判／次判＝Trade方向</option>
+                  <option value="reverseOprTrend">反向順勢｜OPR方向逆主判／次判；Trade仍順主／次判</option>
+                </select>
+              </label>
+              <p class="state-note"><strong>順向順勢：</strong>HTF ↑＋OPR ↑＋Trade ↑（Short鏡像）。<br><strong>反向順勢：</strong>HTF ↑＋OPR ↓＋Trade ↑（Short鏡像）。「反向」只指OPR逆HTF，唔係Trade逆勢。</p>
             </div>
           </div>
 
@@ -1702,7 +1712,9 @@
         <ul>
           <li><strong>HSI-A：</strong>OPR H/L 2B｜高質P3可P2-E。</li>
           <li><strong>HSI-B：</strong>普通結構Sweep｜無自動升級。</li>
-          <li><strong>HSI-C：</strong>OPR Continuation Break & Retest｜Research／Provisional；1H＋15M同向、09:15–09:30 OPR完成、09:30後有效Break＋Acceptance／Follow-through＋First Retest。暫時冇E，Raw P3仍P3。</li>
+          <li><strong>HSI-C｜OPR Continuation & Retest：</strong>Research／Provisional；主判＋次判必須雙同向，Trade方向順主／次判；09:15–09:30 OPR完成，09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。<strong>OPR Direction Context</strong>只分「順向順勢」／「反向順勢」；兩者都唔係逆勢Trade。暫時冇E，Raw P3仍P3。</li>
+          <li><strong>順向順勢：</strong>OPR方向＝主判／次判方向＝Trade方向；例如HTF ↑＋OPR ↑＋Trade ↑。</li>
+          <li><strong>反向順勢：</strong>OPR方向逆主判／次判，但Trade仍順主／次判；例如HTF ↑＋OPR ↓＋Trade ↑。「反向」只指OPR逆HTF。</li>
           <li><strong>時間：</strong>10:30後唔開新Setup。</li>
         </ul>
       </article>
@@ -1842,6 +1854,15 @@
           <option value="Entry">Entry</option>
           <option value="Miss">Miss</option>
           <option value="Skip">Skip</option>
+        </select>
+      </label>
+
+      <label id="editHsiOprDirectionContextRow" class="hidden">
+        OPR Direction Context｜HSI-C
+        <select id="editHsiOprDirectionContext">
+          <option value="">未記錄</option>
+          <option value="alignedTrend">順向順勢</option>
+          <option value="reverseOprTrend">反向順勢</option>
         </select>
       </label>
 

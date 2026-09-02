@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.3",
+  "name": "Master Trade System V1.30.4",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with record-library sorting by record time, trade date, record number, or symbol while preserving existing filters and numbering.",
+  "description": "Master Trade Matrix V1.3 Frozen with HSI-C OPR Continuation & Retest OPR Direction Context subtype research: 順向順勢 vs 反向順勢.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

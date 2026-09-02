@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-3-history-sorting";
+const CACHE_NAME = "master-trade-system-v1-30-4-hsic-opr-direction-context";
 const ASSETS = [
   "./",
   "./index.html",
