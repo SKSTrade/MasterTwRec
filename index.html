@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.4</span>
+    <span class="version-badge">V1.30.5</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1839,6 +1839,12 @@
         交易日期
         <input id="editTradeDate" type="date">
       </label>
+
+      <label>
+        交易商品／品種
+        <input id="editSymbol" type="text" autocomplete="off" autocapitalize="characters" placeholder="例如 EURUSD、XAUUSD、GER40">
+      </label>
+      <p class="state-note">只修改呢筆歷史紀錄嘅商品名稱；唔會重新計算市場分類、Setup、P／Q、Size或Trade Objective。</p>
 
       <label>
         類型

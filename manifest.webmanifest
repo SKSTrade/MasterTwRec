@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.4",
+  "name": "Master Trade System V1.30.5",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with HSI-C OPR Continuation & Retest OPR Direction Context subtype research: 順向順勢 vs 反向順勢.",
+  "description": "Master Trade Matrix V1.3 Frozen with record-library trading symbol editing. Editing a historical symbol updates record display, symbol filters, CSV and backups without recalculating the original matrix decision.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

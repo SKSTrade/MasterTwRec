@@ -1,74 +1,56 @@
-# Master Trade System V1.30.4
-## HSI-C｜OPR Continuation & Retest
-### OPR Direction Context Research
+# Master Trade System V1.30.5
+## 紀錄庫｜交易商品／品種可修改
 
-HSI-C保持單一Setup Family：
+紀錄庫打開任何一筆交易後，新增：
 
-> HSI-C｜OPR Continuation & Retest
+> 交易商品／品種
 
-新增研究Subtype：
+例如可以將：
+- EURUSD → GBPUSD
+- GER40 → UK100
+- XAUUSD → XAUUSD（修正輸入）
+- 其他自訂symbol
 
-> OPR Direction Context
+儲存時會自動Trim並轉成大寫。
 
-只分兩類：
+## 修改後同步影響
 
-- 順向順勢
-  - OPR方向 = 主判／次判方向 = Trade方向
-  - Long例：HTF ↑ + OPR ↑ + Trade ↑
-  - Short鏡像：HTF ↓ + OPR ↓ + Trade ↓
+修改symbol後會同步反映：
+- 紀錄卡商品名稱
+- 紀錄詳情
+- 紀錄庫商品Filter
+- 商品A→Z排序
+- CSV匯出「品種」欄
+- Backup ZIP圖片folder命名（下次匯出時）
 
-- 反向順勢
-  - OPR方向 ≠ 主判／次判方向，但Trade仍順主判／次判
-  - Long例：HTF ↑ + OPR ↓ + Trade ↑
-  - Short鏡像：HTF ↓ + OPR ↑ + Trade ↓
+圖片本身仍以Record ID儲存，唔會因改symbol而遺失。
 
-「反向」只係OPR逆HTF，唔係Trade逆勢。
+## 歷史決策保護
 
-## HSI-C硬前提
+修改「交易商品／品種」只係修正紀錄metadata。
 
-兩個Subtype都維持：
-
-- 主判 + 次判必須雙同向
-- Trade方向必須順主判／次判
-- 09:15–09:30 OPR完成
-- 09:30後Full Reclaim / Break OPR H/L
-- Acceptance / Follow-through
-- First Retest
-
-如果主判／次判唔雙同向，現有HSI-C core validation仍會判Setup不完整，
-亦唔會將OPR Direction Context當成有效分類。
-
-## Database / Record Library
-
-新紀錄會保存：
-- OPR Direction Context代碼
-- OPR Direction Context顯示名稱
-
-紀錄詳情會顯示Subtype。
-紀錄卡會加Subtype tag。
-紀錄庫打開HSI-C紀錄後，可以事後修改順向順勢／反向順勢。
-
-其他Setup唔會顯示呢個編輯欄。
-
-## CSV
-
-V1.30.3 = 163欄
-V1.30.4 = 164欄
-
-新增：
-- OPR Direction Context
-
-舊CSV冇呢欄時會留空，仍可正常匯入。
-
-## Frozen V1.3保持不變
-
-OPR Direction Context係Research subtype，唔直接改：
-- Direction Permission
+唔會重新計算或更改：
+- 市場分類
+- 核心Setup
+- Market State
+- Direction / Market Route
 - Raw P / Execution P
 - Native Q
-- Size
-- Valid Candidate
+- Final Size
 - Trade Objective
-- Management
+- Valid Candidate
 
-HSI-C本身仍然Research／Provisional，暫時冇E；Raw P3仍然P3。
+即係例如原本一筆FX trade由EURUSD修正做GBPUSD，
+只會改symbol，唔會重跑Matrix。
+
+## Validation
+
+交易商品唔可以留空。
+如果留空，App會阻止儲存並提示：
+
+> 請輸入交易商品／品種
+
+## Frozen V1.3
+
+Matrix sizing / permission / obstacle / objective / shadow research全部保持不變。
+CSV schema欄數保持164欄，冇新增或刪除欄位；只係原有「品種」欄可以由紀錄庫修改。

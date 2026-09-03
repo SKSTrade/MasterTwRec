@@ -7489,9 +7489,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.4",
+      "PracticeJournal-V1.30.5",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r17-HSIC-OprDirectionContext",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r18-RecordSymbolEditing",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -9391,6 +9391,12 @@ async function openRecord(recordId) {
       "舊版未記錄"
     )}
     <br>
+    <strong>交易商品／品種：</strong>
+    ${escapeHtml(
+      record.symbol ||
+      "未記錄"
+    )}
+    <br>
     <strong>核心Setup：</strong>
     ${escapeHtml(
       record.setupTemplateLabel ||
@@ -9749,6 +9755,14 @@ async function openRecord(recordId) {
   $("editTradeDate").value =
     recordTradeDate(record) ||
     localDateString();
+
+  $("editSymbol").value =
+    String(
+      record.symbol ||
+      record.marketCode ||
+      ""
+    ).trim();
+
   $("editRecordMode").value =
     record.recordMode ||
     "Practice";
@@ -10054,6 +10068,19 @@ async function saveRecordEdit() {
 
   if (index === -1) return;
 
+  const editedSymbol =
+    $("editSymbol").value
+      .trim()
+      .toUpperCase();
+
+  if (!editedSymbol) {
+    showToast(
+      "請輸入交易商品／品種"
+    );
+    $("editSymbol").focus();
+    return;
+  }
+
   const editedTimeToRF =
     durationMinutesFromInput(
       "editTimeToRF"
@@ -10088,6 +10115,8 @@ async function saveRecordEdit() {
     $("editTradeDate").value ||
     recordTradeDate(records[index]) ||
     localDateString();
+  records[index].symbol =
+    editedSymbol;
   records[index].recordMode =
     $("editRecordMode").value;
   records[index].entryStatus =
