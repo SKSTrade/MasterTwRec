@@ -153,6 +153,9 @@ const P3_CONTEXTS = {
   PB: {
     label: "P3-PB｜Pullback"
   },
+  MID: {
+    label: "P3-MID｜Neutral / Mid-location"
+  },
   EXT: {
     label: "P3-EXT｜Extension"
   }
@@ -188,6 +191,7 @@ function recordP3Context(
 
   return (
     value === "PB" ||
+    value === "MID" ||
     value === "EXT"
   )
     ? value
@@ -5734,7 +5738,7 @@ function evaluateDecision(
         ? `P3 Context＝${p3ContextLabel($("p3Context").value) || "未分類"}（Shadow only）；`
         : ""
     }Execution P：${setupResult.effectivePosition}。`,
-    `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／EXT唔會改E升級權或Frozen Size。`,
+    `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／MID／EXT唔會改E升級權或Frozen Size。`,
     `⑦ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
     `⑧ Obstacle／RR：${obstacle.explanation}`,
     `⑨ Final Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
@@ -7644,9 +7648,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.8",
+      "PracticeJournal-V1.30.9",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r21-RetestAcceptanceShadow",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r22-P3MidContextShadow",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -13216,6 +13220,7 @@ function recordFromCsvRow(row) {
 
         return (
           value === "PB" ||
+          value === "MID" ||
           value === "EXT"
         )
           ? value

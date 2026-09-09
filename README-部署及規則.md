@@ -1,88 +1,51 @@
-# Master Trade System V1.30.8
+# Master Trade System V1.30.9
 ## Master Trade Matrix V1.3 — Frozen
-### 2025 H2 Retest Acceptance Shadow
+### 2025 H2 P3 Context Shadow｜PB / MID / EXT
 
-## 新增Shadow欄位
+## P3 Context正式分三類
 
-> Retest Acceptance
+當 Raw P = P3：
 
-只分：
+- P3-PB｜Pullback
+- P3-MID｜Neutral / Mid-location
+- P3-EXT｜Extension
 
-- Hold
-- Close Through
+### P3-PB
+價格有明確回調到次判次結／working support附近（Short鏡像working resistance），有location advantage。
 
-## 固定定義
+### P3-MID
+價格已離開次判次結，但又未去到最新走勢尾部。位置中性：唔算靚pullback，亦唔算chase。
 
-### Hold
+### P3-EXT
+價格已去到最新走勢較尾／premium區（Short鏡像discount區），冇真正pullback，再做順勢setup。
 
-Retest可以wick／test穿reclaimed level，但Entry TF實體close仍守住level附近／原本reclaim嗰邊，
-未形成另一邊acceptance。
-
-Long例：
-- Reclaim上某level
-- Retest可以影線落穿
-- 但Entry TF close仍守返level附近／上面
-
-Short鏡像。
-
-### Close Through
-
-Entry TF candle實體close返去reclaimed level另一邊，
-甚至一支或多支K開始喺嗰邊停留。
-
-Long例：
-- Reclaim上某level
-- Retest後Entry TF實體close返level下面
-- 甚至喺下面停留
-
-代表原本reclaim acceptance可能開始流失。
-
-## 同其他Shadow變數分工
-
-Retest Strong Bar ATR Ratio：
-> 反方向一支強Bar有幾大力
-
-Retest Internal Structure：
-> 反方向control有冇組織成結構
-
-Retest Acceptance：
-> Reclaimed level本身有冇守住acceptance
-
-完成2025 H2後可研究：
-
-- Acceptance × Internal Structure
-- Acceptance × Retest ATR Ratio
-- Acceptance × Reclaim ATR Ratio
-- Acceptance × Market State
-- Acceptance × Native Q / Q2-S
-- Acceptance × Win/Loss / MFE / MAE / RF / TP2
+## 暫時唔用固定Fib Threshold
+2025 H2第一輪只用結構語義分類；唔加入0.5 Fib／0.75 Fib等未驗證threshold。
 
 ## Frozen規則
+P3 Context只係Shadow分類，三類完全唔改注碼。
 
-Retest Acceptance純Shadow，唔自動修改：
+- Raw P3-PB + E → P2-E
+- Raw P3-MID + E → P2-E
+- Raw P3-EXT + E → P2-E
 
-- Native Q
-- Q2-S
-- Raw / Execution P
-- Enhancement E
-- Final Size
-- Valid Candidate
-- Trade Objective
-- Obstacle / RR
-- Management
+之後全部照Frozen V1.3 P2-E Matrix計。
 
-2025 H2仍照Frozen V1.3原判斷。
+PB唔額外加Size；MID唔額外加減Size；EXT唔額外減Size；EXT亦唔取消E升級。
 
-## 紀錄庫
+## Research
+完成2025 H2後比較：
 
-Retest Acceptance可以事後修改。
+- P3-PB vs P3-MID vs P3-EXT
+- P2-E（Raw P3-PB）
+- P2-E（Raw P3-MID）
+- P2-E（Raw P3-EXT）
+
+再配合 Market State、Native Q / Q2 subtype、Enhancement E、
+Retest ATR Ratio、Retest Internal Structure、Retest Acceptance、
+Expectancy / PF / MFE / MAE / RF / TP2。
 
 ## CSV
-
-V1.30.7 = 166欄  
-V1.30.8 = 167欄
-
-新增：
-- Retest Acceptance
-
-舊CSV冇呢欄時保持空白，正常匯入。
+CSV欄位數維持167。
+原有 `P3 Context` 欄直接支援 PB / MID / EXT，唔需要新增新欄。
+舊CSV嘅PB／EXT保持兼容。

@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.8",
+  "name": "Master Trade System V1.30.9",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with 2025 H2 Retest Acceptance Shadow: Hold vs Close Through, recorded separately from Retest Internal Structure and ATR ratios.",
+  "description": "Master Trade Matrix V1.3 Frozen with three-way P3 Context Shadow: PB, MID and EXT. P3 Context remains research-only and does not modify E upgrades or sizing.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

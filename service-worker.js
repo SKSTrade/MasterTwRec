@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-8-retest-acceptance-shadow";
+const CACHE_NAME = "master-trade-system-v1-30-9-p3-mid-context-shadow";
 const ASSETS = [
   "./",
   "./index.html",

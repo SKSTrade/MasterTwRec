@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.8</span>
+    <span class="version-badge">V1.30.9</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -869,7 +869,7 @@
           <div id="p3ContextPanel" class="conditional-panel hidden">
             <div class="principle-box">
               <strong>P3 Context｜2025 H2 Shadow Only</strong>
-              <span>PB／EXT只記Raw P3來源，唔改Frozen V1.3 Size。Raw P3有合資格E時，PB同EXT都照原規則取得P2-E待遇。</span>
+              <span>PB／MID／EXT只記Raw P3來源，唔改Frozen V1.3 Size。Raw P3有合資格E時，三類都照原規則取得P2-E待遇。</span>
             </div>
 
             <label>
@@ -877,13 +877,17 @@
               <select id="p3Context">
                 <option value="" selected>未分類</option>
                 <option value="PB">P3-PB｜Pullback</option>
+                <option value="MID">P3-MID｜Neutral / Mid-location</option>
                 <option value="EXT">P3-EXT｜Extension</option>
               </select>
             </label>
 
             <p class="state-note">
-              記錄鏈：<strong>Raw P3 → P3-PB／P3-EXT → E → Execution P</strong>。
-              2025 H2期間PB／EXT唔會額外升／降注；完成batch後先比較P2-E（Raw P3-PB）vs P2-E（Raw P3-EXT）。
+              記錄鏈：<strong>Raw P3 → P3-PB／P3-MID／P3-EXT → E → Execution P</strong>。
+              <br><strong>PB：</strong>明確回調到次判次結／working support附近，有location advantage。
+              <br><strong>MID：</strong>已離開次判次結，但未去到最新走勢尾部；位置中性，唔算靚pullback亦唔算chase。
+              <br><strong>EXT：</strong>已去到最新走勢較尾／premium區（Short鏡像discount區），冇真正pullback再做順勢setup。
+              <br>2025 H2三類完全唔額外升／降注；暫時唔加Fib threshold，只用結構語義分類。
             </p>
           </div>
 
@@ -1917,6 +1921,7 @@
         <select id="editP3Context">
           <option value="">未分類</option>
           <option value="PB">P3-PB｜Pullback</option>
+          <option value="MID">P3-MID｜Neutral / Mid-location</option>
           <option value="EXT">P3-EXT｜Extension</option>
         </select>
       </label>
