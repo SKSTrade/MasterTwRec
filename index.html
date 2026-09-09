@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.9</span>
+    <span class="version-badge">V1.30.10</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1375,11 +1375,31 @@
               </label>
 
               <label>
+                Reclaim Internal Structure
+                <select id="reclaimInternalStructure">
+                  <option value="" selected>未記錄</option>
+                  <option value="none">None</option>
+                  <option value="structured">Structured</option>
+                </select>
+              </label>
+
+              <label>
                 Retest Internal Structure
                 <select id="retestInternalStructure">
                   <option value="" selected>未記錄</option>
                   <option value="none">None / One-leg</option>
                   <option value="structured">Yes / Structured</option>
+                </select>
+              </label>
+
+              <label>
+                Retest vs Reclaim Structure
+                <select id="retestVsReclaimStructure">
+                  <option value="" selected>未記錄</option>
+                  <option value="na">N/A</option>
+                  <option value="hold">Hold</option>
+                  <option value="sweepReclaim">Sweep-Reclaim</option>
+                  <option value="breakAccept">Break-Accept</option>
                 </select>
               </label>
 
@@ -1420,7 +1440,12 @@
               </label>
             </div>
 
-            <p class="state-note"><strong>Strong Bar ATR Ratio Shadow：</strong>直接輸入你已計好嘅 Body ÷ ATR14 ratio。先記Reclaim Strong Bar，再記Retest Strong Bar，之後可以研究兩者強弱差距同Expectancy關係。兩項只作Shadow Research，唔會自動改Native Q／Size／Valid Candidate。<br><strong>Retest Internal Structure：</strong>只睇Entry TF，而且必須喺入場前已經形成至少一組清晰內部結構先算Structured。Long Retest要見LH → LL；Short鏡像要見HH → HL。單純兩三支連續方向K唔算Structured。<br><strong>Retest Acceptance：</strong><em>Hold</em>＝可以wick／test穿reclaimed level，但Entry TF實體close仍守住level附近／原本reclaim嗰邊，未形成另一邊acceptance；<em>Close Through</em>＝Entry TF實體close返去reclaimed level另一邊，甚至喺嗰邊停留，代表原本reclaim acceptance開始流失。兩項都只記錄，唔影響Frozen Q2-S或注碼。Fast Ratio／Reclaim-Retest Bars／Distance仍然唔加。</p>
+            <p class="state-note"><strong>Strong Bar ATR Ratio Shadow：</strong>直接輸入你已計好嘅 Body ÷ ATR14 ratio。Reclaim同Retest分開記，研究兩段force差距。
+              <br><strong>Reclaim Internal Structure：</strong><em>Structured</em>唔係幾支順向K就算。Long要見清晰micro bullish control，例如 HH → HL → 再破micro HH，或者至少有一個明確defended HL，再由佢推高完成reclaim／control expansion；Short鏡像 LL → LH → 再LL。<em>Active Micro Structure</em>固定用Retest開始前最後一個已確認、並直接推動下一次micro HH／LL或完成control expansion嘅defended HL／LH，唔可以事後揀更方便嘅舊swing；細noise唔勉強記。
+              <br><strong>Retest Internal Structure：</strong>只睇Entry TF，而且必須喺入場前已經形成至少一組清晰對手結構先算Structured。Long Retest要見LH → LL；Short鏡像HH → HL。單純兩三支連續方向K唔算。
+              <br><strong>Retest vs Reclaim Structure：</strong><em>Hold</em>＝守住active reclaim HL／LH；<em>Sweep-Reclaim</em>＝插穿active micro structure但迅速收返，冇另一邊acceptance；<em>Break-Accept</em>＝有效破壞active micro structure，close／企喺另一邊並有acceptance／follow-through；Reclaim本身冇清晰structure就記<em>N/A</em>。
+              <br><strong>Retest Acceptance：</strong><em>Hold</em>＝可以wick／test穿較大reclaimed setup level，但Entry TF實體仍守住原本reclaim嗰邊；<em>Close Through</em>＝實體close返去setup level另一邊，甚至停留。Micro structure loss同setup-level acceptance loss係兩個不同Shadow變數。
+              <br>以上全部只作2025 H2 Shadow Research，唔自動改Native Q／Q2-S／Size／Valid Candidate／Trade Objective。</p>
           </div>
 
           <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
@@ -2052,11 +2077,31 @@
           </label>
 
           <label>
+            Reclaim Internal Structure
+            <select id="editReclaimInternalStructure">
+              <option value="">未記錄</option>
+              <option value="none">None</option>
+              <option value="structured">Structured</option>
+            </select>
+          </label>
+
+          <label>
             Retest Internal Structure
             <select id="editRetestInternalStructure">
               <option value="">未記錄</option>
               <option value="none">None / One-leg</option>
               <option value="structured">Yes / Structured</option>
+            </select>
+          </label>
+
+          <label>
+            Retest vs Reclaim Structure
+            <select id="editRetestVsReclaimStructure">
+              <option value="">未記錄</option>
+              <option value="na">N/A</option>
+              <option value="hold">Hold</option>
+              <option value="sweepReclaim">Sweep-Reclaim</option>
+              <option value="breakAccept">Break-Accept</option>
             </select>
           </label>
 

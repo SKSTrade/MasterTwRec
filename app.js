@@ -5235,6 +5235,184 @@ function recordRetestStrongBarAtrRatio(
 }
 
 
+function reclaimInternalStructureLabel(
+  code
+) {
+  if (code === "none") {
+    return "None";
+  }
+
+  if (code === "structured") {
+    return "Structured";
+  }
+
+  return "";
+}
+
+function normalizeReclaimInternalStructure(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  if (raw === "none") {
+    return "none";
+  }
+
+  if (
+    raw === "structured" ||
+    raw === "yes / structured" ||
+    raw === "yes"
+  ) {
+    return "structured";
+  }
+
+  return "";
+}
+
+function retestVsReclaimStructureLabel(
+  code
+) {
+  if (code === "na") {
+    return "N/A";
+  }
+
+  if (code === "hold") {
+    return "Hold";
+  }
+
+  if (code === "sweepReclaim") {
+    return "Sweep-Reclaim";
+  }
+
+  if (code === "breakAccept") {
+    return "Break-Accept";
+  }
+
+  return "";
+}
+
+function normalizeRetestVsReclaimStructure(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+
+  if (
+    raw === "na" ||
+    raw === "n/a"
+  ) {
+    return "na";
+  }
+
+  if (raw === "hold") {
+    return "hold";
+  }
+
+  if (
+    raw === "sweepreclaim" ||
+    raw === "sweep reclaim" ||
+    raw === "sweep-reclaim" ||
+    raw === "sweep / reclaim" ||
+    raw === "sweep/reclaim"
+  ) {
+    return "sweepReclaim";
+  }
+
+  if (
+    raw === "breakaccept" ||
+    raw === "break accept" ||
+    raw === "break-accept" ||
+    raw === "break + acceptance" ||
+    raw === "break+acceptance"
+  ) {
+    return "breakAccept";
+  }
+
+  return "";
+}
+
+function resolvedRetestVsReclaimStructure(
+  reclaimCode,
+  retestVsCode
+) {
+  const reclaim =
+    normalizeReclaimInternalStructure(
+      reclaimCode
+    );
+
+  const retestVs =
+    normalizeRetestVsReclaimStructure(
+      retestVsCode
+    );
+
+  if (reclaim === "none") {
+    return "na";
+  }
+
+  if (reclaim !== "structured") {
+    return "";
+  }
+
+  return [
+    "hold",
+    "sweepReclaim",
+    "breakAccept"
+  ].includes(retestVs)
+    ? retestVs
+    : "";
+}
+
+function syncReclaimStructureShadowUI(
+  editMode = false
+) {
+  const reclaimId =
+    editMode
+      ? "editReclaimInternalStructure"
+      : "reclaimInternalStructure";
+
+  const retestVsId =
+    editMode
+      ? "editRetestVsReclaimStructure"
+      : "retestVsReclaimStructure";
+
+  const reclaim =
+    normalizeReclaimInternalStructure(
+      $(reclaimId).value
+    );
+
+  const retestVs =
+    $(retestVsId);
+
+  if (reclaim === "none") {
+    retestVs.value = "na";
+    retestVs.disabled = true;
+    return;
+  }
+
+  if (reclaim === "structured") {
+    retestVs.disabled = false;
+
+    if (
+      normalizeRetestVsReclaimStructure(
+        retestVs.value
+      ) === "na"
+    ) {
+      retestVs.value = "";
+    }
+    return;
+  }
+
+  retestVs.value = "";
+  retestVs.disabled = true;
+}
+
+
 function retestInternalStructureLabel(
   code
 ) {
@@ -5646,6 +5824,7 @@ function updateShadowResearchPreview() {
     shadowClass
   );
 
+  syncReclaimStructureShadowUI(false);
   syncDeepRFShadowUI(false);
 }
 
@@ -7648,9 +7827,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.9",
+      "PracticeJournal-V1.30.10",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r22-P3MidContextShadow",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r23-ReclaimMicroControlShadow",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7797,7 +7976,7 @@ async function saveDecision(event) {
       currentDecision.reactionFirstShadowClass ||
       "N/A",
     shadowResearchVersion:
-      "2025 H2 Shadow Overlay v5",
+      "2025 H2 Shadow Overlay v6",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -8083,9 +8262,18 @@ async function saveDecision(event) {
       strongBarAtrRatios.reclaimStrongBarAtrRatio,
     retestStrongBarAtrRatio:
       strongBarAtrRatios.retestStrongBarAtrRatio,
+    reclaimInternalStructure:
+      normalizeReclaimInternalStructure(
+        $("reclaimInternalStructure").value
+      ),
     retestInternalStructure:
       normalizeRetestInternalStructure(
         $("retestInternalStructure").value
+      ),
+    retestVsReclaimStructure:
+      resolvedRetestVsReclaimStructure(
+        $("reclaimInternalStructure").value,
+        $("retestVsReclaimStructure").value
       ),
     retestAcceptance:
       normalizeRetestAcceptance(
@@ -8159,8 +8347,11 @@ async function saveDecision(event) {
   $("postEntryObjectiveUpgrade").value = "No";
   $("reclaimStrongBarAtrRatio").value = "";
   $("retestStrongBarAtrRatio").value = "";
+  $("reclaimInternalStructure").value = "";
   $("retestInternalStructure").value = "";
+  $("retestVsReclaimStructure").value = "";
   $("retestAcceptance").value = "";
+  syncReclaimStructureShadowUI(false);
   $("deepRFTriggered").value = "No";
   $("deepRFOriginalSLHit").value = "N/A";
   $("deepRFShadowMfeR").value = "";
@@ -9929,11 +10120,32 @@ async function openRecord(recordId) {
     <strong>Retest Strong Bar ATR Ratio：</strong>
     ${Number.isFinite(recordRetestStrongBarAtrRatio(record)) ? escapeHtml(recordRetestStrongBarAtrRatio(record).toFixed(3)) : "N/A"}
     <br>
+    <strong>Reclaim Internal Structure：</strong>
+    ${escapeHtml(
+      reclaimInternalStructureLabel(
+        normalizeReclaimInternalStructure(
+          record.reclaimInternalStructure
+        )
+      ) ||
+      "未記錄"
+    )}
+    <br>
     <strong>Retest Internal Structure：</strong>
     ${escapeHtml(
       retestInternalStructureLabel(
         normalizeRetestInternalStructure(
           record.retestInternalStructure
+        )
+      ) ||
+      "未記錄"
+    )}
+    <br>
+    <strong>Retest vs Reclaim Structure：</strong>
+    ${escapeHtml(
+      retestVsReclaimStructureLabel(
+        resolvedRetestVsReclaimStructure(
+          record.reclaimInternalStructure,
+          record.retestVsReclaimStructure
         )
       ) ||
       "未記錄"
@@ -10096,10 +10308,23 @@ async function openRecord(recordId) {
       ? existingRetestStrongBarAtrRatio
       : "";
 
+  $("editReclaimInternalStructure").value =
+    normalizeReclaimInternalStructure(
+      record.reclaimInternalStructure
+    );
+
   $("editRetestInternalStructure").value =
     normalizeRetestInternalStructure(
       record.retestInternalStructure
     );
+
+  $("editRetestVsReclaimStructure").value =
+    resolvedRetestVsReclaimStructure(
+      record.reclaimInternalStructure,
+      record.retestVsReclaimStructure
+    );
+
+  syncReclaimStructureShadowUI(true);
 
   $("editRetestAcceptance").value =
     normalizeRetestAcceptance(
@@ -10439,9 +10664,18 @@ async function saveRecordEdit() {
     editedStrongBarAtrRatios.reclaimStrongBarAtrRatio;
   records[index].retestStrongBarAtrRatio =
     editedStrongBarAtrRatios.retestStrongBarAtrRatio;
+  records[index].reclaimInternalStructure =
+    normalizeReclaimInternalStructure(
+      $("editReclaimInternalStructure").value
+    );
   records[index].retestInternalStructure =
     normalizeRetestInternalStructure(
       $("editRetestInternalStructure").value
+    );
+  records[index].retestVsReclaimStructure =
+    resolvedRetestVsReclaimStructure(
+      records[index].reclaimInternalStructure,
+      $("editRetestVsReclaimStructure").value
     );
   records[index].retestAcceptance =
     normalizeRetestAcceptance(
@@ -10747,7 +10981,9 @@ function buildCsv(records) {
     "Post-entry Objective Upgrade",
     "Reclaim Strong Bar ATR Ratio",
     "Retest Strong Bar ATR Ratio",
+    "Reclaim Internal Structure",
     "Retest Internal Structure",
+    "Retest vs Reclaim Structure",
     "Retest Acceptance",
     "Deep-RF Triggered",
     "Deep-RF RF後原SL被打",
@@ -11106,9 +11342,20 @@ function buildCsv(records) {
       )
         ? recordRetestStrongBarAtrRatio(record)
         : "",
+      reclaimInternalStructureLabel(
+        normalizeReclaimInternalStructure(
+          record.reclaimInternalStructure
+        )
+      ),
       retestInternalStructureLabel(
         normalizeRetestInternalStructure(
           record.retestInternalStructure
+        )
+      ),
+      retestVsReclaimStructureLabel(
+        resolvedRetestVsReclaimStructure(
+          record.reclaimInternalStructure,
+          record.retestVsReclaimStructure
         )
       ),
       retestAcceptanceLabel(
@@ -13351,11 +13598,29 @@ function recordFromCsvRow(row) {
           "Strong Retest Shadow Metric"
         )
       ),
+    reclaimInternalStructure:
+      normalizeReclaimInternalStructure(
+        firstCsvValue(
+          row,
+          "Reclaim Internal Structure"
+        )
+      ),
     retestInternalStructure:
       normalizeRetestInternalStructure(
         firstCsvValue(
           row,
           "Retest Internal Structure"
+        )
+      ),
+    retestVsReclaimStructure:
+      resolvedRetestVsReclaimStructure(
+        firstCsvValue(
+          row,
+          "Reclaim Internal Structure"
+        ),
+        firstCsvValue(
+          row,
+          "Retest vs Reclaim Structure"
         )
       ),
     retestAcceptance:
@@ -15339,6 +15604,20 @@ function setupEvents() {
     .addEventListener(
       "submit",
       saveDecision
+    );
+
+  $("reclaimInternalStructure")
+    .addEventListener(
+      "change",
+      () =>
+        syncReclaimStructureShadowUI(false)
+    );
+
+  $("editReclaimInternalStructure")
+    .addEventListener(
+      "change",
+      () =>
+        syncReclaimStructureShadowUI(true)
     );
 
   $("deepRFTriggered")

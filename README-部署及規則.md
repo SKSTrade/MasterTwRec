@@ -1,51 +1,90 @@
-# Master Trade System V1.30.9
+# Master Trade System V1.30.10
 ## Master Trade Matrix V1.3 — Frozen
-### 2025 H2 P3 Context Shadow｜PB / MID / EXT
+### 2025 H2 Reclaim Micro Control Shadow
 
-## P3 Context正式分三類
+## 新增兩個Shadow欄位
 
-當 Raw P = P3：
+### Reclaim Internal Structure
 
-- P3-PB｜Pullback
-- P3-MID｜Neutral / Mid-location
-- P3-EXT｜Extension
+- None
+- Structured
 
-### P3-PB
-價格有明確回調到次判次結／working support附近（Short鏡像working resistance），有location advantage。
+Structured固定定義：
 
-### P3-MID
-價格已離開次判次結，但又未去到最新走勢尾部。位置中性：唔算靚pullback，亦唔算chase。
+Long Reclaim唔係幾支陽K就算，而係要清晰形成micro bullish control，例如：
 
-### P3-EXT
-價格已去到最新走勢較尾／premium區（Short鏡像discount區），冇真正pullback，再做順勢setup。
+> HH → HL → 再破micro HH
 
-## 暫時唔用固定Fib Threshold
-2025 H2第一輪只用結構語義分類；唔加入0.5 Fib／0.75 Fib等未驗證threshold。
+或者至少有一個明確defended HL，之後由呢個HL再推高完成reclaim／control expansion。
 
-## Frozen規則
-P3 Context只係Shadow分類，三類完全唔改注碼。
+Short鏡像：
 
-- Raw P3-PB + E → P2-E
-- Raw P3-MID + E → P2-E
-- Raw P3-EXT + E → P2-E
+> LL → LH → 再LL
 
-之後全部照Frozen V1.3 P2-E Matrix計。
+### Reclaim Active Micro Structure
 
-PB唔額外加Size；MID唔額外加減Size；EXT唔額外減Size；EXT亦唔取消E升級。
+如果Reclaim有多個HL／LH，固定用：
 
-## Research
-完成2025 H2後比較：
+> Retest開始前最後一個已確認、並直接推動下一次micro HH／LL或完成control expansion嘅 defended HL／LH。
 
-- P3-PB vs P3-MID vs P3-EXT
-- P2-E（Raw P3-PB）
-- P2-E（Raw P3-MID）
-- P2-E（Raw P3-EXT）
+唔可以事後揀最方便嗰條舊swing。
+如果最後一個候選只係noise、未形成清晰swing，就唔勉強記Structured。
 
-再配合 Market State、Native Q / Q2 subtype、Enhancement E、
-Retest ATR Ratio、Retest Internal Structure、Retest Acceptance、
-Expectancy / PF / MFE / MAE / RF / TP2。
+### Retest vs Reclaim Structure
+
+- N/A
+- Hold
+- Sweep-Reclaim
+- Break-Accept
+
+定義：
+
+- N/A：Reclaim本身冇清晰Internal Structure
+- Hold：Retest守住active reclaim defended HL／LH
+- Sweep-Reclaim：插穿active micro structure，但迅速收返，冇另一邊acceptance
+- Break-Accept：有效破壞active micro structure，close／企喺另一邊並有acceptance／follow-through
+
+資料一致性：
+- Reclaim Internal Structure = None → Retest vs Reclaim Structure自動N/A
+- Reclaim Internal Structure = Structured → 先可選Hold / Sweep-Reclaim / Break-Accept
+
+## 同現有Retest Shadow分工
+
+- Retest Strong Bar ATR Ratio = 反方向force有幾大
+- Retest Internal Structure = 對手有冇建立micro control
+- Reclaim Internal Structure = 原本我方有冇建立micro control
+- Retest vs Reclaim Structure = 對手有冇摧毀原本micro control
+- Retest Acceptance = 較大reclaimed setup level有冇失去acceptance
+
+Micro structure loss同setup-level acceptance loss唔係同一回事。
+
+## Frozen V1.3
+
+兩個新欄純Shadow，唔會自動改：
+
+- Native Q
+- Q2-S
+- Raw / Execution P
+- Enhancement E
+- Final Size
+- Valid Candidate
+- Trade Objective
+- Obstacle / RR
+- Management
+
+2025 H2仍然完全照Frozen V1.3原判斷。
+
+## 紀錄庫
+
+兩項都可以事後edit。
 
 ## CSV
-CSV欄位數維持167。
-原有 `P3 Context` 欄直接支援 PB / MID / EXT，唔需要新增新欄。
-舊CSV嘅PB／EXT保持兼容。
+
+V1.30.9 = 167欄
+V1.30.10 = 169欄
+
+新增：
+- Reclaim Internal Structure
+- Retest vs Reclaim Structure
+
+舊CSV冇呢兩欄時保持空白，正常匯入。

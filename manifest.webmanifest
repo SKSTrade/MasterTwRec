@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.9",
+  "name": "Master Trade System V1.30.10",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with three-way P3 Context Shadow: PB, MID and EXT. P3 Context remains research-only and does not modify E upgrades or sizing.",
+  "description": "Master Trade Matrix V1.3 Frozen with Reclaim Internal Structure and Retest vs Reclaim Structure shadow research, editable in the record library.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
