@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.5</span>
+    <span class="version-badge">V1.30.8</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -866,6 +866,27 @@
           <h3 id="positionTitle"></h3>
           <p id="positionNote" class="muted"></p>
 
+          <div id="p3ContextPanel" class="conditional-panel hidden">
+            <div class="principle-box">
+              <strong>P3 Context｜2025 H2 Shadow Only</strong>
+              <span>PB／EXT只記Raw P3來源，唔改Frozen V1.3 Size。Raw P3有合資格E時，PB同EXT都照原規則取得P2-E待遇。</span>
+            </div>
+
+            <label>
+              P3 Context
+              <select id="p3Context">
+                <option value="" selected>未分類</option>
+                <option value="PB">P3-PB｜Pullback</option>
+                <option value="EXT">P3-EXT｜Extension</option>
+              </select>
+            </label>
+
+            <p class="state-note">
+              記錄鏈：<strong>Raw P3 → P3-PB／P3-EXT → E → Execution P</strong>。
+              2025 H2期間PB／EXT唔會額外升／降注；完成batch後先比較P2-E（Raw P3-PB）vs P2-E（Raw P3-EXT）。
+            </p>
+          </div>
+
           <label>
             大局實際結構重疊
             <select id="backgroundDirectOverlap">
@@ -1153,6 +1174,7 @@
             <div><span>交易路線</span><strong id="resultMarketRoute"></strong></div>
             <div><span>Setup Type</span><strong id="resultSetupType"></strong></div>
             <div><span>Raw P</span><strong id="resultBasePosition"></strong></div>
+            <div><span>P3 Context｜Shadow</span><strong id="resultP3Context"></strong></div>
             <div><span>Enhancement E</span><strong id="resultEnhancement"></strong></div>
             <div><span>Execution P</span><strong id="resultEffectivePosition"></strong></div>
             <div><span>P1順風</span><strong id="resultP1Background"></strong></div>
@@ -1349,6 +1371,24 @@
               </label>
 
               <label>
+                Retest Internal Structure
+                <select id="retestInternalStructure">
+                  <option value="" selected>未記錄</option>
+                  <option value="none">None / One-leg</option>
+                  <option value="structured">Yes / Structured</option>
+                </select>
+              </label>
+
+              <label>
+                Retest Acceptance
+                <select id="retestAcceptance">
+                  <option value="" selected>未記錄</option>
+                  <option value="hold">Hold</option>
+                  <option value="closeThrough">Close Through</option>
+                </select>
+              </label>
+
+              <label>
                 Deep-RF Triggered？
                 <select id="deepRFTriggered">
                   <option value="No" selected>No</option>
@@ -1376,7 +1416,7 @@
               </label>
             </div>
 
-            <p class="state-note"><strong>Strong Bar ATR Ratio Shadow：</strong>直接輸入你已計好嘅 Body ÷ ATR14 ratio。先記Reclaim Strong Bar，再記Retest Strong Bar，之後可以研究兩者強弱差距同Expectancy關係。兩項只作Shadow Research，唔會自動改Native Q／Size／Valid Candidate。Fast Ratio／Reclaim-Retest Bars／Distance仍然唔加。</p>
+            <p class="state-note"><strong>Strong Bar ATR Ratio Shadow：</strong>直接輸入你已計好嘅 Body ÷ ATR14 ratio。先記Reclaim Strong Bar，再記Retest Strong Bar，之後可以研究兩者強弱差距同Expectancy關係。兩項只作Shadow Research，唔會自動改Native Q／Size／Valid Candidate。<br><strong>Retest Internal Structure：</strong>只睇Entry TF，而且必須喺入場前已經形成至少一組清晰內部結構先算Structured。Long Retest要見LH → LL；Short鏡像要見HH → HL。單純兩三支連續方向K唔算Structured。<br><strong>Retest Acceptance：</strong><em>Hold</em>＝可以wick／test穿reclaimed level，但Entry TF實體close仍守住level附近／原本reclaim嗰邊，未形成另一邊acceptance；<em>Close Through</em>＝Entry TF實體close返去reclaimed level另一邊，甚至喺嗰邊停留，代表原本reclaim acceptance開始流失。兩項都只記錄，唔影響Frozen Q2-S或注碼。Fast Ratio／Reclaim-Retest Bars／Distance仍然唔加。</p>
           </div>
 
           <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
@@ -1872,6 +1912,16 @@
         </select>
       </label>
 
+      <label id="editP3ContextRow" class="hidden">
+        P3 Context｜Shadow
+        <select id="editP3Context">
+          <option value="">未分類</option>
+          <option value="PB">P3-PB｜Pullback</option>
+          <option value="EXT">P3-EXT｜Extension</option>
+        </select>
+      </label>
+      <p id="editP3ContextNote" class="state-note hidden">只修改Shadow標籤；唔會重新計算原本Execution P、E、Size或Trade Objective。</p>
+
       <div class="yes-no-grid">
         <label>
           Entry-time Q
@@ -1994,6 +2044,24 @@
           <label>
             Retest Strong Bar ATR Ratio
             <input id="editRetestStrongBarAtrRatio" type="number" step="0.001" min="0" inputmode="decimal">
+          </label>
+
+          <label>
+            Retest Internal Structure
+            <select id="editRetestInternalStructure">
+              <option value="">未記錄</option>
+              <option value="none">None / One-leg</option>
+              <option value="structured">Yes / Structured</option>
+            </select>
+          </label>
+
+          <label>
+            Retest Acceptance
+            <select id="editRetestAcceptance">
+              <option value="">未記錄</option>
+              <option value="hold">Hold</option>
+              <option value="closeThrough">Close Through</option>
+            </select>
           </label>
 
           <label>

@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.5",
+  "name": "Master Trade System V1.30.8",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with record-library trading symbol editing. Editing a historical symbol updates record display, symbol filters, CSV and backups without recalculating the original matrix decision.",
+  "description": "Master Trade Matrix V1.3 Frozen with 2025 H2 Retest Acceptance Shadow: Hold vs Close Through, recorded separately from Retest Internal Structure and ATR ratios.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

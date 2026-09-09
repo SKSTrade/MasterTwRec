@@ -149,6 +149,51 @@ function isHsiOprContinuationRecord(
   );
 }
 
+const P3_CONTEXTS = {
+  PB: {
+    label: "P3-PB｜Pullback"
+  },
+  EXT: {
+    label: "P3-EXT｜Extension"
+  }
+};
+
+function p3ContextLabel(
+  code
+) {
+  return (
+    P3_CONTEXTS[code]?.label ||
+    ""
+  );
+}
+
+function recordRawP(
+  record
+) {
+  return (
+    record?.rawP ||
+    record?.basePosition ||
+    ""
+  );
+}
+
+function recordP3Context(
+  record
+) {
+  const value =
+    String(
+      record?.p3Context ||
+      ""
+    ).toUpperCase();
+
+  return (
+    value === "PB" ||
+    value === "EXT"
+  )
+    ? value
+    : "";
+}
+
 const MARKET_CONFIG = {
   HSI: {
     label: "HSI",
@@ -5186,6 +5231,89 @@ function recordRetestStrongBarAtrRatio(
 }
 
 
+function retestInternalStructureLabel(
+  code
+) {
+  if (code === "none") {
+    return "None / One-leg";
+  }
+
+  if (code === "structured") {
+    return "Yes / Structured";
+  }
+
+  return "";
+}
+
+function normalizeRetestInternalStructure(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  if (
+    raw === "none" ||
+    raw === "none / one-leg" ||
+    raw === "one-leg"
+  ) {
+    return "none";
+  }
+
+  if (
+    raw === "structured" ||
+    raw === "yes / structured" ||
+    raw === "yes"
+  ) {
+    return "structured";
+  }
+
+  return "";
+}
+
+
+function retestAcceptanceLabel(
+  code
+) {
+  if (code === "hold") {
+    return "Hold";
+  }
+
+  if (code === "closeThrough") {
+    return "Close Through";
+  }
+
+  return "";
+}
+
+function normalizeRetestAcceptance(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+
+  if (
+    raw === "hold"
+  ) {
+    return "hold";
+  }
+
+  if (
+    raw === "closethrough" ||
+    raw === "close through" ||
+    raw === "close-through"
+  ) {
+    return "closeThrough";
+  }
+
+  return "";
+}
+
+
 function capReasonInfo({
   finalSize,
   routeCode,
@@ -5601,8 +5729,12 @@ function evaluateDecision(
     `② 主判／次判 Market State：${$("mainState").value} × ${$("secondaryState").value}；Transition Type＝${transitionType.label}。`,
     `③ Direction Permission：${matrix.routeLabel}；Market Cap ${SIZE_LABELS[matrix.marketCap]}。${matrix.routeReason}`,
     `④ Control Alignment：${control.label}。${control.note}`,
-    `⑤ Raw P：${setupResult.basePosition}；Execution P：${setupResult.effectivePosition}。`,
-    `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E。`,
+    `⑤ Raw P：${setupResult.basePosition}；${
+      setupResult.basePosition === "P3"
+        ? `P3 Context＝${p3ContextLabel($("p3Context").value) || "未分類"}（Shadow only）；`
+        : ""
+    }Execution P：${setupResult.effectivePosition}。`,
+    `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／EXT唔會改E升級權或Frozen Size。`,
     `⑦ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
     `⑧ Obstacle／RR：${obstacle.explanation}`,
     `⑨ Final Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
@@ -5954,6 +6086,15 @@ function renderDecision(decision) {
       decision.preferredDirection;
   $("resultBasePosition").textContent =
     currentAsia2B.basePosition;
+  $("resultP3Context").textContent =
+    currentAsia2B.basePosition === "P3"
+      ? (
+          p3ContextLabel(
+            $("p3Context").value
+          ) ||
+          "未分類"
+        )
+      : "N/A";
   $("resultEffectivePosition")
     .textContent =
       currentAsia2B
@@ -6424,6 +6565,16 @@ function updateInterface() {
     `${position}｜${info.title}`;
   $("positionNote").textContent =
     info.note;
+
+  $("p3ContextPanel")
+    .classList.toggle(
+      "hidden",
+      position !== "P3"
+    );
+
+  if (position !== "P3") {
+    $("p3Context").value = "";
+  }
 
   $("setupClassification")
     .textContent =
@@ -6931,7 +7082,11 @@ function checklistSummary() {
     `Matrix Version：Master Trade Matrix V1.3｜2026/08 Frozen`,
     `Transition Type：${currentDecision?.transitionTypeLabel || transitionTypeInfo().label}`,
     `Control Alignment：${currentDecision?.controlAlignmentLabel || controlAlignmentInfo().label}`,
-    `Raw P → E → Execution P：${currentAsia2B.basePosition} → ${currentDecision?.enhancementLabel || "None"} → ${currentAsia2B.effectivePosition}`,
+    `Raw P → P3 Context → E → Execution P：${currentAsia2B.basePosition} → ${
+      currentAsia2B.basePosition === "P3"
+        ? (p3ContextLabel($("p3Context").value) || "未分類")
+        : "N/A"
+    } → ${currentDecision?.enhancementLabel || "None"} → ${currentAsia2B.effectivePosition}`,
     `Native Q：${currentBaseTrigger.quality}${currentBaseTrigger.quality === "Q2" ? `｜${q2SubtypeInfo(currentBaseTrigger).label}` : ""}`,
     `Trade Objective：${currentDecision?.tradeObjective || "N/A"}`,
     `Transition主判P1順風P2資格：${transitionP1TailwindEligibilityInfo(
@@ -7489,9 +7644,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.5",
+      "PracticeJournal-V1.30.8",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r18-RecordSymbolEditing",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r21-RetestAcceptanceShadow",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7611,6 +7766,10 @@ async function saveDecision(event) {
       currentAsia2B.effectivePosition,
     rawP:
       currentDecision.rawPosition,
+    p3Context:
+      currentDecision.rawPosition === "P3"
+        ? $("p3Context").value
+        : "",
     executionP:
       currentDecision.executionPosition,
     enhancement:
@@ -7634,7 +7793,7 @@ async function saveDecision(event) {
       currentDecision.reactionFirstShadowClass ||
       "N/A",
     shadowResearchVersion:
-      "2025 H2 Shadow Overlay v2",
+      "2025 H2 Shadow Overlay v5",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -7920,6 +8079,14 @@ async function saveDecision(event) {
       strongBarAtrRatios.reclaimStrongBarAtrRatio,
     retestStrongBarAtrRatio:
       strongBarAtrRatios.retestStrongBarAtrRatio,
+    retestInternalStructure:
+      normalizeRetestInternalStructure(
+        $("retestInternalStructure").value
+      ),
+    retestAcceptance:
+      normalizeRetestAcceptance(
+        $("retestAcceptance").value
+      ),
     // Legacy alias for V1.30.1 compatibility.
     strongRetestShadowMetric:
       strongBarAtrRatios.retestStrongBarAtrRatio,
@@ -7988,6 +8155,8 @@ async function saveDecision(event) {
   $("postEntryObjectiveUpgrade").value = "No";
   $("reclaimStrongBarAtrRatio").value = "";
   $("retestStrongBarAtrRatio").value = "";
+  $("retestInternalStructure").value = "";
+  $("retestAcceptance").value = "";
   $("deepRFTriggered").value = "No";
   $("deepRFOriginalSLHit").value = "N/A";
   $("deepRFShadowMfeR").value = "";
@@ -9012,6 +9181,16 @@ function renderHistory() {
             )}</span>`
           : "";
 
+      const p3ContextTag =
+        recordRawP(record) === "P3" &&
+        recordP3Context(record)
+          ? `<span class="history-tag">${escapeHtml(
+              p3ContextLabel(
+                recordP3Context(record)
+              )
+            )}</span>`
+          : "";
+
       const mainState =
         record.mainState ||
         "未記錄";
@@ -9075,6 +9254,7 @@ function renderHistory() {
             ${twoBTag}
             ${engineTag}
             ${oprContextTag}
+            ${p3ContextTag}
             ${imageTag}
           </div>
 
@@ -9592,8 +9772,15 @@ async function openRecord(recordId) {
         : "N/A"
     )}
     <br>
-    <strong>Raw P → E → Execution P：</strong>
-    ${escapeHtml(record.rawP || basePosition)} → ${escapeHtml(record.enhancementLabel || record.enhancement || "None")} → ${escapeHtml(record.executionP || effectivePosition)}
+    <strong>Raw P → P3 Context → E → Execution P：</strong>
+    ${escapeHtml(record.rawP || basePosition)}
+    → ${escapeHtml(
+      (record.rawP || basePosition) === "P3"
+        ? (p3ContextLabel(recordP3Context(record)) || "未分類")
+        : "N/A"
+    )}
+    → ${escapeHtml(record.enhancementLabel || record.enhancement || "None")}
+    → ${escapeHtml(record.executionP || effectivePosition)}
     <br>
     <strong>原始位置：</strong>
     ${escapeHtml(basePosition)}
@@ -9738,6 +9925,26 @@ async function openRecord(recordId) {
     <strong>Retest Strong Bar ATR Ratio：</strong>
     ${Number.isFinite(recordRetestStrongBarAtrRatio(record)) ? escapeHtml(recordRetestStrongBarAtrRatio(record).toFixed(3)) : "N/A"}
     <br>
+    <strong>Retest Internal Structure：</strong>
+    ${escapeHtml(
+      retestInternalStructureLabel(
+        normalizeRetestInternalStructure(
+          record.retestInternalStructure
+        )
+      ) ||
+      "未記錄"
+    )}
+    <br>
+    <strong>Retest Acceptance：</strong>
+    ${escapeHtml(
+      retestAcceptanceLabel(
+        normalizeRetestAcceptance(
+          record.retestAcceptance
+        )
+      ) ||
+      "未記錄"
+    )}
+    <br>
     <strong>Deep-RF Triggered：</strong>
     ${escapeHtml(record.deepRFTriggered || "No")}
     <br>
@@ -9790,6 +9997,24 @@ async function openRecord(recordId) {
           ) ||
           ""
         )
+      : "";
+
+  const editIsRawP3 =
+    recordRawP(record) === "P3";
+
+  $("editP3ContextRow")
+    .classList.toggle(
+      "hidden",
+      !editIsRawP3
+    );
+  $("editP3ContextNote")
+    .classList.toggle(
+      "hidden",
+      !editIsRawP3
+    );
+  $("editP3Context").value =
+    editIsRawP3
+      ? recordP3Context(record)
       : "";
 
   $("editEntryTimeQ").value =
@@ -9866,6 +10091,16 @@ async function openRecord(recordId) {
     )
       ? existingRetestStrongBarAtrRatio
       : "";
+
+  $("editRetestInternalStructure").value =
+    normalizeRetestInternalStructure(
+      record.retestInternalStructure
+    );
+
+  $("editRetestAcceptance").value =
+    normalizeRetestAcceptance(
+      record.retestAcceptance
+    );
 
   $("editDeepRFTriggered").value =
     record.deepRFTriggered ||
@@ -10123,6 +10358,15 @@ async function saveRecordEdit() {
     $("editEntryStatus").value;
 
   if (
+    recordRawP(
+      records[index]
+    ) === "P3"
+  ) {
+    records[index].p3Context =
+      $("editP3Context").value;
+  }
+
+  if (
     isHsiOprContinuationRecord(
       records[index]
     )
@@ -10191,6 +10435,14 @@ async function saveRecordEdit() {
     editedStrongBarAtrRatios.reclaimStrongBarAtrRatio;
   records[index].retestStrongBarAtrRatio =
     editedStrongBarAtrRatios.retestStrongBarAtrRatio;
+  records[index].retestInternalStructure =
+    normalizeRetestInternalStructure(
+      $("editRetestInternalStructure").value
+    );
+  records[index].retestAcceptance =
+    normalizeRetestAcceptance(
+      $("editRetestAcceptance").value
+    );
   // Keep V1.30.1 internal alias synced for old exports/backups.
   records[index].strongRetestShadowMetric =
     editedStrongBarAtrRatios.retestStrongBarAtrRatio;
@@ -10466,6 +10718,7 @@ function buildCsv(records) {
     "Transition Type V1.3",
     "Control Alignment V1.3",
     "Raw P V1.3",
+    "P3 Context",
     "Enhancement E V1.3",
     "Execution P V1.3",
     "Native Q V1.3",
@@ -10490,6 +10743,8 @@ function buildCsv(records) {
     "Post-entry Objective Upgrade",
     "Reclaim Strong Bar ATR Ratio",
     "Retest Strong Bar ATR Ratio",
+    "Retest Internal Structure",
+    "Retest Acceptance",
     "Deep-RF Triggered",
     "Deep-RF RF後原SL被打",
     "Deep-RF Shadow MFE R",
@@ -10786,6 +11041,9 @@ function buildCsv(records) {
       record.transitionTypeLabel || record.transitionType || "",
       record.controlAlignmentLabel || record.controlAlignment || "",
       record.rawP || record.basePosition || "",
+      recordRawP(record) === "P3"
+        ? recordP3Context(record)
+        : "",
       record.enhancementLabel || record.enhancement || "",
       record.executionP || record.position || "",
       record.nativeQ || record.baseTrigger || record.trigger || "",
@@ -10844,6 +11102,16 @@ function buildCsv(records) {
       )
         ? recordRetestStrongBarAtrRatio(record)
         : "",
+      retestInternalStructureLabel(
+        normalizeRetestInternalStructure(
+          record.retestInternalStructure
+        )
+      ),
+      retestAcceptanceLabel(
+        normalizeRetestAcceptance(
+          record.retestAcceptance
+        )
+      ),
       record.deepRFTriggered || "No",
       record.deepRFOriginalSLHit || "N/A",
       Number.isFinite(record.deepRFShadowMfeR)
@@ -12937,6 +13205,22 @@ function recordFromCsvRow(row) {
         "Raw P V1.3",
         "原始位置"
       ),
+    p3Context:
+      (() => {
+        const value = String(
+          firstCsvValue(
+            row,
+            "P3 Context"
+          ) || ""
+        ).toUpperCase();
+
+        return (
+          value === "PB" ||
+          value === "EXT"
+        )
+          ? value
+          : "";
+      })(),
     enhancementLabel:
       firstCsvValue(
         row,
@@ -13060,6 +13344,20 @@ function recordFromCsvRow(row) {
           row,
           "Retest Strong Bar ATR Ratio",
           "Strong Retest Shadow Metric"
+        )
+      ),
+    retestInternalStructure:
+      normalizeRetestInternalStructure(
+        firstCsvValue(
+          row,
+          "Retest Internal Structure"
+        )
+      ),
+    retestAcceptance:
+      normalizeRetestAcceptance(
+        firstCsvValue(
+          row,
+          "Retest Acceptance"
         )
       ),
     // Legacy V1.30.1 alias retained only for compatibility.

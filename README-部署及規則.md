@@ -1,56 +1,88 @@
-# Master Trade System V1.30.5
-## 紀錄庫｜交易商品／品種可修改
+# Master Trade System V1.30.8
+## Master Trade Matrix V1.3 — Frozen
+### 2025 H2 Retest Acceptance Shadow
 
-紀錄庫打開任何一筆交易後，新增：
+## 新增Shadow欄位
 
-> 交易商品／品種
+> Retest Acceptance
 
-例如可以將：
-- EURUSD → GBPUSD
-- GER40 → UK100
-- XAUUSD → XAUUSD（修正輸入）
-- 其他自訂symbol
+只分：
 
-儲存時會自動Trim並轉成大寫。
+- Hold
+- Close Through
 
-## 修改後同步影響
+## 固定定義
 
-修改symbol後會同步反映：
-- 紀錄卡商品名稱
-- 紀錄詳情
-- 紀錄庫商品Filter
-- 商品A→Z排序
-- CSV匯出「品種」欄
-- Backup ZIP圖片folder命名（下次匯出時）
+### Hold
 
-圖片本身仍以Record ID儲存，唔會因改symbol而遺失。
+Retest可以wick／test穿reclaimed level，但Entry TF實體close仍守住level附近／原本reclaim嗰邊，
+未形成另一邊acceptance。
 
-## 歷史決策保護
+Long例：
+- Reclaim上某level
+- Retest可以影線落穿
+- 但Entry TF close仍守返level附近／上面
 
-修改「交易商品／品種」只係修正紀錄metadata。
+Short鏡像。
 
-唔會重新計算或更改：
-- 市場分類
-- 核心Setup
-- Market State
-- Direction / Market Route
-- Raw P / Execution P
+### Close Through
+
+Entry TF candle實體close返去reclaimed level另一邊，
+甚至一支或多支K開始喺嗰邊停留。
+
+Long例：
+- Reclaim上某level
+- Retest後Entry TF實體close返level下面
+- 甚至喺下面停留
+
+代表原本reclaim acceptance可能開始流失。
+
+## 同其他Shadow變數分工
+
+Retest Strong Bar ATR Ratio：
+> 反方向一支強Bar有幾大力
+
+Retest Internal Structure：
+> 反方向control有冇組織成結構
+
+Retest Acceptance：
+> Reclaimed level本身有冇守住acceptance
+
+完成2025 H2後可研究：
+
+- Acceptance × Internal Structure
+- Acceptance × Retest ATR Ratio
+- Acceptance × Reclaim ATR Ratio
+- Acceptance × Market State
+- Acceptance × Native Q / Q2-S
+- Acceptance × Win/Loss / MFE / MAE / RF / TP2
+
+## Frozen規則
+
+Retest Acceptance純Shadow，唔自動修改：
+
 - Native Q
+- Q2-S
+- Raw / Execution P
+- Enhancement E
 - Final Size
-- Trade Objective
 - Valid Candidate
+- Trade Objective
+- Obstacle / RR
+- Management
 
-即係例如原本一筆FX trade由EURUSD修正做GBPUSD，
-只會改symbol，唔會重跑Matrix。
+2025 H2仍照Frozen V1.3原判斷。
 
-## Validation
+## 紀錄庫
 
-交易商品唔可以留空。
-如果留空，App會阻止儲存並提示：
+Retest Acceptance可以事後修改。
 
-> 請輸入交易商品／品種
+## CSV
 
-## Frozen V1.3
+V1.30.7 = 166欄  
+V1.30.8 = 167欄
 
-Matrix sizing / permission / obstacle / objective / shadow research全部保持不變。
-CSV schema欄數保持164欄，冇新增或刪除欄位；只係原有「品種」欄可以由紀錄庫修改。
+新增：
+- Retest Acceptance
+
+舊CSV冇呢欄時保持空白，正常匯入。
