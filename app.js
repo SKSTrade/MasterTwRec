@@ -2637,29 +2637,91 @@ function q2SubtypeInfo(
   if (!trigger || trigger.quality !== "Q2") {
     return {
       codes: [],
-      label: trigger?.quality === "Q3" ? "Native Q3" : "N/A"
+      label: trigger?.quality === "Q3"
+        ? "Native Q3"
+        : "N/A"
     };
   }
 
   const codes = [];
 
+  /*
+   * Q2-R只代表「今次Setup真正使用嗰段Reclaim／Opening Drive質素普通」。
+   * 唔再將未使用嘅quality input當Generic Q2 fallback。
+   *
+   * Sweep-family：
+   *   session2B / sweep / p1ReversalSweep → 只睇 reclaimQuality
+   *
+   * Breakout-family：
+   *   breakout / oprContinuation / fullRepair / postOpenConfirmation
+   *   → 只睇 breakoutQuality
+   *
+   * p1NoSweep / trendPullback本身冇獨立R來源。
+   */
+  const variant =
+    trigger.variant ||
+    trigger.model ||
+    "";
+
+  const reclaimQualityVariants = [
+    "session2B",
+    "sweep",
+    "p1ReversalSweep"
+  ];
+
+  const breakoutQualityVariants = [
+    "breakout",
+    "oprContinuation",
+    "fullRepairAsia",
+    "fullRepairPure",
+    "postOpenConfirmation"
+  ];
+
+  const hasReclaimQualityDefect =
+    reclaimQualityVariants.includes(
+      variant
+    ) &&
+    trigger.reclaimQuality ===
+      "ordinary";
+
+  const hasBreakoutQualityDefect =
+    breakoutQualityVariants.includes(
+      variant
+    ) &&
+    trigger.breakoutQuality ===
+      "ordinary";
+
   if (
-    trigger.reclaimQuality === "ordinary" ||
-    trigger.breakoutQuality === "ordinary"
+    hasReclaimQualityDefect ||
+    hasBreakoutQualityDefect
   ) {
     codes.push("R");
   }
 
-  if (trigger.q2FastRetest) codes.push("F");
-  if (trigger.q2DeepRetest) codes.push("D");
-  if (trigger.q2StrongRetest) codes.push("S");
+  if (trigger.q2FastRetest) {
+    codes.push("F");
+  }
 
-  const obstacleR = firstObstacleRValue();
-  if (obstacleR >= 1.5 && obstacleR < 2) {
+  if (trigger.q2DeepRetest) {
+    codes.push("D");
+  }
+
+  if (trigger.q2StrongRetest) {
+    codes.push("S");
+  }
+
+  const obstacleR =
+    firstObstacleRValue();
+
+  if (
+    obstacleR >= 1.5 &&
+    obstacleR < 2
+  ) {
     codes.push("RR");
   }
 
-  const unique = [...new Set(codes)];
+  const unique =
+    [...new Set(codes)];
 
   return {
     codes: unique,
@@ -7784,9 +7846,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.11",
+      "PracticeJournal-V1.30.12",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r24-FieldPruning",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r25-Q2SubtypeSourceFix",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 

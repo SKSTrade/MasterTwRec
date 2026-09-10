@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-11-field-pruning";
+const CACHE_NAME = "master-trade-system-v1-30-12-q2-subtype-source-fix";
 const ASSETS = [
   "./",
   "./index.html",
