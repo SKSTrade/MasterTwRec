@@ -5187,28 +5187,12 @@ function tradeObjectiveInfo({
 }
 
 
-function strongBarAtrRatioValues(
-  editMode = false
-) {
-  const reclaimId =
-    editMode
-      ? "editReclaimStrongBarAtrRatio"
-      : "reclaimStrongBarAtrRatio";
-
-  const retestId =
-    editMode
-      ? "editRetestStrongBarAtrRatio"
-      : "retestStrongBarAtrRatio";
-
+function strongBarAtrRatioValues() {
+  // V1.30.11：停止人手輸入ATR Ratio。
+  // 保留helper名只為舊版code／backup兼容。
   return {
-    reclaimStrongBarAtrRatio:
-      optionalNumberFromInput(
-        reclaimId
-      ),
-    retestStrongBarAtrRatio:
-      optionalNumberFromInput(
-        retestId
-      )
+    reclaimStrongBarAtrRatio: null,
+    retestStrongBarAtrRatio: null
   };
 }
 
@@ -5366,50 +5350,6 @@ function resolvedRetestVsReclaimStructure(
   ].includes(retestVs)
     ? retestVs
     : "";
-}
-
-function syncReclaimStructureShadowUI(
-  editMode = false
-) {
-  const reclaimId =
-    editMode
-      ? "editReclaimInternalStructure"
-      : "reclaimInternalStructure";
-
-  const retestVsId =
-    editMode
-      ? "editRetestVsReclaimStructure"
-      : "retestVsReclaimStructure";
-
-  const reclaim =
-    normalizeReclaimInternalStructure(
-      $(reclaimId).value
-    );
-
-  const retestVs =
-    $(retestVsId);
-
-  if (reclaim === "none") {
-    retestVs.value = "na";
-    retestVs.disabled = true;
-    return;
-  }
-
-  if (reclaim === "structured") {
-    retestVs.disabled = false;
-
-    if (
-      normalizeRetestVsReclaimStructure(
-        retestVs.value
-      ) === "na"
-    ) {
-      retestVs.value = "";
-    }
-    return;
-  }
-
-  retestVs.value = "";
-  retestVs.disabled = true;
 }
 
 
@@ -5695,13 +5635,15 @@ function formatResearchR(
 function syncDeepRFShadowUI(
   editMode = false
 ) {
-  const prefix =
-    editMode ? "edit" : "";
-
   const triggeredId =
     editMode
       ? "editDeepRFTriggered"
       : "deepRFTriggered";
+
+  const detailsId =
+    editMode
+      ? "editDeepRFDetails"
+      : "deepRFDetails";
 
   const originalSLId =
     editMode
@@ -5721,6 +5663,12 @@ function syncDeepRFShadowUI(
   const enabled =
     $(triggeredId).value ===
     "Yes";
+
+  $(detailsId)
+    .classList.toggle(
+      "hidden",
+      !enabled
+    );
 
   [
     originalSLId,
@@ -5743,7 +5691,7 @@ function syncDeepRFShadowUI(
 
 function syncObjectiveUpgradeUI(
   editMode = false,
-  shadowClass = ""
+  objectiveAtEntry = ""
 ) {
   const id =
     editMode
@@ -5754,8 +5702,8 @@ function syncObjectiveUpgradeUI(
     $(id);
 
   const eligible =
-    shadowClass ===
-    "Reaction-first / Expansion-eligible";
+    objectiveAtEntry ===
+    "Reaction-first";
 
   select.disabled =
     !eligible;
@@ -5783,35 +5731,49 @@ function updateShadowResearchPreview() {
       decision.finalSize
     );
 
+  const quarterSize =
+    Number(
+      decision.finalSize
+    ) === 0.25;
+
+  $("shadowPrimaryCapReasonRow")
+    .classList.toggle(
+      "hidden",
+      !quarterSize
+    );
+
+  $("shadowAdditionalCapFlagsRow")
+    .classList.toggle(
+      "hidden",
+      !quarterSize
+    );
+
   $("shadowPrimaryCapReason")
     .textContent =
-      decision.primaryCapReason ||
-      "N/A";
+      quarterSize
+        ? (
+            decision.primaryCapReason ||
+            "N/A"
+          )
+        : "N/A";
 
   $("shadowAdditionalCapFlags")
     .textContent =
+      quarterSize &&
       decision.additionalCapFlags
         ?.length
         ? decision.additionalCapFlags
             .join("｜")
         : "N/A";
 
-  const objectiveCode =
-    decision.objectiveAtEntry ||
-    decision.tradeObjective ||
-    "N/A";
-
-  const shadowClass =
-    decision.reactionFirstShadowClass ||
-    "N/A";
+  const objectiveAtEntry =
+    decisionObjectiveAtEntry(
+      decision
+    );
 
   $("shadowObjectiveAtEntry")
     .textContent =
-      objectiveCode;
-
-  $("shadowReactionFirstClass")
-    .textContent =
-      shadowClass;
+      objectiveAtEntry;
 
   $("shadowNormalizedR")
     .textContent =
@@ -5821,10 +5783,9 @@ function updateShadowResearchPreview() {
 
   syncObjectiveUpgradeUI(
     false,
-    shadowClass
+    objectiveAtEntry
   );
 
-  syncReclaimStructureShadowUI(false);
   syncDeepRFShadowUI(false);
 }
 
@@ -5921,7 +5882,7 @@ function evaluateDecision(
     `⑦ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
     `⑧ Obstacle／RR：${obstacle.explanation}`,
     `⑨ Final Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
-    `⑩ Trade Objective：${objective.label}。${objective.reason}`
+    `⑩ Objective at Entry：${simplifiedObjectiveAtEntry(objective.code, objective.shadowClass)}。${objective.reason}`
   ];
 
   const warnings = [
@@ -6309,18 +6270,36 @@ function renderDecision(decision) {
       ? decision.q2Subtype
       : "N/A";
   $("resultTradeObjective").textContent =
-    decision.objectiveAtEntry ||
-    decision.tradeObjective;
+    decisionObjectiveAtEntry(
+      decision
+    );
 
-  $("resultReactionFirstShadow").textContent =
-    decision.reactionFirstShadowClass ||
-    "N/A";
+  const quarterSize =
+    Number(
+      decision.finalSize
+    ) === 0.25;
+
+  $("resultPrimaryCapReasonRow")
+    .classList.toggle(
+      "hidden",
+      !quarterSize
+    );
+  $("resultAdditionalCapFlagsRow")
+    .classList.toggle(
+      "hidden",
+      !quarterSize
+    );
 
   $("resultPrimaryCapReason").textContent =
-    decision.primaryCapReason ||
-    "N/A";
+    quarterSize
+      ? (
+          decision.primaryCapReason ||
+          "N/A"
+        )
+      : "N/A";
 
   $("resultAdditionalCapFlags").textContent =
+    quarterSize &&
     decision.additionalCapFlags
       ?.length
       ? decision.additionalCapFlags
@@ -7271,7 +7250,7 @@ function checklistSummary() {
         : "N/A"
     } → ${currentDecision?.enhancementLabel || "None"} → ${currentAsia2B.effectivePosition}`,
     `Native Q：${currentBaseTrigger.quality}${currentBaseTrigger.quality === "Q2" ? `｜${q2SubtypeInfo(currentBaseTrigger).label}` : ""}`,
-    `Trade Objective：${currentDecision?.tradeObjective || "N/A"}`,
+    `Objective at Entry：${decisionObjectiveAtEntry(currentDecision)}`,
     `Transition主判P1順風P2資格：${transitionP1TailwindEligibilityInfo(
       currentAsia2B.effectivePosition,
       currentAsia2B.effectiveQuality
@@ -7772,23 +7751,6 @@ async function saveDecision(event) {
     return;
   }
 
-  const timeToMFEMinutes =
-    durationMinutesFromInput(
-      "timeToMFE"
-    );
-
-  if (
-    Number.isNaN(
-      timeToMFEMinutes
-    )
-  ) {
-    showToast(
-      "Time to MFE格式錯誤；請輸入例如11H45M、2H或45M"
-    );
-    $("timeToMFE").focus();
-    return;
-  }
-
   const profitRValue =
     optionalNumberFromInput(
       "profitR"
@@ -7798,11 +7760,6 @@ async function saveDecision(event) {
     normalizedRValue(
       profitRValue,
       currentDecision?.finalSize
-    );
-
-  const strongBarAtrRatios =
-    strongBarAtrRatioValues(
-      false
     );
 
   const timeframes =
@@ -7827,9 +7784,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.10",
+      "PracticeJournal-V1.30.11",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r23-ReclaimMicroControlShadow",
+      "MasterTradeMatrix-V1.3-Frozen-2026-08-r24-FieldPruning",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -7965,18 +7922,17 @@ async function saveDecision(event) {
       currentDecision.q2Subtype,
     q2SubtypeCodes:
       currentDecision.q2SubtypeCodes,
+    // Legacy/raw objective retained internally; Objective at Entry is the analysis source of truth.
     tradeObjective:
       currentDecision.tradeObjective,
     tradeObjectiveReason:
       currentDecision.tradeObjectiveReason,
     objectiveAtEntry:
-      currentDecision.objectiveAtEntry ||
-      currentDecision.tradeObjective,
-    reactionFirstShadowClass:
-      currentDecision.reactionFirstShadowClass ||
-      "N/A",
+      decisionObjectiveAtEntry(
+        currentDecision
+      ),
     shadowResearchVersion:
-      "2025 H2 Shadow Overlay v6",
+      "2025 H2 Shadow Overlay v7",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -8250,38 +8206,24 @@ async function saveDecision(event) {
       optionalNumberFromInput("maeR"),
     timeToRF:
       timeToRFMinutes,
-    timeToMFE:
-      timeToMFEMinutes,
     validCandidate:
       $("validCandidate").value,
-    postEntryPricePattern:
-      $("postEntryPricePattern").value.trim(),
     postEntryObjectiveUpgrade:
-      $("postEntryObjectiveUpgrade").value,
-    reclaimStrongBarAtrRatio:
-      strongBarAtrRatios.reclaimStrongBarAtrRatio,
-    retestStrongBarAtrRatio:
-      strongBarAtrRatios.retestStrongBarAtrRatio,
-    reclaimInternalStructure:
-      normalizeReclaimInternalStructure(
-        $("reclaimInternalStructure").value
+      normalizePostEntryObjectiveUpgrade(
+        $("postEntryObjectiveUpgrade").value
       ),
     retestInternalStructure:
       normalizeRetestInternalStructure(
         $("retestInternalStructure").value
       ),
     retestVsReclaimStructure:
-      resolvedRetestVsReclaimStructure(
-        $("reclaimInternalStructure").value,
+      normalizeRetestVsReclaimStructure(
         $("retestVsReclaimStructure").value
-      ),
+      ) || "na",
     retestAcceptance:
       normalizeRetestAcceptance(
         $("retestAcceptance").value
       ),
-    // Legacy alias for V1.30.1 compatibility.
-    strongRetestShadowMetric:
-      strongBarAtrRatios.retestStrongBarAtrRatio,
     deepRFTriggered:
       $("deepRFTriggered").value,
     deepRFOriginalSLHit:
@@ -8341,17 +8283,11 @@ async function saveDecision(event) {
   $("mfeR").value = "";
   $("maeR").value = "";
   $("timeToRF").value = "";
-  $("timeToMFE").value = "";
   $("validCandidate").value = "No";
-  $("postEntryPricePattern").value = "";
   $("postEntryObjectiveUpgrade").value = "No";
-  $("reclaimStrongBarAtrRatio").value = "";
-  $("retestStrongBarAtrRatio").value = "";
-  $("reclaimInternalStructure").value = "";
   $("retestInternalStructure").value = "";
-  $("retestVsReclaimStructure").value = "";
+  $("retestVsReclaimStructure").value = "na";
   $("retestAcceptance").value = "";
-  syncReclaimStructureShadowUI(false);
   $("deepRFTriggered").value = "No";
   $("deepRFOriginalSLHit").value = "N/A";
   $("deepRFShadowMfeR").value = "";
@@ -8598,39 +8534,105 @@ async function deleteSelectedHistoryRecords() {
   );
 }
 
-function recordFormalTradeObjective(
-  record
+function simplifiedObjectiveAtEntry(
+  rawObjective,
+  shadowClass = ""
 ) {
   const raw =
-    record?.objectiveAtEntry ||
-    record?.tradeObjective ||
-    "";
+    String(
+      rawObjective || ""
+    ).trim();
 
-  return raw === "Reaction-first"
-    ? "Not sure"
-    : raw || "N/A";
-}
-
-function recordReactionFirstShadow(
-  record
-) {
   if (
-    record?.reactionFirstShadowClass &&
-    record.reactionFirstShadowClass !==
-      "N/A"
+    raw === "Reaction-first" ||
+    shadowClass ===
+      "Reaction-first / Expansion-eligible"
   ) {
-    return record.reactionFirstShadowClass;
+    return "Reaction-first";
   }
 
-  return (
-    record?.objectiveAtEntry ===
-      "Reaction-first" ||
-    record?.tradeObjective ===
-      "Reaction-first"
-  )
-    ? "Reaction-first / Expansion-eligible"
-    : "N/A";
+  if (raw === "Expansion") {
+    return "Expansion";
+  }
+
+  if (
+    raw === "Reaction" ||
+    raw === "Not sure"
+  ) {
+    return "Reaction";
+  }
+
+  return "N/A";
 }
+
+function decisionObjectiveAtEntry(
+  decision
+) {
+  if (!decision) {
+    return "N/A";
+  }
+
+  return simplifiedObjectiveAtEntry(
+    decision.objectiveAtEntry ||
+      decision.tradeObjective,
+    decision.reactionFirstShadowClass
+  );
+}
+
+function recordObjectiveAtEntry(
+  record
+) {
+  return simplifiedObjectiveAtEntry(
+    record?.objectiveAtEntry ||
+      record?.tradeObjective,
+    record?.reactionFirstShadowClass
+  );
+}
+
+function normalizePostEntryObjectiveUpgrade(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  return (
+    raw === "yes" ||
+    raw ===
+      "reaction→expansion" ||
+    raw ===
+      "reaction -> expansion" ||
+    raw ===
+      "reaction→ expansion"
+  )
+    ? "Yes"
+    : "No";
+}
+
+function recordRetestVsReclaimStructure(
+  record
+) {
+  const direct =
+    normalizeRetestVsReclaimStructure(
+      record?.retestVsReclaimStructure
+    );
+
+  if (direct) {
+    return direct;
+  }
+
+  if (
+    normalizeReclaimInternalStructure(
+      record?.reclaimInternalStructure
+    ) === "none"
+  ) {
+    return "na";
+  }
+
+  return "";
+}
+
 
 function recordChronologyTimestamp(
   record
@@ -10005,18 +10007,14 @@ async function openRecord(recordId) {
     <strong>舊版／Execution Q欄：</strong>
     ${escapeHtml(effectiveTrigger)}
     <br>
-    <strong>Trade Objective：</strong>
-    ${escapeHtml(recordFormalTradeObjective(record))}${record.tradeObjectiveReason ? `｜${escapeHtml(record.tradeObjectiveReason)}` : ""}
+    <strong>Objective at Entry：</strong>
+    ${escapeHtml(recordObjectiveAtEntry(record))}
     <br>
-    <strong>Reaction-first Shadow：</strong>
-    ${escapeHtml(recordReactionFirstShadow(record))}
-    <br>
-    <strong>0.25 Primary Cap Reason：</strong>
-    ${escapeHtml(record.primaryCapReason || "N/A")}
-    <br>
-    <strong>Additional Cap Flags：</strong>
-    ${escapeHtml(Array.isArray(record.additionalCapFlags) ? (record.additionalCapFlags.join("｜") || "N/A") : (record.additionalCapFlags || "N/A"))}
-    <br>
+    ${
+      Number(record.finalSize) === 0.25
+        ? `<strong>0.25 Primary Cap Reason：</strong>${escapeHtml(record.primaryCapReason || "N/A")}<br><strong>Additional Cap Flags：</strong>${escapeHtml(Array.isArray(record.additionalCapFlags) ? (record.additionalCapFlags.join("｜") || "N/A") : (record.additionalCapFlags || "N/A"))}<br>`
+        : ""
+    }
     <strong>Normalized R：</strong>
     ${formatResearchR(
       Number.isFinite(record.normalizedR)
@@ -10102,33 +10100,14 @@ async function openRecord(recordId) {
     <strong>MFE／MAE：</strong>
     ${Number.isFinite(record.mfeR) ? `${record.mfeR}R` : "N/A"}／${Number.isFinite(record.maeR) ? `${record.maeR}R` : "N/A"}
     <br>
-    <strong>Time to RF／MFE：</strong>
-    ${formatDurationMinutes(record.timeToRF)}／${formatDurationMinutes(record.timeToMFE)}
+    <strong>Time to RF：</strong>
+    ${formatDurationMinutes(record.timeToRF)}
     <br>
     <strong>Valid Candidate：</strong>
     ${escapeHtml(record.validCandidate || "No")}
     <br>
-    <strong>入市後 Price Pattern：</strong>
-    ${escapeHtml(record.postEntryPricePattern || "N/A")}
-    <br>
     <strong>Post-entry Objective Upgrade：</strong>
-    ${escapeHtml(record.postEntryObjectiveUpgrade || "No")}
-    <br>
-    <strong>Reclaim Strong Bar ATR Ratio：</strong>
-    ${Number.isFinite(record.reclaimStrongBarAtrRatio) ? escapeHtml(record.reclaimStrongBarAtrRatio.toFixed(3)) : "N/A"}
-    <br>
-    <strong>Retest Strong Bar ATR Ratio：</strong>
-    ${Number.isFinite(recordRetestStrongBarAtrRatio(record)) ? escapeHtml(recordRetestStrongBarAtrRatio(record).toFixed(3)) : "N/A"}
-    <br>
-    <strong>Reclaim Internal Structure：</strong>
-    ${escapeHtml(
-      reclaimInternalStructureLabel(
-        normalizeReclaimInternalStructure(
-          record.reclaimInternalStructure
-        )
-      ) ||
-      "未記錄"
-    )}
+    ${escapeHtml(normalizePostEntryObjectiveUpgrade(record.postEntryObjectiveUpgrade))}
     <br>
     <strong>Retest Internal Structure：</strong>
     ${escapeHtml(
@@ -10143,9 +10122,8 @@ async function openRecord(recordId) {
     <strong>Retest vs Reclaim Structure：</strong>
     ${escapeHtml(
       retestVsReclaimStructureLabel(
-        resolvedRetestVsReclaimStructure(
-          record.reclaimInternalStructure,
-          record.retestVsReclaimStructure
+        recordRetestVsReclaimStructure(
+          record
         )
       ) ||
       "未記錄"
@@ -10267,11 +10245,6 @@ async function openRecord(recordId) {
       ? formatDurationMinutes(record.timeToRF)
       : "";
 
-  $("editTimeToMFE").value =
-    Number.isFinite(record.timeToMFE)
-      ? formatDurationMinutes(record.timeToMFE)
-      : "";
-
   $("editReachedRF").value =
     record.reachedRF ||
     "No";
@@ -10282,35 +10255,10 @@ async function openRecord(recordId) {
     record.validCandidate === "Yes"
       ? "Yes"
       : "No";
-  $("editPostEntryPricePattern").value =
-    record.postEntryPricePattern || "";
 
   $("editPostEntryObjectiveUpgrade").value =
-    record.postEntryObjectiveUpgrade ||
-    "No";
-
-  $("editReclaimStrongBarAtrRatio").value =
-    Number.isFinite(
-      record.reclaimStrongBarAtrRatio
-    )
-      ? record.reclaimStrongBarAtrRatio
-      : "";
-
-  const existingRetestStrongBarAtrRatio =
-    recordRetestStrongBarAtrRatio(
-      record
-    );
-
-  $("editRetestStrongBarAtrRatio").value =
-    Number.isFinite(
-      existingRetestStrongBarAtrRatio
-    )
-      ? existingRetestStrongBarAtrRatio
-      : "";
-
-  $("editReclaimInternalStructure").value =
-    normalizeReclaimInternalStructure(
-      record.reclaimInternalStructure
+    normalizePostEntryObjectiveUpgrade(
+      record.postEntryObjectiveUpgrade
     );
 
   $("editRetestInternalStructure").value =
@@ -10319,12 +10267,9 @@ async function openRecord(recordId) {
     );
 
   $("editRetestVsReclaimStructure").value =
-    resolvedRetestVsReclaimStructure(
-      record.reclaimInternalStructure,
-      record.retestVsReclaimStructure
-    );
-
-  syncReclaimStructureShadowUI(true);
+    recordRetestVsReclaimStructure(
+      record
+    ) || "na";
 
   $("editRetestAcceptance").value =
     normalizeRetestAcceptance(
@@ -10355,7 +10300,7 @@ async function openRecord(recordId) {
 
   syncObjectiveUpgradeUI(
     true,
-    recordReactionFirstShadow(
+    recordObjectiveAtEntry(
       record
     )
   );
@@ -10560,21 +10505,6 @@ async function saveRecordEdit() {
     return;
   }
 
-  const editedTimeToMFE =
-    durationMinutesFromInput(
-      "editTimeToMFE"
-    );
-
-  if (
-    Number.isNaN(editedTimeToMFE)
-  ) {
-    showToast(
-      "Time to MFE格式錯誤；請輸入例如11H45M、2H或45M"
-    );
-    $("editTimeToMFE").focus();
-    return;
-  }
-
   records[index].tradeDate =
     $("editTradeDate").value ||
     recordTradeDate(records[index]) ||
@@ -10642,48 +10572,28 @@ async function saveRecordEdit() {
     );
   records[index].timeToRF =
     editedTimeToRF;
-  records[index].timeToMFE =
-    editedTimeToMFE;
   records[index].reachedRF =
     $("editReachedRF").value;
   records[index].reachedTP2 =
     $("editReachedTP2").value;
   records[index].validCandidate =
     $("editValidCandidate").value;
-  records[index].postEntryPricePattern =
-    $("editPostEntryPricePattern").value.trim();
   records[index].postEntryObjectiveUpgrade =
-    $("editPostEntryObjectiveUpgrade").value;
-
-  const editedStrongBarAtrRatios =
-    strongBarAtrRatioValues(
-      true
-    );
-
-  records[index].reclaimStrongBarAtrRatio =
-    editedStrongBarAtrRatios.reclaimStrongBarAtrRatio;
-  records[index].retestStrongBarAtrRatio =
-    editedStrongBarAtrRatios.retestStrongBarAtrRatio;
-  records[index].reclaimInternalStructure =
-    normalizeReclaimInternalStructure(
-      $("editReclaimInternalStructure").value
+    normalizePostEntryObjectiveUpgrade(
+      $("editPostEntryObjectiveUpgrade").value
     );
   records[index].retestInternalStructure =
     normalizeRetestInternalStructure(
       $("editRetestInternalStructure").value
     );
   records[index].retestVsReclaimStructure =
-    resolvedRetestVsReclaimStructure(
-      records[index].reclaimInternalStructure,
+    normalizeRetestVsReclaimStructure(
       $("editRetestVsReclaimStructure").value
-    );
+    ) || "na";
   records[index].retestAcceptance =
     normalizeRetestAcceptance(
       $("editRetestAcceptance").value
     );
-  // Keep V1.30.1 internal alias synced for old exports/backups.
-  records[index].strongRetestShadowMetric =
-    editedStrongBarAtrRatios.retestStrongBarAtrRatio;
 
   records[index].deepRFTriggered =
     $("editDeepRFTriggered").value;
@@ -10961,27 +10871,20 @@ function buildCsv(records) {
     "Execution P V1.3",
     "Native Q V1.3",
     "Q2 Subtype V1.3",
-    "Trade Objective V1.3",
     "Aligned Transition Shadow Size",
     "Setup Family V1.3",
     "MFE R",
     "MAE R",
     "Time to RF",
-    "Time to MFE",
     "Actual R",
     "Reviewed Session",
     "Valid Candidate",
-    "入市後 Price Pattern",
     "Shadow Research Version",
     "0.25 Primary Cap Reason",
     "0.25 Additional Cap Flags",
     "Normalized R",
     "Objective at Entry",
-    "Reaction-first Shadow Class",
     "Post-entry Objective Upgrade",
-    "Reclaim Strong Bar ATR Ratio",
-    "Retest Strong Bar ATR Ratio",
-    "Reclaim Internal Structure",
     "Retest Internal Structure",
     "Retest vs Reclaim Structure",
     "Retest Acceptance",
@@ -11288,7 +11191,6 @@ function buildCsv(records) {
       record.executionP || record.position || "",
       record.nativeQ || record.baseTrigger || record.trigger || "",
       record.q2Subtype || "",
-      record.tradeObjective || "",
       Number.isFinite(record.shadowAlignedTransitionSize)
         ? record.shadowAlignedTransitionSize
         : "",
@@ -11296,7 +11198,6 @@ function buildCsv(records) {
       Number.isFinite(record.mfeR) ? record.mfeR : "",
       Number.isFinite(record.maeR) ? record.maeR : "",
       Number.isFinite(record.timeToRF) ? record.timeToRF : "",
-      Number.isFinite(record.timeToMFE) ? record.timeToMFE : "",
       Number.isFinite(record.actualR)
         ? record.actualR
         : Number.isFinite(record.profitR)
@@ -11304,7 +11205,6 @@ function buildCsv(records) {
           : "",
       record.reviewedSession || "",
       record.validCandidate || "No",
-      record.postEntryPricePattern || "",
       record.shadowResearchVersion || "",
       record.primaryCapReason || "",
       Array.isArray(record.additionalCapFlags)
@@ -11327,25 +11227,11 @@ function buildCsv(records) {
               record.finalSize
             )
           : "",
-      recordFormalTradeObjective(
+      recordObjectiveAtEntry(
         record
       ),
-      recordReactionFirstShadow(
-        record
-      ),
-      record.postEntryObjectiveUpgrade || "No",
-      Number.isFinite(record.reclaimStrongBarAtrRatio)
-        ? record.reclaimStrongBarAtrRatio
-        : "",
-      Number.isFinite(
-        recordRetestStrongBarAtrRatio(record)
-      )
-        ? recordRetestStrongBarAtrRatio(record)
-        : "",
-      reclaimInternalStructureLabel(
-        normalizeReclaimInternalStructure(
-          record.reclaimInternalStructure
-        )
+      normalizePostEntryObjectiveUpgrade(
+        record.postEntryObjectiveUpgrade
       ),
       retestInternalStructureLabel(
         normalizeRetestInternalStructure(
@@ -11353,9 +11239,8 @@ function buildCsv(records) {
         )
       ),
       retestVsReclaimStructureLabel(
-        resolvedRetestVsReclaimStructure(
-          record.reclaimInternalStructure,
-          record.retestVsReclaimStructure
+        recordRetestVsReclaimStructure(
+          record
         )
       ),
       retestAcceptanceLabel(
@@ -13568,21 +13453,29 @@ function recordFromCsvRow(row) {
         )
       ),
     objectiveAtEntry:
-      firstCsvValue(
-        row,
-        "Objective at Entry",
-        "Trade Objective V1.3"
-      ) || "",
+      simplifiedObjectiveAtEntry(
+        firstCsvValue(
+          row,
+          "Objective at Entry",
+          "Trade Objective V1.3"
+        ),
+        firstCsvValue(
+          row,
+          "Reaction-first Shadow Class"
+        )
+      ),
     reactionFirstShadowClass:
       firstCsvValue(
         row,
         "Reaction-first Shadow Class"
       ) || "N/A",
     postEntryObjectiveUpgrade:
-      firstCsvValue(
-        row,
-        "Post-entry Objective Upgrade"
-      ) || "No",
+      normalizePostEntryObjectiveUpgrade(
+        firstCsvValue(
+          row,
+          "Post-entry Objective Upgrade"
+        )
+      ),
     reclaimStrongBarAtrRatio:
       csvNumber(
         firstCsvValue(
@@ -13613,16 +13506,30 @@ function recordFromCsvRow(row) {
         )
       ),
     retestVsReclaimStructure:
-      resolvedRetestVsReclaimStructure(
-        firstCsvValue(
-          row,
-          "Reclaim Internal Structure"
-        ),
-        firstCsvValue(
-          row,
-          "Retest vs Reclaim Structure"
+      (() => {
+        const direct =
+          normalizeRetestVsReclaimStructure(
+            firstCsvValue(
+              row,
+              "Retest vs Reclaim Structure"
+            )
+          );
+
+        if (direct) {
+          return direct;
+        }
+
+        return (
+          normalizeReclaimInternalStructure(
+            firstCsvValue(
+              row,
+              "Reclaim Internal Structure"
+            )
+          ) === "none"
         )
-      ),
+          ? "na"
+          : "";
+      })(),
     retestAcceptance:
       normalizeRetestAcceptance(
         firstCsvValue(
@@ -14966,17 +14873,39 @@ function recalculateLiveDecision() {
     SIZE_LABELS[obstacleSize];
   $("liveFinalSize").textContent =
     SIZE_LABELS[finalSize];
-  $("liveTradeObjective").textContent =
-    tradeObjective;
+  const liveObjectiveAtEntry =
+    simplifiedObjectiveAtEntry(
+      tradeObjective,
+      liveReactionFirstShadow
+    );
 
-  $("liveReactionFirstShadow").textContent =
-    liveReactionFirstShadow;
+  $("liveTradeObjective").textContent =
+    liveObjectiveAtEntry;
+
+  const liveQuarterSize =
+    Number(finalSize) === 0.25;
+
+  $("livePrimaryCapReasonRow")
+    .classList.toggle(
+      "hidden",
+      !liveQuarterSize
+    );
+  $("liveAdditionalCapFlagsRow")
+    .classList.toggle(
+      "hidden",
+      !liveQuarterSize
+    );
 
   $("livePrimaryCapReason").textContent =
-    liveCapReason.primary ||
-    "N/A";
+    liveQuarterSize
+      ? (
+          liveCapReason.primary ||
+          "N/A"
+        )
+      : "N/A";
 
   $("liveAdditionalCapFlags").textContent =
+    liveQuarterSize &&
     liveCapReason.flags.length > 0
       ? liveCapReason.flags.join("｜")
       : "N/A";
@@ -15040,7 +14969,7 @@ function recalculateLiveDecision() {
       ? "EU V1.3：EU-A POR 2B／EU-B Asia Sweep＋Post-open Confirmation／EU-D POR Full Repair；同一Opening thesis唔Double E／Size。"
       : "",
     obstacleNote,
-    `Trade Objective：${tradeObjective}。`
+    `Objective at Entry：${liveObjectiveAtEntry}。`
   ].filter(Boolean);
 
   if (vetoes.length > 0) {
@@ -15569,9 +15498,7 @@ function setupEvents() {
 
   [
     "timeToRF",
-    "timeToMFE",
-    "editTimeToRF",
-    "editTimeToMFE"
+    "editTimeToRF"
   ].forEach((id) => {
     $(id).addEventListener(
       "input",
@@ -15604,20 +15531,6 @@ function setupEvents() {
     .addEventListener(
       "submit",
       saveDecision
-    );
-
-  $("reclaimInternalStructure")
-    .addEventListener(
-      "change",
-      () =>
-        syncReclaimStructureShadowUI(false)
-    );
-
-  $("editReclaimInternalStructure")
-    .addEventListener(
-      "change",
-      () =>
-        syncReclaimStructureShadowUI(true)
     );
 
   $("deepRFTriggered")

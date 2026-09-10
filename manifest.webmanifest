@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.10",
+  "name": "Master Trade System V1.30.11",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with Reclaim Internal Structure and Retest vs Reclaim Structure shadow research, editable in the record library.",
+  "description": "Master Trade Matrix V1.3 Frozen with 2025 H2 field pruning: editable Raw P3 subtype, three-way Objective at Entry, pruned Retest research fields, conditional Deep-RF and 0.25 cap display.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

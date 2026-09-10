@@ -1,90 +1,124 @@
-# Master Trade System V1.30.10
+# Master Trade System V1.30.11
 ## Master Trade Matrix V1.3 — Frozen
-### 2025 H2 Reclaim Micro Control Shadow
+### 2025 H2 Field Pruning
 
-## 新增兩個Shadow欄位
+## 1. Raw P3 Type可喺紀錄庫修改
 
-### Reclaim Internal Structure
+當歷史紀錄 Raw P = P3，紀錄庫會顯示：
 
-- None
-- Structured
+- P3-PB
+- P3-MID
+- P3-EXT
 
-Structured固定定義：
+只修改P3 Context Shadow，唔會重新計算Execution P、E、Native Q、Size或Objective。
 
-Long Reclaim唔係幾支陽K就算，而係要清晰形成micro bullish control，例如：
+## 2. 停止手動填／移出操作介面
 
-> HH → HL → 再破micro HH
+以下欄位停止做2025 H2 active research：
 
-或者至少有一個明確defended HL，之後由呢個HL再推高完成reclaim／control expansion。
+- Reclaim Strong Bar ATR Ratio
+- Retest Strong Bar ATR Ratio
+- Relative ATR Ratio
+- Reclaim Internal Structure獨立欄
+- 入市後 Price Pattern正式欄
+- Time to MFE
 
-Short鏡像：
+舊CSV仍可匯入以上舊欄，App會保留相容性；新版CSV唔再輸出佢哋。
 
-> LL → LH → 再LL
+入市後Price Pattern如有需要，寫入Notes。
 
-### Reclaim Active Micro Structure
+## 3. Retest核心Shadow保留
 
-如果Reclaim有多個HL／LH，固定用：
+- V1.3 Fast / Deep / Strong：Frozen Q判斷本身，唔改
+- Retest Internal Structure：None / One-leg；Structured
+- Retest vs Reclaim Structure：N/A / Hold / Sweep-Reclaim / Break-Accept
+- Retest Acceptance：Hold / Close Through
 
-> Retest開始前最後一個已確認、並直接推動下一次micro HH／LL或完成control expansion嘅 defended HL／LH。
+Retest vs Reclaim Structure嘅 N/A 已同時代表：
+> Reclaim本身冇清晰micro structure
 
-唔可以事後揀最方便嗰條舊swing。
-如果最後一個候選只係noise、未形成清晰swing，就唔勉強記Structured。
+所以唔再需要另外填Reclaim Internal Structure。
 
-### Retest vs Reclaim Structure
+## 4. Objective欄簡化
 
-- N/A
-- Hold
-- Sweep-Reclaim
-- Break-Accept
+Active source of truth只留：
 
-定義：
+### Objective at Entry
+- Reaction
+- Reaction-first
+- Expansion
 
-- N/A：Reclaim本身冇清晰Internal Structure
-- Hold：Retest守住active reclaim defended HL／LH
-- Sweep-Reclaim：插穿active micro structure，但迅速收返，冇另一邊acceptance
-- Break-Accept：有效破壞active micro structure，close／企喺另一邊並有acceptance／follow-through
+舊版：
+- Not sure + Reaction-first Shadow eligible → Reaction-first
+- Expansion → Expansion
+- Reaction → Reaction
+- 其他Not sure → Reaction
+- Final Size 0 / Skip → N/A
 
-資料一致性：
-- Reclaim Internal Structure = None → Retest vs Reclaim Structure自動N/A
-- Reclaim Internal Structure = Structured → 先可選Hold / Sweep-Reclaim / Break-Accept
+### Post-entry Objective Upgrade
+- No
+- Yes
 
-## 同現有Retest Shadow分工
+舊版 `Reaction→Expansion` 匯入時自動轉成 `Yes`。
 
-- Retest Strong Bar ATR Ratio = 反方向force有幾大
-- Retest Internal Structure = 對手有冇建立micro control
-- Reclaim Internal Structure = 原本我方有冇建立micro control
-- Retest vs Reclaim Structure = 對手有冇摧毀原本micro control
-- Retest Acceptance = 較大reclaimed setup level有冇失去acceptance
+Trade Objective V1.3同Reaction-first Shadow Class唔再作新版CSV active欄。
 
-Micro structure loss同setup-level acceptance loss唔係同一回事。
+## 5. Conditional UI
 
-## Frozen V1.3
+### Deep-RF
+平時只見：
+- Deep-RF Triggered
 
-兩個新欄純Shadow，唔會自動改：
+只有選Yes先展開：
+- RF後原SL有冇被打
+- Shadow MFE
+- No-RF Final R
 
-- Native Q
-- Q2-S
+### 0.25 Cap Reason
+只有 Final Size = 0.25 先顯示：
+- Primary Cap Reason
+- Additional Cap Flags
+
+兩項由App自動計。
+
+### P3 Context
+只有 Raw P = P3 先顯示PB / MID / EXT。
+
+## 6. MFE / MAE / Time
+
+保留：
+- MFE
+- MAE
+- Time to RF
+
+停止active填寫：
+- Time to MFE
+
+## 7. CSV
+
+V1.30.10：169欄
+V1.30.11：162欄
+
+移除7個active export欄：
+- Trade Objective V1.3
+- Time to MFE
+- 入市後 Price Pattern
+- Reaction-first Shadow Class
+- Reclaim Strong Bar ATR Ratio
+- Retest Strong Bar ATR Ratio
+- Reclaim Internal Structure
+
+舊CSV保持匯入兼容。
+
+## 8. Frozen V1.3
+
+Field pruning唔會改：
+- Direction Permission
+- Market Route
 - Raw / Execution P
 - Enhancement E
+- Native Q / Q2-S
 - Final Size
 - Valid Candidate
-- Trade Objective
 - Obstacle / RR
 - Management
-
-2025 H2仍然完全照Frozen V1.3原判斷。
-
-## 紀錄庫
-
-兩項都可以事後edit。
-
-## CSV
-
-V1.30.9 = 167欄
-V1.30.10 = 169欄
-
-新增：
-- Reclaim Internal Structure
-- Retest vs Reclaim Structure
-
-舊CSV冇呢兩欄時保持空白，正常匯入。

@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-10-reclaim-micro-control-shadow";
+const CACHE_NAME = "master-trade-system-v1-30-11-field-pruning";
 const ASSETS = [
   "./",
   "./index.html",

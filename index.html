@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.10</span>
+    <span class="version-badge">V1.30.11</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -430,10 +430,9 @@
             <div><span>Setup Type＋P × Q</span><strong id="liveMatrixSize">0.5注</strong></div>
             <div><span>Range修正後</span><strong id="liveRangeSize">0.5注</strong></div>
             <div><span>大局修正後</span><strong id="liveObstacleSize">0.5注</strong></div>
-            <div><span>Trade Objective</span><strong id="liveTradeObjective">Not sure</strong></div>
-            <div><span>Reaction-first Shadow</span><strong id="liveReactionFirstShadow">N/A</strong></div>
-            <div><span>0.25 Primary Cap Reason</span><strong id="livePrimaryCapReason">N/A</strong></div>
-            <div><span>Additional Cap Flags</span><strong id="liveAdditionalCapFlags">N/A</strong></div>
+            <div><span>Objective at Entry</span><strong id="liveTradeObjective">Reaction</strong></div>
+            <div id="livePrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="livePrimaryCapReason">N/A</strong></div>
+            <div id="liveAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="liveAdditionalCapFlags">N/A</strong></div>
             <div><span>Aligned Transition Shadow</span><strong id="liveShadowSize">N/A</strong></div>
           </div>
 
@@ -1189,10 +1188,9 @@
             <div><span>P×Q／方向Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>Range修正</span><strong id="resultRangeSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
-            <div><span>Trade Objective</span><strong id="resultTradeObjective"></strong></div>
-            <div><span>Reaction-first Shadow</span><strong id="resultReactionFirstShadow"></strong></div>
-            <div><span>0.25 Primary Cap Reason</span><strong id="resultPrimaryCapReason"></strong></div>
-            <div><span>Additional Cap Flags</span><strong id="resultAdditionalCapFlags"></strong></div>
+            <div><span>Objective at Entry</span><strong id="resultTradeObjective"></strong></div>
+            <div id="resultPrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="resultPrimaryCapReason"></strong></div>
+            <div id="resultAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="resultAdditionalCapFlags"></strong></div>
             <div><span>Aligned Transition Shadow</span><strong id="resultShadowSize"></strong></div>
           </div>
 
@@ -1321,7 +1319,6 @@
             <label>MFE R<input id="mfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.35"></label>
             <label>MAE R<input id="maeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 -0.65"></label>
             <label>Time to RF（H/M）<input id="timeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空"></label>
-            <label>Time to MFE（H/M）<input id="timeToMFE" type="text" inputmode="text" autocomplete="off" placeholder="例如 2H05M 或 45M"></label>
           </div>
 
           <div class="yes-no-grid">
@@ -1334,25 +1331,17 @@
             </label>
           </div>
 
-          <label>
-            入市後 Price Pattern
-            <textarea id="postEntryPricePattern" rows="3" placeholder="例如：5M HL形成後續升、Failed breakout、2B、Range／旗形、Lower High後續跌、Reclaim後第一次弱回測"></textarea>
-          </label>
-
-          <p class="state-note">記錄Entry之後實際出現嘅Price Action／Pattern；只作覆盤研究，唔會反向改動Entry-time Matrix判定。</p>
-
           <div class="shadow-research-panel">
             <div class="shadow-research-heading">
-              <strong>2025 H2 Shadow Research｜唔改Frozen Decision</strong>
-              <span>Auto欄由App產生；Counterfactual欄只供事後研究。</span>
+              <strong>2025 H2 Shadow Research｜Pruned</strong>
+              <span>只保留目前information value最高嘅欄位；唔改Frozen Decision。</span>
             </div>
 
             <div class="summary-grid shadow-auto-grid">
-              <div><span>0.25 Primary Cap Reason</span><strong id="shadowPrimaryCapReason">N/A</strong></div>
-              <div><span>Additional Cap Flags</span><strong id="shadowAdditionalCapFlags">N/A</strong></div>
-              <div><span>Trade Objective</span><strong id="shadowObjectiveAtEntry">N/A</strong></div>
-              <div><span>Reaction-first Shadow</span><strong id="shadowReactionFirstClass">N/A</strong></div>
-              <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ Final Size；拆走Position Size影響</small></div>
+              <div id="shadowPrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="shadowPrimaryCapReason">N/A</strong></div>
+              <div id="shadowAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="shadowAdditionalCapFlags">N/A</strong></div>
+              <div><span>Objective at Entry</span><strong id="shadowObjectiveAtEntry">N/A</strong></div>
+              <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ Final Size</small></div>
             </div>
 
             <div class="yes-no-grid">
@@ -1360,26 +1349,7 @@
                 Post-entry Objective Upgrade
                 <select id="postEntryObjectiveUpgrade">
                   <option value="No" selected>No</option>
-                  <option value="Reaction→Expansion">Reaction → Expansion</option>
-                </select>
-              </label>
-
-              <label>
-                Reclaim Strong Bar ATR Ratio
-                <input id="reclaimStrongBarAtrRatio" type="number" step="0.001" min="0" inputmode="decimal" placeholder="例如 1.20">
-              </label>
-
-              <label>
-                Retest Strong Bar ATR Ratio
-                <input id="retestStrongBarAtrRatio" type="number" step="0.001" min="0" inputmode="decimal" placeholder="例如 0.82">
-              </label>
-
-              <label>
-                Reclaim Internal Structure
-                <select id="reclaimInternalStructure">
-                  <option value="" selected>未記錄</option>
-                  <option value="none">None</option>
-                  <option value="structured">Structured</option>
+                  <option value="Yes">Yes</option>
                 </select>
               </label>
 
@@ -1395,8 +1365,7 @@
               <label>
                 Retest vs Reclaim Structure
                 <select id="retestVsReclaimStructure">
-                  <option value="" selected>未記錄</option>
-                  <option value="na">N/A</option>
+                  <option value="na" selected>N/A｜Reclaim冇清晰micro structure</option>
                   <option value="hold">Hold</option>
                   <option value="sweepReclaim">Sweep-Reclaim</option>
                   <option value="breakAccept">Break-Accept</option>
@@ -1419,33 +1388,35 @@
                   <option value="Yes">Yes</option>
                 </select>
               </label>
-
-              <label>
-                RF後原SL有冇被打？
-                <select id="deepRFOriginalSLHit">
-                  <option value="N/A" selected>N/A</option>
-                  <option value="No">No</option>
-                  <option value="Yes">Yes</option>
-                </select>
-              </label>
-
-              <label>
-                RF後 Shadow MFE R
-                <input id="deepRFShadowMfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.40">
-              </label>
-
-              <label>
-                如果冇RF｜最終結果 R
-                <input id="deepRFNoRfFinalR" type="number" step="0.01" inputmode="decimal" placeholder="例如 -1、0、2.5">
-              </label>
             </div>
 
-            <p class="state-note"><strong>Strong Bar ATR Ratio Shadow：</strong>直接輸入你已計好嘅 Body ÷ ATR14 ratio。Reclaim同Retest分開記，研究兩段force差距。
-              <br><strong>Reclaim Internal Structure：</strong><em>Structured</em>唔係幾支順向K就算。Long要見清晰micro bullish control，例如 HH → HL → 再破micro HH，或者至少有一個明確defended HL，再由佢推高完成reclaim／control expansion；Short鏡像 LL → LH → 再LL。<em>Active Micro Structure</em>固定用Retest開始前最後一個已確認、並直接推動下一次micro HH／LL或完成control expansion嘅defended HL／LH，唔可以事後揀更方便嘅舊swing；細noise唔勉強記。
-              <br><strong>Retest Internal Structure：</strong>只睇Entry TF，而且必須喺入場前已經形成至少一組清晰對手結構先算Structured。Long Retest要見LH → LL；Short鏡像HH → HL。單純兩三支連續方向K唔算。
-              <br><strong>Retest vs Reclaim Structure：</strong><em>Hold</em>＝守住active reclaim HL／LH；<em>Sweep-Reclaim</em>＝插穿active micro structure但迅速收返，冇另一邊acceptance；<em>Break-Accept</em>＝有效破壞active micro structure，close／企喺另一邊並有acceptance／follow-through；Reclaim本身冇清晰structure就記<em>N/A</em>。
-              <br><strong>Retest Acceptance：</strong><em>Hold</em>＝可以wick／test穿較大reclaimed setup level，但Entry TF實體仍守住原本reclaim嗰邊；<em>Close Through</em>＝實體close返去setup level另一邊，甚至停留。Micro structure loss同setup-level acceptance loss係兩個不同Shadow變數。
-              <br>以上全部只作2025 H2 Shadow Research，唔自動改Native Q／Q2-S／Size／Valid Candidate／Trade Objective。</p>
+            <div id="deepRFDetails" class="conditional-panel hidden">
+              <div class="yes-no-grid">
+                <label>
+                  RF後原SL有冇被打？
+                  <select id="deepRFOriginalSLHit">
+                    <option value="N/A" selected>N/A</option>
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </label>
+                <label>
+                  RF後 Shadow MFE R
+                  <input id="deepRFShadowMfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.40">
+                </label>
+                <label>
+                  如果冇RF｜最終結果 R
+                  <input id="deepRFNoRfFinalR" type="number" step="0.01" inputmode="decimal" placeholder="例如 -1、0、2.5">
+                </label>
+              </div>
+            </div>
+
+            <p class="state-note">
+              <strong>Retest Internal Structure：</strong>Entry TF入場前已見清晰對手micro structure先算Structured；Long要見LH → LL，Short鏡像HH → HL。
+              <br><strong>Retest vs Reclaim Structure：</strong>N/A已同時代表Reclaim冇清晰micro structure；有structure先揀Hold／Sweep-Reclaim／Break-Accept。
+              <br><strong>Retest Acceptance：</strong>Hold／Close Through量較大reclaimed setup level有冇失守。
+              <br><strong>已停手動記錄：</strong>Reclaim / Retest Strong Bar ATR Ratio、獨立Reclaim Internal Structure、Relative ATR Ratio。
+            </p>
           </div>
 
           <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
@@ -1478,7 +1449,7 @@
 
           <label>
             事前理由／覆盤備註
-            <textarea id="note" rows="6" placeholder="事前劇本、失效點、Entry/Miss/Skip原因、管理、錯誤、下一次改進"></textarea>
+            <textarea id="note" rows="6" placeholder="事前劇本、失效點、Entry/Miss/Skip原因、入市後Price Pattern、管理、錯誤、下一次改進"></textarea>
           </label>
 
           <button type="submit" class="primary-button">儲存練習／實戰紀錄</button>
@@ -1665,8 +1636,8 @@
       </article>
 
       <article class="card">
-        <h2>Trade Objective</h2>
-        <p><strong>Expansion：</strong>Native Q3＋方向Alignment良好＋P1／P2／P2-E＋Clean ≥2R。<br><strong>Reaction：</strong>Counter-main、Q2、Conflict、Mixed Transition、1.5–&lt;2R障礙或部分P2-E。<br><strong>Skip：</strong>Final Size 0／Hard Veto。</p>
+        <h2>Objective at Entry</h2>
+        <p><strong>Expansion：</strong>Entry一刻已具成熟方向Alignment、Native Q3、P1／P2／P2-E同Clean ≥2R。<br><strong>Reaction-first：</strong>方向／位置／Q3／Space合格，但control成熟度未足以直接叫Expansion；即舊版Not sure＋Reaction-first Shadow合併後嘅單一分類。<br><strong>Reaction：</strong>Counter-main、Q2、Conflict、Mixed／Neutral context、空間／control不足，或者舊版Not sure但唔屬Reaction-first eligible。Final Size 0則Objective at Entry記N/A。</p>
       </article>
 
       <article class="card">
@@ -1913,7 +1884,7 @@
         交易商品／品種
         <input id="editSymbol" type="text" autocomplete="off" autocapitalize="characters" placeholder="例如 EURUSD、XAUUSD、GER40">
       </label>
-      <p class="state-note">只修改呢筆歷史紀錄嘅商品名稱；唔會重新計算市場分類、Setup、P／Q、Size或Trade Objective。</p>
+      <p class="state-note">只修改呢筆歷史紀錄嘅商品名稱；唔會重新計算市場分類、Setup、P／Q、Size或Objective at Entry。</p>
 
       <label>
         類型
@@ -1942,7 +1913,7 @@
       </label>
 
       <label id="editP3ContextRow" class="hidden">
-        P3 Context｜Shadow
+        Raw P3 Type｜P3 Context
         <select id="editP3Context">
           <option value="">未分類</option>
           <option value="PB">P3-PB｜Pullback</option>
@@ -1950,7 +1921,7 @@
           <option value="EXT">P3-EXT｜Extension</option>
         </select>
       </label>
-      <p id="editP3ContextNote" class="state-note hidden">只修改Shadow標籤；唔會重新計算原本Execution P、E、Size或Trade Objective。</p>
+      <p id="editP3ContextNote" class="state-note hidden">只修改Shadow標籤；唔會重新計算原本Execution P、E、Size或Objective at Entry。</p>
 
       <div class="yes-no-grid">
         <label>
@@ -2019,11 +1990,6 @@
           Time to RF（H/M）
           <input id="editTimeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空">
         </label>
-
-        <label>
-          Time to MFE（H/M）
-          <input id="editTimeToMFE" type="text" inputmode="text" autocomplete="off" placeholder="例如 2H05M 或 45M">
-        </label>
       </div>
 
       <div class="yes-no-grid">
@@ -2046,15 +2012,10 @@
         </select>
       </label>
 
-      <label>
-        入市後 Price Pattern
-        <textarea id="editPostEntryPricePattern" rows="3" placeholder="例如：5M HL、Failed breakout、2B、Range、Lower High、Continuation"></textarea>
-      </label>
-
       <div class="shadow-research-panel">
         <div class="shadow-research-heading">
           <strong>Shadow Research｜事後可修改</strong>
-          <span>Auto Cap Reason／Objective at Entry保持當時Decision snapshot；以下Counterfactual可更新。</span>
+          <span>Objective at Entry保持snapshot；Retest核心Shadow同管理Counterfactual可更新。</span>
         </div>
 
         <div class="yes-no-grid">
@@ -2062,26 +2023,7 @@
             Post-entry Objective Upgrade
             <select id="editPostEntryObjectiveUpgrade">
               <option value="No">No</option>
-              <option value="Reaction→Expansion">Reaction → Expansion</option>
-            </select>
-          </label>
-
-          <label>
-            Reclaim Strong Bar ATR Ratio
-            <input id="editReclaimStrongBarAtrRatio" type="number" step="0.001" min="0" inputmode="decimal">
-          </label>
-
-          <label>
-            Retest Strong Bar ATR Ratio
-            <input id="editRetestStrongBarAtrRatio" type="number" step="0.001" min="0" inputmode="decimal">
-          </label>
-
-          <label>
-            Reclaim Internal Structure
-            <select id="editReclaimInternalStructure">
-              <option value="">未記錄</option>
-              <option value="none">None</option>
-              <option value="structured">Structured</option>
+              <option value="Yes">Yes</option>
             </select>
           </label>
 
@@ -2097,8 +2039,7 @@
           <label>
             Retest vs Reclaim Structure
             <select id="editRetestVsReclaimStructure">
-              <option value="">未記錄</option>
-              <option value="na">N/A</option>
+              <option value="na">N/A｜Reclaim冇清晰micro structure</option>
               <option value="hold">Hold</option>
               <option value="sweepReclaim">Sweep-Reclaim</option>
               <option value="breakAccept">Break-Accept</option>
@@ -2121,25 +2062,27 @@
               <option value="Yes">Yes</option>
             </select>
           </label>
+        </div>
 
-          <label>
-            RF後原SL有冇被打？
-            <select id="editDeepRFOriginalSLHit">
-              <option value="N/A">N/A</option>
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </label>
-
-          <label>
-            RF後 Shadow MFE R
-            <input id="editDeepRFShadowMfeR" type="number" step="0.01" inputmode="decimal">
-          </label>
-
-          <label>
-            如果冇RF｜最終結果 R
-            <input id="editDeepRFNoRfFinalR" type="number" step="0.01" inputmode="decimal">
-          </label>
+        <div id="editDeepRFDetails" class="conditional-panel hidden">
+          <div class="yes-no-grid">
+            <label>
+              RF後原SL有冇被打？
+              <select id="editDeepRFOriginalSLHit">
+                <option value="N/A">N/A</option>
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </label>
+            <label>
+              RF後 Shadow MFE R
+              <input id="editDeepRFShadowMfeR" type="number" step="0.01" inputmode="decimal">
+            </label>
+            <label>
+              如果冇RF｜最終結果 R
+              <input id="editDeepRFNoRfFinalR" type="number" step="0.01" inputmode="decimal">
+            </label>
+          </div>
         </div>
       </div>
 
@@ -2159,7 +2102,7 @@
 
       <label>
         覆盤備註
-        <textarea id="editNote" rows="5"></textarea>
+        <textarea id="editNote" rows="5" placeholder="包括入市後Price Pattern等自由文字觀察"></textarea>
       </label>
 
       <div class="dialog-actions">
