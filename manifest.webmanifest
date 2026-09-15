@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.12",
+  "name": "Master Trade System V1.30.13",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 Frozen with Q2 subtype source fix: Q2-R is generated only from the reclaim/breakout quality input actually used by the active setup variant.",
+  "description": "Master Trade Matrix V1.3 explicit amendment: XAU-A HTF Location Sweep now permits Raw P3 to trade directly through the normal P3 × Native Q matrix; P4 remains invalid.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

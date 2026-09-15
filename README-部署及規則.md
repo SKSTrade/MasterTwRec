@@ -1,83 +1,74 @@
-# Master Trade System V1.30.12
-## Master Trade Matrix V1.3 — Frozen
-### Q2 Subtype Source Fix
+# Master Trade System V1.30.13
+## Master Trade Matrix V1.3 — Explicit Amendment
+### XAU-A｜HTF Location Sweep：P3 Allowed
 
-## 修正問題
+## 改動
 
-舊版 `q2SubtypeInfo()` 同時讀：
+XAU-A以前有一條Setup-specific hard constraint：
 
-- reclaimQuality
-- breakoutQuality
+> 只接受原生P1／P2；Raw P3即使Generic Matrix有Size，仍會被XAU-A壓到0。
 
-即使某個Setup根本只用其中一項。
+由V1.30.13起取消呢條P1/P2-only限制。
 
-例如 XAU-C London Sweep Asia H/L 屬 `sweep`：
-- Reclaim = clean
-- Fast Retest = Yes
-- 但未使用嘅 breakoutQuality 保持預設 ordinary
+XAU-A正式接受：
 
-舊版會錯誤輸出：
-> Q2-R+F
+- P1
+- P2
+- P3
 
-## 新規則
+P4仍然0注。
 
-Q2-R只由「當前Setup真正使用嘅quality來源」產生。
+## P3點計
 
-### Sweep-family
-以下只讀 `reclaimQuality`：
-- session2B
-- sweep
-- p1ReversalSweep
+Raw P3唔會因為XAU-A自動升級。
 
-### Breakout-family
-以下只讀 `breakoutQuality`：
-- breakout
-- oprContinuation
-- fullRepairAsia
-- fullRepairPure
-- postOpenConfirmation
+如果冇E：
 
-### 其他
-- p1NoSweep
-- trendPullback
+> Raw P3 → Execution P3 → 按P3 × Native Q × Market Route Matrix計Size
 
-唔會因未使用quality input而自動產生Q2-R。
+例如：
 
-## 例子
+> 雙健康同向 + XAU-A + Raw P3 + Native Q2  
+> Generic Matrix = 0.25  
+> XAU-A唔再額外Veto  
+> Final Matrix Size = 0.25（再受Range／Obstacle／Hard Veto修正）
 
-XAU-C sweep：
-- reclaimQuality = clean
-- q2FastRetest = true
-- breakoutQuality = ordinary（未使用）
+如果有合資格E／E+：
 
-新版：
-> Q2-F
+> Raw P3 → E/E+ → Execution P2-effective
 
-而唔再係：
-> Q2-R+F
+再按原有P2-E規則計，包括P2-E + Q2全局最高0.25等限制。
 
-如果同一XAU-C：
-- reclaimQuality = ordinary
-- q2FastRetest = true
+## 點解改
 
-則正確：
-> Q2-R+F
+P3可以係有清晰交易語義嘅位置，例如：
 
-## Frozen V1.3
+- 次判次結
+- working structure
+- Trigger層重要結構
 
-今次只修正Q2 subtype標籤來源。
+當主判／次判雙同向，而XAU-A真正Sweep咗呢類結構位置，再Reclaim並有可接受Retest，
+唔應該因為位置標籤只係P3就被Setup-specific hard veto。
 
-冇改：
-- Native Q本身
-- Direction Permission
+## 保留規則
+
+今次冇改：
+
+- Raw P定義
+- P3-PB / MID / EXT Shadow
+- Native Q / Q2 subtype
+- E / E+升級條件
+- P2-E + Q2全局上限
 - Market Route
-- Raw / Execution P
-- Enhancement E
-- P×Q Matrix
-- Final Size
+- Range修正
 - Obstacle / RR
-- Valid Candidate
+- Hard Veto
 - Objective at Entry
 - Management
 
-Q2 subtype仍然係research / diagnostic label，本身唔改Size。
+P3可做唔等於P3自動升P2。
+
+## 版本註記
+
+呢項係對Frozen V1.3嘅明確、版本化 amendment。
+V1.30.12及之前仍保留舊規則；V1.30.13開始按新XAU-A P3規則。

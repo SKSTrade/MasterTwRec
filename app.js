@@ -384,7 +384,7 @@ const SETUP_DEFINITIONS = {
     classificationLabel: "XAU-A｜HTF Location Sweep",
     variant: "sweep",
     xauFormalSetup: "A",
-    note: "XAU首選：原生P1／P2 HTF真實位置＋meaningful liquidity sweep＋Reclaim＋弱Retest。Location提供真正Edge；E只可令合資格Raw P3獲P2-effective，Native Q永遠唔會被E改名。"
+    note: "XAU首選：P1／P2，或者有清晰結構語義嘅P3位置（例如次判次結／working structure）＋meaningful liquidity sweep＋Reclaim＋Retest。Raw P3可以直接按P3 Matrix交易；只有合資格Liquidity E／E+先會另外取得P2-effective。Native Q永遠唔會被E改名。"
   },
   xau_asia_pdh_pdl: {
     marketGroup: "XAU",
@@ -1090,15 +1090,18 @@ function xauSetupEligibilityInfo(
   ) {
     const eligible =
       basePosition === "P1" ||
-      basePosition === "P2";
+      basePosition === "P2" ||
+      basePosition === "P3";
 
     return {
       applicable: true,
       eligible,
       reason:
         eligible
-          ? `XAU-A位置合格：原生${basePosition} HTF Location；原生P唔會被E／E+改寫。若Liquidity來源係PWH／PWL或PDH／PDL E+、Asia H/L E，只可按V1.3有限度提升Execution P，Native Q保持不變。`
-          : "XAU-A只限原生P1／P2 HTF真實位置；P3／P4唔可以靠Sweep或E標記救返。"
+          ? basePosition === "P3"
+            ? "XAU-A位置合格：Raw P3可以直接參與原本P3 × Native Q Matrix；例如次判次結／working structure被Sweep後Reclaim，唔需要先升P2先有交易資格。若另有合資格Liquidity E／E+，先再按既有規則處理P3→P2-effective；Native Q保持不變。"
+            : `XAU-A位置合格：原生${basePosition} HTF Location；原生P唔會被E／E+改寫。若Liquidity來源係PWH／PWL或PDH／PDL E+、Asia H/L E，只可按既有規則有限度提升Execution P，Native Q保持不變。`
+          : "XAU-A只排除P4／無價值位置；P1、P2、P3都可以按各自原生P × Native Q Matrix交易。"
     };
   }
 
@@ -7846,9 +7849,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.12",
+      "PracticeJournal-V1.30.13",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Frozen-2026-08-r25-Q2SubtypeSourceFix",
+      "MasterTradeMatrix-V1.3-Amended-2026-09-r26-XAUAP3Allowed",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.12</span>
+    <span class="version-badge">V1.30.13</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1797,10 +1797,11 @@
         <p><strong>時間框架：</strong>Daily大局／4H主判／1H次判／15M或5M Trigger；1M只改善Entry，唔重新判方向。</p>
         <p class="large-rule">HTF Location Sweep ≥ PWH／PWL＋HTF ≈ PDH／PDL＋HTF ＞ 純PWH／PWL ≈ 純PDH／PDL ＞ Asia H/L＋Structure ＞ 純Asia H/L</p>
         <ul>
-          <li><strong>XAU-A｜HTF Location Sweep：</strong>原生P1／P2 HTF位置＋meaningful liquidity sweep＋Reclaim＋弱Retest。XAU首選。</li>
+          <li><strong>XAU-A｜HTF Location Sweep：</strong>P1／P2，或者有清晰結構語義嘅P3（例如次判次結／working structure）＋meaningful liquidity sweep＋Reclaim＋Retest。P3可以直接按原本P3 × Native Q Matrix交易；唔需要靠Sweep或E先「救」成P2。P4仍然0注。XAU首選。</li>
           <li><strong>XAU-B｜Sweep PDH／PDL 或 PWH／PWL：</strong>可記Asia或Europe／London Sweep。先揀Previous Day／Week H/L，再按Sweep＋Reclaim＋弱Retest評Native Q；PWH／PWL同PDH／PDL高質Sweep都係E+，Raw P3可按原規則獲P2-effective。</li>
           <li><strong>XAU-C｜London Sweep Asia H／L：</strong>保留做Secondary；最好有HTF位置、PDH／PDL、Mon H／L、1H結構或Range邊界支持。</li>
           <li><strong>Liquidity Enhancement：</strong>PWH／PWL＝E+；PDH／PDL＝E+；Asia H/L＝E。高質Sweep可令Raw P3→P2-effective；<strong>Native Q永久保留，唔可以Q2→Q3。</strong> E亦唔可以P2→P1。</li>
+          <li><strong>XAU-A P3處理：</strong>Raw P3本身已有交易資格，直接跟市場關係Matrix計Size；有E／E+時先另外升Execution P2-effective。即係「P3可做」同「P3有E升P2-E」係兩回事。</li>
           <li><strong>禁止修補：</strong>Retest fast/deep/strong、Reclaim被吞／失效、空間不足、已形成強反向microstructure，一律唔可以靠E／E+升Q。</li>
           <li><strong>Q：</strong>沿用Q3／Q2／Q1；Retest優先睇價格推進效率、深度、K線Sequence、時間，Volume只係輔助。</li>
           <li><strong>空間：</strong>≥2R正常／Expansion候選；1.5R–&lt;2R仍可做但預設Reaction＋RF／Partial；&lt;1.5R通常RR Veto。</li>
