@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-13-xaua-p3-allowed";
+const CACHE_NAME = "master-trade-system-v1-30-14-zip-round-trip";
 const ASSETS = [
   "./",
   "./index.html",

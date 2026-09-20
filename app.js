@@ -7849,9 +7849,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.13",
+      "PracticeJournal-V1.30.14",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-09-r26-XAUAP3Allowed",
+      "MasterTradeMatrix-V1.3-Amended-2026-09-r27-ZipRoundTrip",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -13664,7 +13664,171 @@ function mimeTypeForImageName(name) {
   return "image/jpeg";
 }
 
-async function readStoredZipEntries(file) {
+function findZipEndOfCentralDirectory(
+  bytes,
+  view
+) {
+  const minOffset =
+    Math.max(
+      0,
+      bytes.length -
+        65557
+    );
+
+  for (
+    let offset =
+      bytes.length - 22;
+    offset >= minOffset;
+    offset -= 1
+  ) {
+    if (
+      view.getUint32(
+        offset,
+        true
+      ) === 0x06054B50
+    ) {
+      return offset;
+    }
+  }
+
+  throw new Error(
+    "搵唔到ZIP中央目錄；檔案可能已損壞"
+  );
+}
+
+async function inflateRawZipData(
+  compressed
+) {
+  if (
+    typeof DecompressionStream ===
+      "undefined"
+  ) {
+    throw new Error(
+      "呢個瀏覽器未支援標準Deflate ZIP解壓；請用較新版本Chrome／Safari再試"
+    );
+  }
+
+  let stream;
+
+  try {
+    stream =
+      new DecompressionStream(
+        "deflate-raw"
+      );
+  } catch (error) {
+    throw new Error(
+      "瀏覽器未支援ZIP Deflate解壓；請用較新版本Chrome／Safari再試"
+    );
+  }
+
+  const decompressed =
+    new Blob(
+      [compressed]
+    )
+      .stream()
+      .pipeThrough(stream);
+
+  return new Uint8Array(
+    await new Response(
+      decompressed
+    ).arrayBuffer()
+  );
+}
+
+function normalizeBackupZipEntries(
+  entries
+) {
+  const names =
+    [...entries.keys()]
+      .filter(
+        (name) =>
+          !name.startsWith(
+            "__MACOSX/"
+          )
+      );
+
+  const candidates =
+    names
+      .filter(
+        (name) =>
+          name === "records.json" ||
+          name === "trades.csv" ||
+          name.endsWith(
+            "/records.json"
+          ) ||
+          name.endsWith(
+            "/trades.csv"
+          )
+      )
+      .sort(
+        (a, b) =>
+          a.length - b.length
+      );
+
+  if (
+    candidates.length === 0
+  ) {
+    return entries;
+  }
+
+  const anchor =
+    candidates[0];
+
+  const slash =
+    anchor.lastIndexOf("/");
+
+  const prefix =
+    slash >= 0
+      ? anchor.slice(
+          0,
+          slash + 1
+        )
+      : "";
+
+  if (!prefix) {
+    return entries;
+  }
+
+  const normalized =
+    new Map();
+
+  for (
+    const [name, data] of entries
+  ) {
+    if (
+      !name.startsWith(prefix)
+    ) {
+      continue;
+    }
+
+    const stripped =
+      name.slice(
+        prefix.length
+      );
+
+    if (
+      !stripped ||
+      stripped.startsWith(
+        "__MACOSX/"
+      )
+    ) {
+      continue;
+    }
+
+    normalized.set(
+      stripped,
+      data
+    );
+  }
+
+  return normalized.size > 0
+    ? normalized
+    : entries;
+}
+
+async function readStoredZipEntries(
+  file
+) {
   const bytes =
     new Uint8Array(
       await file.arrayBuffer()
@@ -13677,94 +13841,186 @@ async function readStoredZipEntries(file) {
       bytes.byteLength
     );
 
+  const endOffset =
+    findZipEndOfCentralDirectory(
+      bytes,
+      view
+    );
+
+  const totalEntries =
+    view.getUint16(
+      endOffset + 10,
+      true
+    );
+
+  const centralOffset =
+    view.getUint32(
+      endOffset + 16,
+      true
+    );
+
+  if (
+    centralOffset >=
+      bytes.length
+  ) {
+    throw new Error(
+      "ZIP中央目錄位置錯誤"
+    );
+  }
+
   const entries =
     new Map();
 
-  let offset = 0;
+  let offset =
+    centralOffset;
 
-  while (
-    offset + 4 <=
-    bytes.length
+  for (
+    let index = 0;
+    index < totalEntries;
+    index += 1
   ) {
-    const signature =
-      view.getUint32(
-        offset,
-        true
-      );
-
     if (
-      signature ===
-        0x02014B50 ||
-      signature ===
-        0x06054B50
-    ) {
-      break;
-    }
-
-    if (
-      signature !==
-      0x04034B50
-    ) {
-      throw new Error(
-        "Invalid ZIP structure"
-      );
-    }
-
-    if (
-      offset + 30 >
+      offset + 46 >
       bytes.length
     ) {
       throw new Error(
-        "Incomplete ZIP header"
+        "ZIP中央目錄不完整"
+      );
+    }
+
+    if (
+      view.getUint32(
+        offset,
+        true
+      ) !== 0x02014B50
+    ) {
+      throw new Error(
+        "ZIP中央目錄格式錯誤"
       );
     }
 
     const flags =
       view.getUint16(
-        offset + 6,
-        true
-      );
-    const method =
-      view.getUint16(
         offset + 8,
         true
       );
+
+    const method =
+      view.getUint16(
+        offset + 10,
+        true
+      );
+
     const compressedSize =
       view.getUint32(
-        offset + 18,
+        offset + 20,
         true
       );
+
+    const uncompressedSize =
+      view.getUint32(
+        offset + 24,
+        true
+      );
+
     const nameLength =
-      view.getUint16(
-        offset + 26,
-        true
-      );
-    const extraLength =
       view.getUint16(
         offset + 28,
         true
       );
 
-    if (
-      flags & 0x0008
-    ) {
-      throw new Error(
-        "ZIP data descriptor is not supported"
+    const extraLength =
+      view.getUint16(
+        offset + 30,
+        true
       );
-    }
 
-    if (method !== 0) {
-      throw new Error(
-        "只支援由Master Trade App匯出嘅備份ZIP"
+    const commentLength =
+      view.getUint16(
+        offset + 32,
+        true
       );
-    }
+
+    const localOffset =
+      view.getUint32(
+        offset + 42,
+        true
+      );
 
     const nameStart =
-      offset + 30;
-    const dataStart =
+      offset + 46;
+
+    const nameEnd =
       nameStart +
-      nameLength +
-      extraLength;
+      nameLength;
+
+    if (
+      nameEnd >
+      bytes.length
+    ) {
+      throw new Error(
+        "ZIP檔名資料不完整"
+      );
+    }
+
+    const name =
+      new TextDecoder(
+        "utf-8"
+      ).decode(
+        bytes.slice(
+          nameStart,
+          nameEnd
+        )
+      );
+
+    offset =
+      nameEnd +
+      extraLength +
+      commentLength;
+
+    if (
+      name.endsWith("/")
+    ) {
+      continue;
+    }
+
+    if (flags & 0x0001) {
+      throw new Error(
+        "唔支援加密／有密碼ZIP"
+      );
+    }
+
+    if (
+      localOffset + 30 >
+      bytes.length ||
+      view.getUint32(
+        localOffset,
+        true
+      ) !== 0x04034B50
+    ) {
+      throw new Error(
+        `ZIP entry損壞：${name}`
+      );
+    }
+
+    const localNameLength =
+      view.getUint16(
+        localOffset + 26,
+        true
+      );
+
+    const localExtraLength =
+      view.getUint16(
+        localOffset + 28,
+        true
+      );
+
+    const dataStart =
+      localOffset +
+      30 +
+      localNameLength +
+      localExtraLength;
+
     const dataEnd =
       dataStart +
       compressedSize;
@@ -13774,36 +14030,51 @@ async function readStoredZipEntries(file) {
       bytes.length
     ) {
       throw new Error(
-        "Incomplete ZIP data"
+        `ZIP entry資料不完整：${name}`
       );
     }
 
-    const name =
-      new TextDecoder(
-        flags & 0x0800
-          ? "utf-8"
-          : "utf-8"
-      ).decode(
-        bytes.slice(
-          nameStart,
-          nameStart +
-            nameLength
-        )
-      );
-
-    entries.set(
-      name,
+    const compressed =
       bytes.slice(
         dataStart,
         dataEnd
-      )
-    );
+      );
 
-    offset =
-      dataEnd;
+    let data;
+
+    if (method === 0) {
+      data =
+        compressed;
+    } else if (method === 8) {
+      data =
+        await inflateRawZipData(
+          compressed
+        );
+    } else {
+      throw new Error(
+        `ZIP壓縮格式${method}暫未支援；請用一般Deflate／Store ZIP`
+      );
+    }
+
+    if (
+      uncompressedSize > 0 &&
+      data.length !==
+        uncompressedSize
+    ) {
+      throw new Error(
+        `ZIP entry解壓長度不符：${name}`
+      );
+    }
+
+    entries.set(
+      name,
+      data
+    );
   }
 
-  return entries;
+  return normalizeBackupZipEntries(
+    entries
+  );
 }
 
 function decodeZipText(
@@ -13822,6 +14093,206 @@ function decodeZipText(
   ).decode(data)
     .replace(/^\uFEFF/, "");
 }
+
+function csvRecordComparableJson(
+  record
+) {
+  const clone = {
+    ...record
+  };
+
+  /*
+   * Current CSV已prune走以下舊欄。
+   * 兩邊比較時移除，避免佢哋嘅import default造成假差異。
+   */
+  [
+    "tradeObjective",
+    "timeToMFE",
+    "postEntryPricePattern",
+    "reactionFirstShadowClass",
+    "reclaimStrongBarAtrRatio",
+    "retestStrongBarAtrRatio",
+    "reclaimInternalStructure",
+    "strongRetestShadowMetric",
+    "hasImage",
+    "imageCount"
+  ].forEach(
+    (key) => {
+      delete clone[key];
+    }
+  );
+
+  return JSON.stringify(
+    clone
+  );
+}
+
+function mergeEditedCsvOverBackupJson(
+  jsonRecords,
+  csvText
+) {
+  const csvObjects =
+    csvRowsToObjects(
+      csvText
+    );
+
+  const csvRecords =
+    csvObjects.map(
+      recordFromCsvRow
+    );
+
+  const jsonById =
+    new Map(
+      jsonRecords
+        .filter(
+          (record) =>
+            record?.id
+        )
+        .map(
+          (record) => [
+            record.id,
+            record
+          ]
+        )
+    );
+
+  const editedIds =
+    new Set();
+
+  const csvById =
+    new Map();
+
+  csvRecords.forEach(
+    (record, index) => {
+      if (record.id) {
+        csvById.set(
+          record.id,
+          {
+            record,
+            row:
+              csvObjects[index]
+          }
+        );
+      }
+    }
+  );
+
+  const merged =
+    jsonRecords.map(
+      (baseRecord) => {
+        if (
+          !baseRecord?.id ||
+          !csvById.has(
+            baseRecord.id
+          )
+        ) {
+          return {
+            ...baseRecord
+          };
+        }
+
+        const edited =
+          csvById.get(
+            baseRecord.id
+          ).record;
+
+        const baselineCsvObject =
+          csvRowsToObjects(
+            buildCsv(
+              [baseRecord]
+            )
+          )[0];
+
+        const baselineParsed =
+          recordFromCsvRow(
+            baselineCsvObject
+          );
+
+        const changed =
+          csvRecordComparableJson(
+            edited
+          ) !==
+          csvRecordComparableJson(
+            baselineParsed
+          );
+
+        if (!changed) {
+          return {
+            ...baseRecord
+          };
+        }
+
+        editedIds.add(
+          baseRecord.id
+        );
+
+        const combined = {
+          ...baseRecord,
+          ...edited,
+          id:
+            baseRecord.id
+        };
+
+        /*
+         * 新版CSV刻意prune走嘅資料由records.json保留。
+         * 咁用戶改CSV時唔會意外洗走舊版／隱藏研究資料。
+         */
+        [
+          "tradeObjective",
+          "tradeObjectiveReason",
+          "timeToMFE",
+          "postEntryPricePattern",
+          "reactionFirstShadowClass",
+          "reclaimStrongBarAtrRatio",
+          "retestStrongBarAtrRatio",
+          "reclaimInternalStructure",
+          "strongRetestShadowMetric",
+          "hasImage",
+          "imageCount"
+        ].forEach(
+          (key) => {
+            if (
+              Object.prototype.hasOwnProperty.call(
+                baseRecord,
+                key
+              )
+            ) {
+              combined[key] =
+                baseRecord[key];
+            }
+          }
+        );
+
+        return combined;
+      }
+    );
+
+  /*
+   * 允許用戶喺CSV尾新增新row。
+   * 有ID而records.json冇嘅row會當新紀錄。
+   */
+  for (
+    const csvRecord of csvRecords
+  ) {
+    if (
+      csvRecord.id &&
+      !jsonById.has(
+        csvRecord.id
+      )
+    ) {
+      merged.push(
+        csvRecord
+      );
+    }
+  }
+
+  return {
+    records:
+      merged,
+    editedIds
+  };
+}
+
 
 function assignLegacyZipRecordIds(
   records,
@@ -13957,22 +14428,42 @@ function buildZipImagesByRecord(
 async function mergeImportedRecords(
   importedRecords,
   imagesByRecord =
-    new Map()
+    new Map(),
+  options = {}
 ) {
   const existing =
     loadRecords();
 
-  const existingIds =
-    new Set(
+  const updateExistingIds =
+    options.updateExistingIds instanceof Set
+      ? options.updateExistingIds
+      : new Set(
+          options.updateExistingIds ||
+          []
+        );
+
+  const existingIndexById =
+    new Map(
       existing
         .map(
-          (record) =>
-            record.id
+          (record, index) => [
+            record.id,
+            index
+          ]
         )
-        .filter(Boolean)
+        .filter(
+          ([id]) =>
+            !!id
+        )
+    );
+
+  const existingIds =
+    new Set(
+      existingIndexById.keys()
     );
 
   const accepted = [];
+  let updated = 0;
   let skipped = 0;
   let imageCount = 0;
 
@@ -13991,17 +14482,82 @@ async function mergeImportedRecords(
         );
     }
 
-    if (
-      existingIds.has(
+    const existingIndex =
+      existingIndexById.get(
         record.id
-      )
+      );
+
+    if (
+      existingIndex !== undefined
     ) {
-      skipped += 1;
+      if (
+        !updateExistingIds.has(
+          record.id
+        )
+      ) {
+        skipped += 1;
+        continue;
+      }
+
+      const localRecord =
+        existing[
+          existingIndex
+        ];
+
+      const images =
+        imagesByRecord.get(
+          record.id
+        ) || [];
+
+      const updatedRecord = {
+        ...localRecord,
+        ...record,
+        id:
+          localRecord.id
+      };
+
+      if (
+        images.length > 0
+      ) {
+        await putImages(
+          record.id,
+          images
+        );
+
+        updatedRecord.hasImage =
+          true;
+        updatedRecord.imageCount =
+          images.length;
+
+        imageCount +=
+          images.length;
+      } else {
+        updatedRecord.hasImage =
+          localRecord.hasImage ===
+          true;
+        updatedRecord.imageCount =
+          Number(
+            localRecord.imageCount ||
+            0
+          );
+      }
+
+      existing[
+        existingIndex
+      ] = updatedRecord;
+
+      updated += 1;
       continue;
     }
 
     existingIds.add(
       record.id
+    );
+
+    existingIndexById.set(
+      record.id,
+      existing.length +
+      accepted.length
     );
 
     const images =
@@ -14027,11 +14583,14 @@ async function mergeImportedRecords(
       record.imageCount = 0;
     }
 
-    accepted.push(record);
+    accepted.push(
+      record
+    );
   }
 
   if (
-    accepted.length > 0
+    accepted.length > 0 ||
+    updated > 0
   ) {
     saveRecords([
       ...existing,
@@ -14044,6 +14603,7 @@ async function mergeImportedRecords(
   return {
     imported:
       accepted.length,
+    updated,
     skipped,
     images:
       imageCount
@@ -14088,10 +14648,19 @@ async function importBackupZipFile(
 
   let records = [];
 
+  let editedIds =
+    new Set();
+
   const recordsJson =
     decodeZipText(
       entries,
       "records.json"
+    );
+
+  const csv =
+    decodeZipText(
+      entries,
+      "trades.csv"
     );
 
   if (recordsJson) {
@@ -14108,19 +14677,30 @@ async function importBackupZipFile(
       );
     }
 
-    records =
+    const jsonRecords =
       parsed.map(
         (record) => ({
           ...record
         })
       );
-  } else {
-    const csv =
-      decodeZipText(
-        entries,
-        "trades.csv"
-      );
 
+    if (csv) {
+      const overlaid =
+        mergeEditedCsvOverBackupJson(
+          jsonRecords,
+          csv
+        );
+
+      records =
+        overlaid.records;
+
+      editedIds =
+        overlaid.editedIds;
+    } else {
+      records =
+        jsonRecords;
+    }
+  } else {
     if (!csv) {
       throw new Error(
         "ZIP入面搵唔到records.json或trades.csv"
@@ -14155,7 +14735,11 @@ async function importBackupZipFile(
 
   return mergeImportedRecords(
     records,
-    imagesByRecord
+    imagesByRecord,
+    {
+      updateExistingIds:
+        editedIds
+    }
   );
 }
 
@@ -14220,7 +14804,7 @@ async function handleBackupZipImportFile(
       );
 
     showToast(
-      `ZIP還原完成：新增${result.imported}筆＋${result.images}張圖片，跳過${result.skipped}筆重複紀錄`
+      `ZIP匯入完成：新增${result.imported}筆、更新${result.updated || 0}筆、圖片${result.images}張，跳過${result.skipped}筆未改重複紀錄`
     );
   } catch (error) {
     console.error(
@@ -14235,7 +14819,7 @@ async function handleBackupZipImportFile(
     $("importBackupZipButton").disabled =
       false;
     $("importBackupZipButton").textContent =
-      "匯入備份ZIP";
+      "匯入／更新備份ZIP";
   }
 }
 

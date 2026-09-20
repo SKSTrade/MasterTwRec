@@ -1,74 +1,67 @@
-# Master Trade System V1.30.13
-## Master Trade Matrix V1.3 — Explicit Amendment
-### XAU-A｜HTF Location Sweep：P3 Allowed
+# Master Trade System V1.30.14
+## ZIP Round-trip Editing
 
-## 改動
+V1.30.14解決：
 
-XAU-A以前有一條Setup-specific hard constraint：
+> 匯出Backup ZIP → 修改trades.csv → 重新壓ZIP → 匯入更新
 
-> 只接受原生P1／P2；Raw P3即使Generic Matrix有Size，仍會被XAU-A壓到0。
+## 舊版點解失敗
 
-由V1.30.13起取消呢條P1/P2-only限制。
+舊版ZIP reader只接受App自己產生嘅Store／無壓縮ZIP。
+Windows、macOS、7-Zip等重新壓縮通常會使用Deflate，部分亦會使用data descriptor，所以舊版會報：
+- 只支援由Master Trade App匯出嘅備份ZIP
+- ZIP data descriptor is not supported
+- Invalid ZIP structure
 
-XAU-A正式接受：
+另外舊版：
+1. records.json優先於trades.csv，所以CSV修改會被忽略。
+2. 同紀錄ID會當重複紀錄Skip，唔會更新。
 
-- P1
-- P2
-- P3
+## V1.30.14新行為
 
-P4仍然0注。
+### ZIP格式
+支援：
+- Store／無壓縮
+- Deflate
+- data descriptor類ZIP
+- ZIP入面多一層頂層folder
+- macOS __MACOSX額外metadata會忽略
 
-## P3點計
+不支援：
+- 加密／有密碼ZIP
+- 非一般Store／Deflate壓縮格式
 
-Raw P3唔會因為XAU-A自動升級。
+### CSV + JSON round-trip
+當ZIP同時有：
+- records.json
+- trades.csv
 
-如果冇E：
+App會：
+1. 以records.json做完整backup base
+2. 以紀錄ID比較trades.csv
+3. 如果某一行CSV同records.json對應資料有改動：
+   - 將CSV改動套用
+   - 同ID本機紀錄會更新
+4. CSV冇改嘅同ID紀錄仍然Skip
+5. CSV已prune走嘅舊／隱藏欄位仍由records.json保留
+6. 圖片保持跟紀錄ID
 
-> Raw P3 → Execution P3 → 按P3 × Native Q × Market Route Matrix計Size
+## 建議操作
 
-例如：
+1. App匯出「CSV＋照片 ZIP」
+2. 解壓
+3. 只修改trades.csv
+4. 唔好改「紀錄ID」
+5. 保存CSV（建議用CSV UTF-8／UTF-8 with BOM）
+6. 將原本內容重新壓成一般.zip
+7. App按「匯入／更新備份ZIP」
 
-> 雙健康同向 + XAU-A + Raw P3 + Native Q2  
-> Generic Matrix = 0.25  
-> XAU-A唔再額外Veto  
-> Final Matrix Size = 0.25（再受Range／Obstacle／Hard Veto修正）
+可以將整個folder壓成ZIP；App會自動處理多一層folder。
 
-如果有合資格E／E+：
+## 注意
 
-> Raw P3 → E/E+ → Execution P2-effective
+如果只係普通舊Backup、CSV完全冇改：
+- 同ID仍然Skip
+- 唔會無條件覆蓋本機資料
 
-再按原有P2-E規則計，包括P2-E + Q2全局最高0.25等限制。
-
-## 點解改
-
-P3可以係有清晰交易語義嘅位置，例如：
-
-- 次判次結
-- working structure
-- Trigger層重要結構
-
-當主判／次判雙同向，而XAU-A真正Sweep咗呢類結構位置，再Reclaim並有可接受Retest，
-唔應該因為位置標籤只係P3就被Setup-specific hard veto。
-
-## 保留規則
-
-今次冇改：
-
-- Raw P定義
-- P3-PB / MID / EXT Shadow
-- Native Q / Q2 subtype
-- E / E+升級條件
-- P2-E + Q2全局上限
-- Market Route
-- Range修正
-- Obstacle / RR
-- Hard Veto
-- Objective at Entry
-- Management
-
-P3可做唔等於P3自動升P2。
-
-## 版本註記
-
-呢項係對Frozen V1.3嘅明確、版本化 amendment。
-V1.30.12及之前仍保留舊規則；V1.30.13開始按新XAU-A P3規則。
+只有App偵測到trades.csv相對records.json有實際改動，先會更新同ID紀錄。

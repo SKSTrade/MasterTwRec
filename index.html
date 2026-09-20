@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.13</span>
+    <span class="version-badge">V1.30.14</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1464,8 +1464,9 @@
           <div class="export-actions">
             <button id="exportCsv" class="secondary-button">匯出CSV</button>
             <button id="exportBackupZip" class="secondary-button">匯出CSV＋照片 ZIP</button>
+          <p class="state-note"><strong>ZIP Round-trip：</strong>可以先匯出ZIP，打開入面嘅 <code>trades.csv</code> 修改，再用Windows／macOS重新壓成一般ZIP後匯入。App會以紀錄ID比對 <code>records.json</code>，只將CSV有改動嘅同ID紀錄更新；未改嘅重複紀錄會Skip。唔好手動修改「紀錄ID」。</p>
             <button id="importCsvButton" class="secondary-button" type="button">匯入CSV</button>
-            <button id="importBackupZipButton" class="secondary-button" type="button">匯入備份ZIP</button>
+            <button id="importBackupZipButton" class="secondary-button" type="button">匯入／更新備份ZIP</button>
             <input id="importCsvFile" class="visually-hidden" type="file" accept=".csv,text/csv">
             <input id="importBackupZipFile" class="visually-hidden" type="file" accept=".zip,application/zip">
           </div>

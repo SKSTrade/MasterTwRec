@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.13",
+  "name": "Master Trade System V1.30.14",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 explicit amendment: XAU-A HTF Location Sweep now permits Raw P3 to trade directly through the normal P3 × Native Q matrix; P4 remains invalid.",
+  "description": "Master Trade System with ZIP round-trip editing: standard Store/Deflate ZIP import, edited trades.csv overlay on records.json, and same-ID record updates only when CSV changed.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
