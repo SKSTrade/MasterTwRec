@@ -5914,6 +5914,162 @@ function syncObjectiveUpgradeUI(
   }
 }
 
+const AUTO_TP_PLAN_STANDARD = "2R全平";
+const AUTO_TP_PLAN_RUNNER = "80%於2R＋20%於4R Runner";
+
+function autoValidCandidateFromSize(
+  size
+) {
+  const numeric = Number(size);
+
+  return (
+    Number.isFinite(numeric) &&
+    numeric > 0
+  )
+    ? "Yes"
+    : "No";
+}
+
+function autoReachedTP2FromMfe(
+  mfeR
+) {
+  const numeric = Number(mfeR);
+
+  return (
+    Number.isFinite(numeric) &&
+    numeric > 3.9
+  )
+    ? "Yes"
+    : "No";
+}
+
+function autoTpPlanFromRunnerEligibility(
+  runnerEligibility
+) {
+  return runnerEligibility === "Conditional"
+    ? AUTO_TP_PLAN_RUNNER
+    : AUTO_TP_PLAN_STANDARD;
+}
+
+function recordAutoValidCandidate(
+  record
+) {
+  return autoValidCandidateFromSize(
+    record?.finalSize
+  );
+}
+
+function recordAutoReachedTP2(
+  record
+) {
+  return autoReachedTP2FromMfe(
+    record?.mfeR
+  );
+}
+
+function recordAutoTpPlan(
+  record
+) {
+  const derivedRunner =
+    recordRunnerEligibilityInfo({
+      ...record,
+      runnerEligibility: "",
+      runnerTier: "",
+      runnerEligibilityReason: ""
+    });
+
+  return autoTpPlanFromRunnerEligibility(
+    derivedRunner.code
+  );
+}
+
+function syncAutomaticJournalFields() {
+  if (!currentDecision) {
+    $("validCandidate").value = "No";
+    $("tpPlan").value = AUTO_TP_PLAN_STANDARD;
+    $("reachedTP2").value =
+      autoReachedTP2FromMfe(
+        optionalNumberFromInput("mfeR")
+      );
+    return;
+  }
+
+  $("validCandidate").value =
+    autoValidCandidateFromSize(
+      currentDecision.finalSize
+    );
+
+  $("tpPlan").value =
+    autoTpPlanFromRunnerEligibility(
+      currentDecision.runnerEligibility
+    );
+
+  $("reachedTP2").value =
+    autoReachedTP2FromMfe(
+      optionalNumberFromInput("mfeR")
+    );
+}
+
+function syncEditAutomaticJournalFields(
+  sourceRecord = null
+) {
+  const record =
+    sourceRecord ||
+    loadRecords().find(
+      (item) =>
+        item.id === activeRecordId
+    );
+
+  if (!record) return;
+
+  const preview = {
+    ...record,
+    mfeR:
+      optionalNumberFromInput("editMfeR"),
+    p3Context:
+      recordRawP(record) === "P3"
+        ? $("editP3Context").value
+        : record.p3Context,
+    retestInternalStructure:
+      normalizeRetestInternalStructure(
+        $("editRetestInternalStructure").value
+      ),
+    retestVsReclaimStructure:
+      normalizeRetestVsReclaimStructure(
+        $("editRetestVsReclaimStructure").value
+      ) || "na",
+    retestAcceptance:
+      normalizeRetestAcceptance(
+        $("editRetestAcceptance").value
+      ),
+    auctionMoveV14:
+      normalizeAuctionMoveV14(
+        $("editAuctionMoveV14").value
+      ),
+    runnerEligibility: "",
+    runnerTier: "",
+    runnerEligibilityReason: ""
+  };
+
+  const runner =
+    recordRunnerEligibilityInfo(preview);
+
+  $("editValidCandidate").value =
+    autoValidCandidateFromSize(
+      record.finalSize
+    );
+
+  $("editReachedTP2").value =
+    autoReachedTP2FromMfe(
+      preview.mfeR
+    );
+
+  $("editTpPlan").value =
+    autoTpPlanFromRunnerEligibility(
+      runner.code
+    );
+}
+
 function updateShadowResearchPreview() {
   const decision =
     currentDecision;
@@ -6019,6 +6175,7 @@ function updateShadowResearchPreview() {
     objectiveAtEntry
   );
 
+  syncAutomaticJournalFields();
   syncDeepRFShadowUI(false);
 }
 
@@ -10045,9 +10202,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.31.0",
+      "PracticeJournal-V1.31.1",
     engineVersion:
-      "MasterTradeMatrix-V1.4-Candidate-2026-09-r1",
+      "MasterTradeMatrix-V1.4-Candidate-2026-09-r2-AutoJournalFields",
     matrixVersion:
       "Master Trade Matrix V1.4｜Candidate｜2026/09",
 
@@ -10513,7 +10670,9 @@ async function saveDecision(event) {
     postEntryAction:
       $("postEntryAction").value,
     tpPlan:
-      $("tpPlan").value,
+      autoTpPlanFromRunnerEligibility(
+        currentDecision.runnerEligibility
+      ),
     profitR:
       profitRValue,
     actualR:
@@ -10526,7 +10685,9 @@ async function saveDecision(event) {
     timeToRF:
       timeToRFMinutes,
     validCandidate:
-      $("validCandidate").value,
+      autoValidCandidateFromSize(
+        currentDecision.finalSize
+      ),
     postEntryObjectiveUpgrade:
       normalizePostEntryObjectiveUpgrade(
         $("postEntryObjectiveUpgrade").value
@@ -10558,7 +10719,9 @@ async function saveDecision(event) {
     reachedRF:
       $("reachedRF").value,
     reachedTP2:
-      $("reachedTP2").value,
+      autoReachedTP2FromMfe(
+        optionalNumberFromInput("mfeR")
+      ),
     hasImage:
       pendingImageBlobs.length > 0,
     imageCount:
@@ -11342,7 +11505,7 @@ function renderHistory() {
   const validCandidates =
     allRecords.filter(
       (record) =>
-        record.validCandidate === "Yes"
+        recordAutoValidCandidate(record) === "Yes"
     ).length;
   $("statValidCandidates").textContent =
     validCandidates;
@@ -11402,10 +11565,7 @@ function renderHistory() {
     );
 
   const tp2Applicable =
-    allRecords.filter(
-      (record) =>
-        record.reachedTP2 !== "N/A"
-    );
+    allRecords;
 
   if (rfApplicable.length > 0) {
     const rfRate =
@@ -11427,7 +11587,7 @@ function renderHistory() {
     const tp2Rate =
       tp2Applicable.filter(
         (record) =>
-          record.reachedTP2 === "Yes"
+          recordAutoReachedTP2(record) === "Yes"
       ).length /
       tp2Applicable.length *
       100;
@@ -12452,7 +12612,7 @@ async function openRecord(recordId) {
     ${formatDurationMinutes(record.timeToRF)}
     <br>
     <strong>Valid Candidate：</strong>
-    ${escapeHtml(record.validCandidate || "No")}
+    ${escapeHtml(recordAutoValidCandidate(record))}
     <br>
     <strong>Post-entry Objective Upgrade：</strong>
     ${escapeHtml(normalizePostEntryObjectiveUpgrade(record.postEntryObjectiveUpgrade))}
@@ -12569,8 +12729,7 @@ async function openRecord(recordId) {
     record.postEntryAction ||
     "N/A";
   $("editTpPlan").value =
-    record.tpPlan ||
-    "2R全平";
+    recordAutoTpPlan(record);
   $("editProfitR").value =
     Number.isFinite(
       record.profitR
@@ -12597,12 +12756,9 @@ async function openRecord(recordId) {
     record.reachedRF ||
     "No";
   $("editReachedTP2").value =
-    record.reachedTP2 ||
-    "No";
+    recordAutoReachedTP2(record);
   $("editValidCandidate").value =
-    record.validCandidate === "Yes"
-      ? "Yes"
-      : "No";
+    recordAutoValidCandidate(record);
 
   $("editESourceV14").value =
     recordV14ESource(
@@ -12669,6 +12825,7 @@ async function openRecord(recordId) {
   );
 
   syncDeepRFShadowUI(true);
+  syncEditAutomaticJournalFields(record);
 
   $("editNote").value =
     record.note || "";
@@ -12912,8 +13069,6 @@ async function saveRecordEdit() {
     $("editPostEntryQ").value;
   records[index].postEntryAction =
     $("editPostEntryAction").value;
-  records[index].tpPlan =
-    $("editTpPlan").value;
   records[index].profitR =
     optionalNumberFromInput(
       "editProfitR"
@@ -12938,9 +13093,13 @@ async function saveRecordEdit() {
   records[index].reachedRF =
     $("editReachedRF").value;
   records[index].reachedTP2 =
-    $("editReachedTP2").value;
+    autoReachedTP2FromMfe(
+      records[index].mfeR
+    );
   records[index].validCandidate =
-    $("editValidCandidate").value;
+    autoValidCandidateFromSize(
+      records[index].finalSize
+    );
   records[index].eSourceV14 =
     normalizeV14ESource(
       $("editESourceV14").value
@@ -13002,6 +13161,10 @@ async function saveRecordEdit() {
     editedRunner.tier;
   records[index].runnerEligibilityReason =
     editedRunner.reason;
+  records[index].tpPlan =
+    autoTpPlanFromRunnerEligibility(
+      editedRunner.code
+    );
 
   const editedRunnerGate =
     v14RunnerGateInfo(
@@ -13581,12 +13744,12 @@ function buildCsv(records) {
       record.entryTimeQ || "",
       record.postEntryQ || "",
       record.postEntryAction || "",
-      record.tpPlan || "",
+      recordAutoTpPlan(record),
       Number.isFinite(record.profitR)
         ? record.profitR
         : "",
       record.reachedRF || "",
-      record.reachedTP2 || "",
+      recordAutoReachedTP2(record),
       record.hasImage
         ? "Yes"
         : "No",
@@ -13632,7 +13795,7 @@ function buildCsv(records) {
           ? record.profitR
           : "",
       record.reviewedSession || "",
-      record.validCandidate || "No",
+      recordAutoValidCandidate(record),
       record.shadowResearchVersion || "",
       record.primaryCapReason || "",
       Array.isArray(record.additionalCapFlags)
@@ -16922,6 +17085,13 @@ async function mergeImportedRecords(
       ...sourceRecord
     };
 
+    record.validCandidate =
+      recordAutoValidCandidate(record);
+    record.reachedTP2 =
+      recordAutoReachedTP2(record);
+    record.tpPlan =
+      recordAutoTpPlan(record);
+
     if (!record.id) {
       record.id =
         stableImportedRecordId(
@@ -18877,6 +19047,27 @@ function setupEvents() {
       "submit",
       saveDecision
     );
+
+  $("editMfeR")
+    .addEventListener(
+      "input",
+      () =>
+        syncEditAutomaticJournalFields()
+    );
+
+  [
+    "editP3Context",
+    "editRetestInternalStructure",
+    "editRetestVsReclaimStructure",
+    "editRetestAcceptance",
+    "editAuctionMoveV14"
+  ].forEach((id) => {
+    $(id).addEventListener(
+      "change",
+      () =>
+        syncEditAutomaticJournalFields()
+    );
+  });
 
   $("deepRFTriggered")
     .addEventListener(

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.31.0</span>
+    <span class="version-badge">V1.31.1</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1297,16 +1297,9 @@
           </p>
 
           <label>
-            TP計劃
-            <select id="tpPlan">
-              <option value="2R全平">固定2R全平｜標準模式</option>
-              <option value="1.5R障礙推RF後博2R">RF-managed｜到1.5R–2R障礙推RF後博2R</option>
-              <option value="1R–1.5R部分食糊＋RF">部分食糊｜30%–50%障礙前食糊＋餘倉RF</option>
-              <option value="80%於2R＋20%於4R Runner">V1.4 Runner｜80%於2R＋20%於4R</option>
-              <option value="80%於2R＋20%於4R Runner">V1.4 Runner｜80%於2R＋20%於4R</option>
-          <option value="70%於2R＋30%試3R">70%於2R＋30%試3R</option>
-              <option value="50%於2R＋50%Runner">50%於2R＋50% Runner</option>
-            </select>
+            TP計劃｜Auto
+            <input id="tpPlan" type="text" value="2R全平" readonly>
+            <small>Runner Eligibility = Conditional → 80%@2R＋20%@4R；否則固定2R全平。</small>
           </label>
 
           <label>
@@ -1325,12 +1318,9 @@
             </label>
 
             <label>
-              去唔去到TP2
-              <select id="reachedTP2">
-                <option value="No">No</option>
-                <option value="Yes">Yes</option>
-                <option value="N/A">N/A｜掛盤但冇成交／不適用</option>
-              </select>
+              去唔去到TP2｜Auto
+              <input id="reachedTP2" type="text" value="No" readonly>
+              <small>MFE R &gt; 3.9 → Yes；否則No。</small>
             </label>
           </div>
 
@@ -1342,11 +1332,9 @@
 
           <div class="yes-no-grid">
             <label>
-              Valid Candidate
-              <select id="validCandidate">
-                <option value="Yes">Yes｜符合V1.4 Candidate定義</option>
-                <option value="No" selected>No</option>
-              </select>
+              Valid Candidate｜Auto
+              <input id="validCandidate" type="text" value="No" readonly>
+              <small>V1.4 Final Entry Size &gt; 0 → Yes；0注 → No。</small>
             </label>
           </div>
 
@@ -2018,16 +2006,9 @@
       </label>
 
       <label>
-        TP計劃
-        <select id="editTpPlan">
-          <option value="2R全平">固定2R全平｜標準模式</option>
-          <option value="1.5R障礙推RF後博2R">RF-managed｜到1.5R–2R障礙推RF後博2R</option>
-          <option value="1R–1.5R部分食糊＋RF">部分食糊｜30%–50%障礙前食糊＋餘倉RF</option>
-          <option value="70%於2R＋30%試3R">70%於2R＋30%試3R</option>
-          <option value="50%於2R＋50%Runner">50%於2R＋50% Runner</option>
-          <option value="1:2食哂">舊版｜1:2食哂</option>
-          <option value="1:2食半留半">舊版｜1:2食半留半</option>
-        </select>
+        TP計劃｜Auto
+        <input id="editTpPlan" type="text" value="2R全平" readonly>
+        <small>按V1.4 Runner Eligibility自動決定。</small>
       </label>
 
       <label>
@@ -2059,17 +2040,16 @@
         </label>
 
         <label>
-          去到TP2
-          <select id="editReachedTP2"><option value="No">No</option><option value="Yes">Yes</option><option value="N/A">N/A｜掛盤但冇成交／不適用</option></select>
+          去到TP2｜Auto
+          <input id="editReachedTP2" type="text" value="No" readonly>
+          <small>MFE R &gt; 3.9 → Yes；否則No。</small>
         </label>
       </div>
 
       <label>
-        Valid Candidate
-        <select id="editValidCandidate">
-          <option value="Yes">Yes｜符合V1.4 Candidate定義</option>
-          <option value="No">No</option>
-        </select>
+        Valid Candidate｜Auto
+        <input id="editValidCandidate" type="text" value="No" readonly>
+        <small>歷史Final Entry Size &gt; 0 → Yes；0注 → No。</small>
       </label>
 
       <div class="shadow-research-panel">

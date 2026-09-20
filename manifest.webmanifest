@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.31.0",
+  "name": "Master Trade System V1.31.1",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.4 Candidate: V1.3 permission skeleton plus P3 origin, E Source, Q2 negative interaction, candidate size modifiers, Runner/Initiative gate, Opening Context, and ZIP round-trip compatibility.",
+  "description": "Master Trade Matrix V1.4 Candidate with automatic Valid Candidate, TP2 attainment from MFE, and Runner-based TP plan.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
