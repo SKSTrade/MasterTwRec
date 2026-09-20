@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.14</span>
+    <span class="version-badge">V1.31.0</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -110,7 +110,7 @@
             </label>
 
             <input id="liveXauQ2MarginalOnly" type="checkbox" hidden>
-            <p class="state-note">V1.3：XAU E／E+只可提升Execution P，唔會將Native Q2改名Q3。</p>
+            <p class="state-note">V1.4：E只可以P3→P2-E；Raw P origin永久保留。Session／Mon H-L／PDH-PDL／HTF Structure會分開記E Source，Native Q唔會因E升級。</p>
 
             <p id="liveXauLiquidityNote" class="state-note"></p>
           </div>
@@ -146,10 +146,10 @@
               <option value="healthyAligned">A｜雙健康同向｜Max 1注</option>
               <option value="weakAligned">B｜同向但至少一層弱｜Max 0.5</option>
               <option value="transitionConfirmed">C｜Directional Transition＋Confirmed同向｜Max 0.5</option>
-              <option value="alignedTransition">D｜Aligned Transition｜P2 Q3 0.25／Shadow 0.5</option>
+              <option value="alignedTransition">D｜雙Transition同向｜Cap 0.25</option>
               <option value="neutralMainConfirmed">E｜主判中性Transition＋次判Confirmed｜Max 0.5 Reaction</option>
               <option value="neutralTransition">F｜Neutral／Range Transition｜Boundary only｜Reaction</option>
-              <option value="mixedTransition">G｜Mixed Transition｜Conflict Boundary</option>
+              <option value="mixedTransition">G｜Mixed Transition｜P1/P2/P2-E Q3 0.5 Candidate</option>
               <option value="conflictMain">H / I｜順主判、次判Opposing／Transitioning Against｜Max 0.5</option>
               <option value="transitionVsConfirmedConflict">J｜Directional Transition × Confirmed反向</option>
               <option value="reverseWeakMain">K｜逆弱主判｜Route A/B only｜Max 0.25</option>
@@ -215,6 +215,16 @@
               <option value="P3">P3｜普通局部位置</option>
               <option value="P4">P4｜無價值位置</option>
             </select>
+          </label>
+
+          <label id="liveP3ContextRow" class="hidden">
+            P3 Context｜V1.4
+            <select id="liveP3Context">
+              <option value="PB">P3-PB｜Pullback</option>
+              <option value="MID" selected>P3-MID｜Neutral / Mid-location</option>
+              <option value="EXT">P3-EXT｜Extension</option>
+            </select>
+            <small>Raw P3 origin永久保留；MID唔主動食Upgrade，EXT唔當Raw P2。</small>
           </label>
 
           <label>
@@ -337,16 +347,16 @@
           <div class="result-lines compact">
             <div><span>Setup Type修正後Q</span><strong id="liveEffectiveQ">Q2</strong></div>
           </div>
-          <p class="state-note">V1.3：Native Q3／Q2永久分開；E／Session Edge唔再洗白Q2。Counter-main Q2目前Research only＝0。</p>
+          <p class="state-note">V1.4：Native Q3／Q2永久分開；E唔會洗白Q2。完整Q2 Negative Interaction由Full Matrix用R/F/D/S/RR × Structure × Acceptance計；Live Quick Decision唔新增重複手填欄。</p>
         </article>
 
         <article class="card live-step">
           <div class="live-step-title"><span>STEP 5</span><h2>Range 25%＋大局障礙</h2></div>
 
           <label>
-            次判轉換中性／Range位置修正
+            Neutral／Range位置修正
             <select id="liveRangePosition">
-              <option value="notApplicable" selected>不適用｜次判唔係轉換中性</option>
+              <option value="notApplicable" selected>不適用｜冇Neutral／Range layer</option>
               <option value="favorable">相應25%｜Long底25%／Short頂25%｜不降級</option>
               <option value="outside">唔喺相應25%｜降一級</option>
               <option value="middle">真正Range正中｜0注</option>
@@ -427,13 +437,15 @@
 
           <div class="result-lines">
             <div><span>市場關係上限</span><strong id="liveResultCap">1注</strong></div>
-            <div><span>Setup Type＋P × Q</span><strong id="liveMatrixSize">0.5注</strong></div>
+            <div><span>V1.3 Baseline Matrix</span><strong id="liveV13BaselineSize">0.5注</strong></div>
+            <div><span>V1.4 Candidate Matrix</span><strong id="liveMatrixSize">0.5注</strong></div>
             <div><span>Range修正後</span><strong id="liveRangeSize">0.5注</strong></div>
             <div><span>大局修正後</span><strong id="liveObstacleSize">0.5注</strong></div>
             <div><span>Objective at Entry</span><strong id="liveTradeObjective">Reaction</strong></div>
+            <div><span>Runner Eligibility</span><strong id="liveRunnerEligibility">No</strong></div>
+            <div><span>Runner Gate</span><strong id="liveRunnerGate">N/A／到2R再判</strong></div>
             <div id="livePrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="livePrimaryCapReason">N/A</strong></div>
             <div id="liveAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="liveAdditionalCapFlags">N/A</strong></div>
-            <div><span>Aligned Transition Shadow</span><strong id="liveShadowSize">N/A</strong></div>
           </div>
 
           <div class="final-size live-final-size">
@@ -447,12 +459,12 @@
       <article class="card live-one-line">
         <h2>盤中六句</h2>
         <ol>
-          <li>主判×次判係咩市場關係？今次做邊條路線？</li>
-          <li>Setup係Type A、B定C？</li>
-          <li>原始位置係P1、P2、P3定P4？Setup Type有冇有效待遇？</li>
-          <li>Q3、Q2定Q1？</li>
-          <li>次判轉換中性有冇Range 25%降級？第一障礙係Entry Obstacle定Target Obstacle？</li>
-          <li>所有限制取最低注碼。</li>
+          <li>Direction Permission有冇？係邊條Market State Route？</li>
+          <li>Raw P係咩？Raw P3係PB / MID / EXT？</li>
+          <li>E有冇只將P3升P2-E？Raw P origin有冇保留？</li>
+          <li>Native Q係Q3 / Q2？Q2有冇Failure Interaction？</li>
+          <li>Range／RR／Obstacle有冇將Size壓低或歸零？</li>
+          <li>Entry Size同Runner分開：Q3只係Runner資格，到2R先判Initiative。</li>
         </ol>
       </article>
     </section>
@@ -461,7 +473,7 @@
       <article class="card rulebook-hero">
         <p class="eyebrow">ALL-MARKET MASTER TRADE MATRIX</p>
         <h2>完整規則版</h2>
-        <p class="large-rule">方向權限 → 市場關係上限 → P位置 → Setup → Q質素 → 第一真實障礙／R:R → 最終注碼</p>
+        <p class="large-rule">Direction Permission → Route → Raw P / P3 Context → E / E Source → Native Q → Q2 Interaction → RR / Obstacle → Entry Size → Objective → Runner → Initiative Gate</p>
         <p class="muted">全市場共用同一流程；大局只可限制方向、目標、注碼或否決空間不足，唔可以單獨加注。</p>
       </article>
 
@@ -736,7 +748,7 @@
               <div><span>XAU打法優先級</span><strong id="xauSetupPriority">N/A</strong></div>
             </div>
             <p id="xauLiquidityNote" class="state-note"></p>
-            <p class="muted"><strong>V1.3：Raw P同Execution P永久分開；Native Q亦永久保留。</strong>PWH／PWL、PDH／PDL高質Sweep＝E+；Asia／OPR高質Sweep＝E。E可令Raw P3獲P2-effective，但絕對唔會將Q2改名Q3，亦唔會P2升P1。</p>
+            <p class="muted"><strong>V1.4：Raw P同Execution P永久分開；Native Q亦永久保留。</strong>E Source正式分Session／Mon H-L／PDH-PDL／HTF Structure／Other。Mon H-L要fresh first meaningful sweep；PDH/PDL屬Conditional E，Raw P3最好再有HTF／working structure／range boundary等confluence。E只可P3→P2-E。</p>
           </div>
 
           <div id="typeAPanel" class="conditional-panel hidden">
@@ -845,7 +857,7 @@
             <div><span>Q待遇</span><strong id="asia2BTriggerEffect">無特殊待遇</strong></div>
           </div>
 
-          <p class="muted">V1.3：E只係Instrument／Session-specific Edge。高質Type A／XAU指定Liquidity可以令Raw P3→P2-effective，但<strong>取消所有Q2→Q3升級</strong>；Native Q永遠保留，亦唔會創造方向權限。</p>
+          <p class="muted">V1.4：E仍然只係Execution／Liquidity Edge。可以令Raw P3→P2-E，但<strong>唔會Q2→Q3、P2→P1、P4→P2，亦唔會創造Direction Permission</strong>。</p>
         </article>
 
         <article id="rbPosition" class="card rulebook-anchor">
@@ -867,8 +879,8 @@
 
           <div id="p3ContextPanel" class="conditional-panel hidden">
             <div class="principle-box">
-              <strong>P3 Context｜2025 H2 Shadow Only</strong>
-              <span>PB／MID／EXT只記Raw P3來源，唔改Frozen V1.3 Size。Raw P3有合資格E時，三類都照原規則取得P2-E待遇。</span>
+              <strong>P3 Context｜V1.4 Location Origin</strong>
+              <span>Raw P3身份永久保留。PB／MID／EXT會參與V1.4 Location Modifier：PB正常參與；MID唔主動食Size Upgrade；EXT唔當Raw P2，Entry Size保持保守。</span>
             </div>
 
             <label>
@@ -886,7 +898,7 @@
               <br><strong>PB：</strong>明確回調到次判次結／working support附近，有location advantage。
               <br><strong>MID：</strong>已離開次判次結，但未去到最新走勢尾部；位置中性，唔算靚pullback亦唔算chase。
               <br><strong>EXT：</strong>已去到最新走勢較尾／premium區（Short鏡像discount區），冇真正pullback再做順勢setup。
-              <br>2025 H2三類完全唔額外升／降注；暫時唔加Fib threshold，只用結構語義分類。
+              <br>V1.4仍然唔硬定Fib threshold；用結構語義分類。P3-MID + Structured會阻止Upgrade；P3-EXT唔會因Q3／P2-E變成真正Raw P2。
             </p>
           </div>
 
@@ -1076,7 +1088,7 @@
           <h2>次判轉換中性｜Range 25%修正</h2>
           <div id="secondaryRangePanel" class="conditional-panel hidden">
             <label>
-              Entry喺次判Range邊個位置
+              Neutral／Range位置
               <select id="secondaryRangePosition">
                 <option value="favorable" selected>相應25%｜Long底25%／Short頂25%｜不降級</option>
                 <option value="outside">唔喺相應頂／底25%｜降一級</option>
@@ -1084,7 +1096,7 @@
               </select>
             </label>
           </div>
-          <p id="secondaryRangeNote" class="state-note">只有次判＝轉換中性時啟用；修正只改Size，唔改P級。</p>
+          <p id="secondaryRangeNote" class="state-note">V1.4：主判或次判任何一層係Transition Neutral都啟用；Range middle固定0，位置修正唔改Raw P。</p>
         </article>
 
         <article id="rbObstacle" class="card obstacle-card rulebook-anchor">
@@ -1175,23 +1187,28 @@
             <div><span>Control Alignment</span><strong id="resultControlAlignment"></strong></div>
             <div><span>交易優先方向</span><strong id="resultPreferredDirection"></strong></div>
             <div><span>交易路線</span><strong id="resultMarketRoute"></strong></div>
+            <div><span>V1.4 Scenario</span><strong id="resultV14Scenario"></strong></div>
             <div><span>Setup Type</span><strong id="resultSetupType"></strong></div>
             <div><span>Raw P</span><strong id="resultBasePosition"></strong></div>
-            <div><span>P3 Context｜Shadow</span><strong id="resultP3Context"></strong></div>
+            <div><span>P3 Context｜V1.4</span><strong id="resultP3Context"></strong></div>
             <div><span>Enhancement E</span><strong id="resultEnhancement"></strong></div>
+            <div><span>E Source｜V1.4</span><strong id="resultESourceV14"></strong></div>
             <div><span>Execution P</span><strong id="resultEffectivePosition"></strong></div>
             <div><span>P1順風</span><strong id="resultP1Background"></strong></div>
             <div><span>Native Q</span><strong id="resultEffectiveTrigger"></strong></div>
             <div><span>Q2 Subtype</span><strong id="resultQ2Subtype"></strong></div>
+            <div><span>Q2 Negative Interaction</span><strong id="resultQ2NegativeInteraction"></strong></div>
             <div><span>Type A／Session 2B</span><strong id="resultAsia2B"></strong></div>
             <div><span>市場關係上限</span><strong id="resultMarketCap"></strong></div>
-            <div><span>P×Q／方向Matrix</span><strong id="resultMatrixSize"></strong></div>
+            <div><span>V1.3 Baseline Matrix</span><strong id="resultV13BaselineSize"></strong></div>
+            <div><span>V1.4 Candidate Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>Range修正</span><strong id="resultRangeSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
             <div><span>Objective at Entry</span><strong id="resultTradeObjective"></strong></div>
+            <div><span>Runner Eligibility</span><strong id="resultRunnerEligibility"></strong></div>
+            <div><span>Runner Post-entry Gate</span><strong id="resultRunnerGate"></strong></div>
             <div id="resultPrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="resultPrimaryCapReason"></strong></div>
             <div id="resultAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="resultAdditionalCapFlags"></strong></div>
-            <div><span>Aligned Transition Shadow</span><strong id="resultShadowSize"></strong></div>
           </div>
 
           <div class="final-size">
@@ -1211,8 +1228,8 @@
           </label>
 
           <div class="principle-box">
-            <strong>Master Trade Matrix V1.3 — Frozen｜2025 H2 Shadow Research Overlay</strong>
-            <span>正式決策全程跟Frozen V1.3；Shadow只記錄，唔反過來改Valid Candidate、P/Q、Size、Objective、Entry或Management。</span>
+            <strong>Master Trade Matrix V1.4 — Candidate｜Entry Edge × Tail Edge × Failure Interaction</strong>
+            <span>V1.4保留V1.3 Direction / Market State / Raw P / E / Q / RR骨架，再加入P3 origin、Q2 interaction、Runner同Auction behaviour。Mixed Transition升注、P3→P2-E Full-size限制、High Negative降級仍屬2026 H1待驗證Candidate。</span>
           </div>
 
           <div id="euOpeningBacktestPanel" class="hidden" hidden aria-hidden="true">
@@ -1285,7 +1302,9 @@
               <option value="2R全平">固定2R全平｜標準模式</option>
               <option value="1.5R障礙推RF後博2R">RF-managed｜到1.5R–2R障礙推RF後博2R</option>
               <option value="1R–1.5R部分食糊＋RF">部分食糊｜30%–50%障礙前食糊＋餘倉RF</option>
-              <option value="70%於2R＋30%試3R">70%於2R＋30%試3R</option>
+              <option value="80%於2R＋20%於4R Runner">V1.4 Runner｜80%於2R＋20%於4R</option>
+              <option value="80%於2R＋20%於4R Runner">V1.4 Runner｜80%於2R＋20%於4R</option>
+          <option value="70%於2R＋30%試3R">70%於2R＋30%試3R</option>
               <option value="50%於2R＋50%Runner">50%於2R＋50% Runner</option>
             </select>
           </label>
@@ -1325,7 +1344,7 @@
             <label>
               Valid Candidate
               <select id="validCandidate">
-                <option value="Yes">Yes｜符合V1.3候選定義</option>
+                <option value="Yes">Yes｜符合V1.4 Candidate定義</option>
                 <option value="No" selected>No</option>
               </select>
             </label>
@@ -1341,6 +1360,10 @@
               <div id="shadowPrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="shadowPrimaryCapReason">N/A</strong></div>
               <div id="shadowAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="shadowAdditionalCapFlags">N/A</strong></div>
               <div><span>Objective at Entry</span><strong id="shadowObjectiveAtEntry">N/A</strong></div>
+              <div><span>E Source</span><strong id="shadowESourceV14">None</strong></div>
+              <div><span>Q2 Negative Interaction</span><strong id="shadowQ2NegativeInteraction">None</strong></div>
+              <div><span>Runner Eligibility</span><strong id="shadowRunnerEligibility">No</strong></div>
+              <div><span>Runner Gate</span><strong id="shadowRunnerGate">N/A</strong></div>
               <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ Final Size</small></div>
             </div>
 
@@ -1349,7 +1372,27 @@
                 Post-entry Objective Upgrade
                 <select id="postEntryObjectiveUpgrade">
                   <option value="No" selected>No</option>
-                  <option value="Yes">Yes</option>
+                  <option value="Reaction→Expansion">Reaction→Expansion</option>
+                </select>
+              </label>
+
+              <label>
+                Opening Context｜Shadow
+                <select id="openingContextV14">
+                  <option value="" selected>未記錄</option>
+                  <option value="insideMid">Inside-Mid</option>
+                  <option value="insideEdge">Inside-Edge</option>
+                  <option value="outsideHold">Outside-Hold</option>
+                  <option value="outsideFail">Outside-Fail</option>
+                </select>
+              </label>
+
+              <label>
+                Auction Move｜Post-entry
+                <select id="auctionMoveV14">
+                  <option value="" selected>未記錄／未到2R</option>
+                  <option value="responsive">Responsive｜返value但未重新定價</option>
+                  <option value="initiative">Initiative｜Break → Accept → Hold → Extend</option>
                 </select>
               </label>
 
@@ -1412,7 +1455,7 @@
             </div>
 
             <p class="state-note">
-              <strong>Retest Internal Structure：</strong>Entry TF入場前已見清晰對手micro structure先算Structured；Long要見LH → LL，Short鏡像HH → HL。
+              <strong>V1.4：</strong>Q2 interaction睇R/F/D/S/RR × Retest structure × Acceptance；Medium只阻止Upgrade，High Candidate一級降注。Opening Context只做Shadow，唔直接加減Size。Runner只係Q3資格，到2R仍要Initiative Gate。<br><strong>Retest Internal Structure：</strong>Entry TF入場前已見清晰對手micro structure先算Structured；Long要見LH → LL，Short鏡像HH → HL。
               <br><strong>Retest vs Reclaim Structure：</strong>N/A已同時代表Reclaim冇清晰micro structure；有structure先揀Hold／Sweep-Reclaim／Break-Accept。
               <br><strong>Retest Acceptance：</strong>Hold／Close Through量較大reclaimed setup level有冇失守。
               <br><strong>已停手動記錄：</strong>Reclaim / Retest Strong Bar ATR Ratio、獨立Reclaim Internal Structure、Relative ATR Ratio。
@@ -1616,9 +1659,9 @@
       </article>
 
       <article class="card">
-        <h2>Transition Type V1.3</h2>
+        <h2>Transition Type｜V1.4保留V1.3定義</h2>
         <ul>
-          <li><strong>Aligned：</strong>兩層Transition同一偏向；視作Early Trend候選。P2＋Native Q3正式0.25，0.5只做Shadow Test。</li>
+          <li><strong>Aligned：</strong>兩層Transition同一偏向；V1.4視作雙Transition同向。Route Cap 0.25；P1／P2／P2-E＋Q3＝0.25，Q2＝0。</li>
           <li><strong>Mixed：</strong>兩層Transition偏向相反；屬Conflict環境。</li>
           <li><strong>Neutral：</strong>至少一層轉換中性／大型Range；只做邊界，真正Range中間0。</li>
         </ul>
@@ -1829,24 +1872,39 @@
       </article>
 
       <article class="card">
-        <h2>V1.3 Research Queue｜唔直接改正式Size</h2>
-        <ol>
-          <li>Aligned Transition P2 Q3：0.25 vs 0.5 Shadow。</li>
-          <li>Counter-main Q2 Reaction：正式0，研究0.25可能性。</li>
-          <li>Confirmed／Transitioning／Opposing Control Expectancy。</li>
-          <li>Q2-R／F／D／S／RR各自Expectancy。</li>
-          <li>P2-E＋Q2係咪要再收緊。</li>
-          <li>HSI OPR-C將來有冇E；XAU PWH/PWL vs PDH/PDL vs Asia；EU-D TP2表現。</li>
-        </ol>
-        <p class="large-rule">V1.3 Frozen：新sample用同一版記，唔因單一case即時改權限。</p>
+        <h2>Master Trade Matrix V1.4｜Candidate</h2>
+        <p class="large-rule">Permission → Route → Raw P / P3 Context → E / E Source → Native Q → Q2 Interaction → RR / Obstacle → Entry Size → Objective → Runner → Initiative Gate</p>
+        <ul>
+          <li><strong>Direction先行：</strong>後面Q3、E、Runner永遠唔可以救返0 Permission、P4、Range middle或冇Space。</li>
+          <li><strong>P3 Origin：</strong>PB／MID／EXT永久保留；P2-E唔等於Raw P2。MID唔主動食Upgrade；EXT Entry Size保守。</li>
+          <li><strong>E Source：</strong>Session／Mon H-L／PDH-PDL／HTF Structure／Other。E只可以P3→P2-E。</li>
+          <li><strong>Q2 Failure Interaction：</strong>High＝R+S+Structured、F+S；Medium＝S+Structured、F+Close Through。Medium block upgrade；High一級降注屬Candidate。</li>
+          <li><strong>Mixed Transition：</strong>P1/P2/P2-E＋Q3 0.25→0.5屬V1.4 Candidate；2026 H1確認先Freeze。</li>
+          <li><strong>P3→P2-E＋Q3：</strong>Candidate最高0.5；Raw P2＋Q3先有更強Full-size資格。</li>
+          <li><strong>Runner：</strong>Q3只提供Conditional資格；到2R仍然Initiative＝80%@2R＋20%@4R，Responsive＝100%@2R。</li>
+          <li><strong>Opening Context：</strong>Inside-Mid／Inside-Edge／Outside-Hold／Outside-Fail只做Shadow，唔直接改Size。</li>
+        </ul>
       </article>
 
       <article class="card">
-        <h2>Limit／Post-entry／TP</h2>
+        <h2>V1.4 Candidate｜2026 H1 Validation Queue</h2>
+        <ol>
+          <li><strong>Mixed Transition：</strong>P1/P2/P2-E＋Q3由0.25→0.5係咪值得正式Freeze。</li>
+          <li><strong>P3→P2-E＋Q3：</strong>Dual Healthy等環境係咪應正式限制Full Size；Candidate暫時max 0.5。</li>
+          <li><strong>Q2 Negative Interaction：</strong>Medium只block upgrade；High一級降注係咪跨sample穩定。</li>
+          <li><strong>Runner Overlay：</strong>80%@2R＋20%@4R實際有冇提高總Expectancy。</li>
+          <li><strong>Opening Context / Initiative：</strong>Outside-Hold／Initiative係咪穩定提高4R hit rate。</li>
+        </ol>
+        <p class="large-rule">V1.4係Candidate，唔因單一case再即時改規則；等2026 H1完成後先決定Freeze邊幾項。</p>
+      </article>
+
+      <article class="card">
+        <h2>Limit／Post-entry／Runner</h2>
         <ul>
           <li>Limit掛出後，落去入場位方式會重新改變Entry-time Q；位置愈深唔代表Trigger愈好。</li>
-          <li>Retest深但仍弱：Hold；深兼強但未Invalid：返Entry／BE附近減半；故事失效：即時Exit。</li>
-          <li>現階段統計優先固定2R全平。Runner只限健康同向、P1／P2、Q3、前方冇重大障礙及最高級Setup。</li>
+          <li>Deep-RF沿用；Retest真正Invalid／control thesis失效仍按原管理退出。</li>
+          <li><strong>Runner Eligibility同Entry Size分開：</strong>Q3只俾Conditional資格；到2R若仍只係Responsive就100%走，Initiative Confirmed先80%@2R＋20%@4R。</li>
+          <li><strong>Initiative Gate：</strong>Break → Acceptance → Hold → Extend，而且冇重新accept返舊range／建立明顯opposing structure。</li>
         </ul>
       </article>
 
@@ -2009,7 +2067,7 @@
       <label>
         Valid Candidate
         <select id="editValidCandidate">
-          <option value="Yes">Yes｜符合V1.3候選定義</option>
+          <option value="Yes">Yes｜符合V1.4 Candidate定義</option>
           <option value="No">No</option>
         </select>
       </label>
@@ -2025,7 +2083,39 @@
             Post-entry Objective Upgrade
             <select id="editPostEntryObjectiveUpgrade">
               <option value="No">No</option>
-              <option value="Yes">Yes</option>
+              <option value="Reaction→Expansion">Reaction→Expansion</option>
+            </select>
+          </label>
+
+          <label>
+            E Source｜V1.4
+            <select id="editESourceV14">
+              <option value="none">None</option>
+              <option value="session">Session</option>
+              <option value="monHL">Mon H-L</option>
+              <option value="pdhPdl">PDH-PDL</option>
+              <option value="htfStructure">HTF Structure</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+
+          <label>
+            Opening Context｜Shadow
+            <select id="editOpeningContextV14">
+              <option value="">未記錄</option>
+              <option value="insideMid">Inside-Mid</option>
+              <option value="insideEdge">Inside-Edge</option>
+              <option value="outsideHold">Outside-Hold</option>
+              <option value="outsideFail">Outside-Fail</option>
+            </select>
+          </label>
+
+          <label>
+            Auction Move｜Post-entry
+            <select id="editAuctionMoveV14">
+              <option value="">未記錄／未到2R</option>
+              <option value="responsive">Responsive</option>
+              <option value="initiative">Initiative</option>
             </select>
           </label>
 

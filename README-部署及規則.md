@@ -1,67 +1,92 @@
-# Master Trade System V1.30.14
-## ZIP Round-trip Editing
+# Master Trade System V1.31.0
+## Master Trade Matrix V1.4 — Candidate｜2026/09
 
-V1.30.14解決：
+V1.4唔推翻V1.3。Direction Permission、Market State、Raw P、E、Native Q、RR／Obstacle同Route Cap骨架保留；V1.4將Location Quality、Execution Quality、Failure Interaction同Right-tail extraction正式拆開。
 
-> 匯出Backup ZIP → 修改trades.csv → 重新壓ZIP → 匯入更新
+## 正式計算順序
 
-## 舊版點解失敗
+Direction Permission → Relationship Route → Route Size Cap → Raw P → P3 Context → E / E Source → Execution P → Native Q → Q2 Interaction → Location / RR / Obstacle → Final Entry Size → Objective → Runner Eligibility → Post-entry Initiative Gate。
 
-舊版ZIP reader只接受App自己產生嘅Store／無壓縮ZIP。
-Windows、macOS、7-Zip等重新壓縮通常會使用Deflate，部分亦會使用data descriptor，所以舊版會報：
-- 只支援由Master Trade App匯出嘅備份ZIP
-- ZIP data descriptor is not supported
-- Invalid ZIP structure
+後面永遠唔可以救返前面嘅0：Direction Permission 0、P4／Range middle、冇Space等都唔會被Q3、E或Runner救返。
 
-另外舊版：
-1. records.json優先於trades.csv，所以CSV修改會被忽略。
-2. 同紀錄ID會當重複紀錄Skip，唔會更新。
+## V1.4 Scenario Matrix
 
-## V1.30.14新行為
+1. 雙健康同向：Cap 1.0。Raw P1/P2 Q3＝1.0；Q2＝0.5；P3 Q3＝0.5；P3 Q2＝0.25。Raw P3→P2-E＋Q3 Candidate max 0.5。
+2. 同向有弱勢：Cap 0.5。P1/P2/P2-E Q3＝0.5；Q2＝0.25；P3 Q3＝0.25；P3 Q2＝0。
+3. Single Transition同方向：同Scenario 2；Objective Reaction-first。
+4. 雙Transition同向：Cap 0.25。P1/P2/P2-E Q3＝0.25；Q2＝0；P3 Q3只限特殊清晰位置。
+5. Directional + Neutral：Cap 0.5。P1/P2/P2-E Q3＝0.5；Q2＝0.25；P3 Q3只限meaningful boundary；Range middle＝0。
+6. Neutral / Range Transition：True Boundary P1 Q3＝0.5、Q2＝0.25；P2/P2-E Q3＝0.25；Q2＝0；P3 Q3只限clear boundary；middle＝0。
+7. Mixed Transition：順Main bias、P1/P2/P2-E＋Q3＝0.5 Candidate；Medium Negative／MID+Structured／control deterioration會阻止upgrade。逆Main通常0。
+8. Direction Conflict：保留V1.3 permission skeleton，P2-E Q3唔當Raw P2 full treatment。
+9. Hard Healthy-vs-Healthy Conflict：Default 0。
+10. Counter Weak Main：只限既有Route A/B＋meaningful P1/P2＋Q3，0.25；Q2/P3＝0；Runner entry時No。
+11. Counter Healthy Main：Default 0；Active HTF P1 reversal probe例外最高0.25，Reaction only，Runner No。
+12. P4 / Middle / Chase：0；Q3/E救唔返。
 
-### ZIP格式
-支援：
-- Store／無壓縮
-- Deflate
-- data descriptor類ZIP
-- ZIP入面多一層頂層folder
-- macOS __MACOSX額外metadata會忽略
+## P3 Context
 
-不支援：
-- 加密／有密碼ZIP
-- 非一般Store／Deflate壓縮格式
+Raw P3身份永久保留：
+- PB：正常參與P2-E待遇及Entry edge研究。
+- MID：唔主動食V1.4 Size Upgrade；MID + Structured會阻止upgrade。
+- EXT：唔會因Q3／P2-E變成真正Raw P2；Entry Size保守，成功後仍可研究Runner tail。
 
-### CSV + JSON round-trip
-當ZIP同時有：
-- records.json
-- trades.csv
+## E / E Source
 
-App會：
-1. 以records.json做完整backup base
-2. 以紀錄ID比較trades.csv
-3. 如果某一行CSV同records.json對應資料有改動：
-   - 將CSV改動套用
-   - 同ID本機紀錄會更新
-4. CSV冇改嘅同ID紀錄仍然Skip
-5. CSV已prune走嘅舊／隱藏欄位仍由records.json保留
-6. 圖片保持跟紀錄ID
+E只可以P3→P2-E，唔可以P2→P1、Q2→Q3、P4→P2，亦唔會創造Direction Permission。
 
-## 建議操作
+E Source正式記：Session / Mon H-L / PDH-PDL / HTF Structure / Other。
+Mon H-L要求fresh first meaningful sweep／reclaim；PDH/PDL屬Conditional E，Raw P3最好再有HTF／working structure／range boundary等confluence。
 
-1. App匯出「CSV＋照片 ZIP」
-2. 解壓
-3. 只修改trades.csv
-4. 唔好改「紀錄ID」
-5. 保存CSV（建議用CSV UTF-8／UTF-8 with BOM）
-6. 將原本內容重新壓成一般.zip
-7. App按「匯入／更新備份ZIP」
+## Q2 Negative Interaction
 
-可以將整個folder壓成ZIP；App會自動處理多一層folder。
+High：R + S + Structured；F + S。
+Medium：S + Structured；F + Close Through。
 
-## 注意
+Candidate處理：Medium只阻止Size Upgrade；High一級降注（1.0→0.5→0.25→0）仍待2026 H1確認先Freeze。單獨S、Structured、Close Through都唔會直接Hard Veto。
 
-如果只係普通舊Backup、CSV完全冇改：
-- 同ID仍然Skip
-- 唔會無條件覆蓋本機資料
+## Objective
 
-只有App偵測到trades.csv相對records.json有實際改動，先會更新同ID紀錄。
+- Expansion：主要雙健康同向＋高質Location＋Q3＋clean ≥2R。
+- Reaction-first：同向弱勢、Single Transition、Directional + Neutral，或者P3-MID / P3-EXT等仍要市場證明嘅位置。
+- Reaction：Neutral / Range、Mixed Transition、Direction Conflict、Counter-main、HTF reversal probe。
+
+Post-entry Objective Upgrade只記 No / Reaction→Expansion；仍要求Break → Acceptance → Hold → Space，唔可以用事後MFE倒推Entry label。
+
+## Runner Overlay
+
+Runner Eligibility只分 No / Conditional。Q2、P4、Counter Healthy Main、Counter Weak Main entry、RR壓縮、control deterioration、MID+Structured預設No。
+
+Conditional主要俾Q3 trade。到2R再過Initiative Gate：
+- Responsive only → 100%@2R。
+- Initiative Confirmed（Break → Acceptance → Hold → Extend，冇反向重新Acceptance）→ 80%@2R + 20%@4R。
+
+Runner 4R成功＝2.4R；Runner BE＝1.6R。Entry Size同Runner資格完全分開。
+
+## Opening Context
+
+Shadow only：Inside-Mid / Inside-Edge / Outside-Hold / Outside-Fail。唔直接加減Size，用嚟研究Market State × P/Q × MFE × Runner hit rate。
+
+## 保留
+
+- Retest Internal Structure：None / One-leg；Structured。
+- Retest vs Reclaim Structure：N/A / Hold / Sweep-Reclaim / Break-Accept。
+- Retest Acceptance：Hold / Close Through。
+- Deep-RF規則維持。
+- Control Alignment保留描述／研究，唔直接double count Size。
+- HSI-C保持獨立，仍要求主次雙同向。
+- XAU-A保留V1.30.13修訂：Raw P3可以直接按P3 Matrix做，P4仍0。
+
+## 仍待2026 H1確認先Freeze
+
+1. Mixed Transition P1/P2/P2-E Q3：0.25→0.5。
+2. Raw P3→P2-E + Q3 Full-size限制：Candidate暫時max 0.5。
+3. High Q2 Negative Interaction正式降注幅度。
+4. Runner 80/20實際Expectancy。
+5. Opening Context / Initiative對4R hit rate嘅穩定性。
+
+## Journal / CSV
+
+V1.31.0 Active CSV＝166欄。新增：E Source V1.4、Q2 Negative Interaction V1.4、Runner Eligibility V1.4、Opening Context V1.4、Auction Move V1.4；移除舊Active export「Aligned Transition Shadow Size」。舊CSV仍可Import。
+
+ZIP Round-trip（V1.30.14）完整保留：匯出ZIP → 改trades.csv → 一般Store/Deflate重新壓ZIP → 匯入後只更新CSV有實際改動嘅同ID紀錄；未改重複紀錄Skip。唔好改紀錄ID。
