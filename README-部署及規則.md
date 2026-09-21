@@ -1,27 +1,44 @@
-# Master Trade System V1.31.1
-## Matrix V1.4 Candidate — Automatic Journal Fields
+# Master Trade System V1.30.18
+## Master Trade Matrix V1.3
 
-今版將三個Journal欄位改為全自動，唔再人手輸入。
+### 新增 Initiative Research 欄位
 
-### Valid Candidate｜Auto
-- V1.4 Final Entry Size > 0 → Yes
-- V1.4 Final Entry Size = 0 → No
+#### Initiative Trigger Level
+自由文字記錄實際要突破／接受嘅level，例如：
+- Asia High
+- 15M Working High
+- PDH
+- Range High
 
-### 去唔去到TP2｜Auto
-- MFE R > 3.9 → Yes
-- 其他，包括3.9或未填MFE → No
+#### Initiative @ 2R
+只分：
+- No
+- Attempt
+- Confirmed
 
-### TP計劃｜Auto
-- Runner Eligibility = Conditional → 80%於2R＋20%於4R Runner
-- 其他 → 2R全平
+兩項都係純紀錄／Shadow欄位：
+- 唔改 Direction Permission
+- 唔改 Raw / Execution P
+- 唔改 Native Q
+- 唔改 Matrix Size / Final Size
+- 唔改 Valid Candidate
+- 唔改 Objective / Management
 
-TP計劃係Entry plan。Post-entry Gate仍跟V1.4：Responsive到2R就100%走；Initiative Confirmed先真正保留20%去4R。
+主介面可以直接填，Record Library可以事後Edit。
 
-### Record Library
-三項都係readonly自動欄。修改MFE會更新TP2；修改P3 Context / Retest Structure / Acceptance / Auction Move會更新Runner-derived TP Plan；Valid Candidate由歷史Final Size自動決定。
+### CSV
 
-### CSV / ZIP
-CSV欄位數不變。匯出使用自動值；舊CSV / ZIP匯入亦會正規化。ZIP round-trip保持不變。
+CSV schema由164欄增加至166欄：
+- `Initiative Trigger Level`
+- `Initiative @ 2R`
 
-### Matrix
-冇改V1.4 Candidate Direction Permission、Scenario Matrix、P3、E、Q2 Interaction、RR或Runner Eligibility規則；今版只自動化三個Journal衍生欄。
+舊CSV冇呢兩欄仍可正常Import，會當成未記錄。
+
+### 既有欄位保留
+
+- Auction Move：Responsive / Initiative
+- Opening Context：Inside-Mid / Inside-Edge / Outside-Hold / Outside-Fail
+- Valid Candidate：Final Size > 0 → Yes；否則No
+- 去唔去到TP2：MFE R > 3.9 → Yes；否則No
+- XAU / FX Mon H/L E+規則保持
+- V1.4未啟用

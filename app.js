@@ -292,7 +292,7 @@ const SETUP_DEFINITIONS = {
     classificationLabel: "HSI-C｜OPR Continuation & Retest",
     variant: "oprContinuation",
     provisional: true,
-    note: "V1.4保持HSI-C獨立Research／Provisional：主判＋次判必須雙同向，而且Trade方向順主／次判；09:15–09:30 OPR完成；09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。OPR Direction Context只分順向順勢／反向順勢。Raw P3仍然P3，暫時冇E。"
+    note: "V1.3 Research／Provisional：主判＋次判必須雙同向，而且Trade方向順主／次判；09:15–09:30 OPR完成；09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。OPR Direction Context只分順向順勢／反向順勢。Raw P3仍然P3，暫時冇E。"
   },
   hsi_breakout_retest: {
     marketGroup: "HSI_LEGACY",
@@ -348,19 +348,19 @@ const SETUP_DEFINITIONS = {
   },
   fx_previous_high_low_sweep: {
     marketGroup: "FX",
-    label: "FX-B｜Sweep PDH／PDL 或 PWH／PWL",
+    label: "FX-B｜Sweep PWH／PWL、Mon H／L 或 PDH／PDL",
     classificationLabel: "FX-B｜Previous H/L Sweep",
     type: "B",
     variant: "sweep",
     previousHLSweepSetup: true,
-    note: "外匯Previous H/L Sweep：揀PDH／PDL或PWH／PWL，再記錄Sweep發生喺Asia定Europe／London。仍然要有效Sweep＋Reclaim＋Retest；呢個Setup本身冇自動E或P升級。"
+    note: "外匯Previous H/L Sweep：揀PWH／PWL、Mon H／L或PDH／PDL，再記錄Sweep發生喺Asia定Europe／London。Mon H／L高質Sweep＝E+，Raw P3可P2-effective；PWH／PWL、PDH／PDL今版維持原待遇。Native Q永久保留。"
   },
   fx_liquidity_sweep: {
     marketGroup: "FX",
     label: "FX-Other｜普通Liquidity Sweep",
     type: "B",
     variant: "sweep",
-    note: "Mon H／L、Europe H／L、局部Swing或其他普通Liquidity；冇自動P／Q升級。"
+    note: "Europe H／L、局部Swing或其他普通Liquidity；冇自動P／Q升級。Mon H／L應改用FX-B Previous H/L Sweep，因Mon H／L有E+資格。"
   },
   fx_breakout_retest: {
     marketGroup: "FX",
@@ -388,13 +388,13 @@ const SETUP_DEFINITIONS = {
   },
   xau_asia_pdh_pdl: {
     marketGroup: "XAU",
-    label: "XAU-B｜Sweep PDH／PDL 或 PWH／PWL",
+    label: "XAU-B｜Sweep PWH／PWL、Mon H／L 或 PDH／PDL",
     type: "B",
     classificationLabel: "XAU-B｜Previous H/L Sweep",
     variant: "sweep",
     xauFormalSetup: "B",
     previousHLSweepSetup: true,
-    note: "XAU-B：揀PDH／PDL或PWH／PWL，再記錄Sweep發生喺Asia定Europe／London。兩者高質Sweep都係E+；Raw P3可獲P2-effective，但Native Q永久保留。"
+    note: "XAU-B：揀PWH／PWL、Mon H／L或PDH／PDL，再記錄Sweep發生喺Asia定Europe／London。三者高質Sweep都係E+；Mon H／L優先級高過PDH／PDL。Raw P3可獲P2-effective，但Native Q永久保留。"
   },
   xau_london_asia_sweep: {
     marketGroup: "XAU",
@@ -756,10 +756,12 @@ function previousHLSweepInfo(
     $(`${prefix}Session`).value;
 
   const sourceLabels = {
-    pdhPdl:
-      "PDH／PDL",
     pwhPwl:
-      "PWH／PWL"
+      "PWH／PWL",
+    monHL:
+      "Mon H／Mon L",
+    pdhPdl:
+      "PDH／PDL"
   };
 
   const sessionLabels = {
@@ -770,7 +772,7 @@ function previousHLSweepInfo(
   };
 
   const eligible =
-    ["pdhPdl", "pwhPwl"]
+    ["pwhPwl", "monHL", "pdhPdl"]
       .includes(source) &&
     ["asia", "europe"]
       .includes(session);
@@ -789,7 +791,7 @@ function previousHLSweepInfo(
     reason:
       eligible
         ? `${sourceLabels[source]}｜${sessionLabels[session]} Sweep已記錄；Native Q仍由Sweep／Reclaim／Retest Price Action決定。`
-        : "請揀PDH／PDL或PWH／PWL，同時揀Asia或Europe／London Sweep。"
+        : "請揀PWH／PWL、Mon H／L或PDH／PDL，同時揀Asia或Europe／London Sweep。"
   };
 }
 
@@ -811,7 +813,7 @@ function syncPreviousHLSweepToXau(
     live ? "liveXau" : "xau";
 
   if (
-    ["pdhPdl", "pwhPwl"]
+    ["pwhPwl", "monHL", "pdhPdl"]
       .includes(info.source)
   ) {
     $(`${prefix}LiquiditySource`)
@@ -829,6 +831,124 @@ function syncPreviousHLSweepToXau(
           : "london";
   }
 }
+
+function fxMonHLEnhancementInfo(
+  baseTrigger,
+  basePosition,
+  live = false,
+  qualityOverride = null
+) {
+  if (
+    marketCode(live) !== "FX" ||
+    !isPreviousHLSweepSetup(live)
+  ) {
+    return {
+      applicable: false,
+      sourceEligible: false,
+      highQuality: false,
+      promotePosition: false,
+      promoteQuality: false,
+      marker: "",
+      reason:
+        "FX Mon H/L Enhancement不適用。"
+    };
+  }
+
+  const info =
+    previousHLSweepInfo(
+      live
+    );
+
+  const sourceEligible =
+    info.eligible &&
+    info.source === "monHL";
+
+  if (!sourceEligible) {
+    return {
+      applicable: true,
+      sourceEligible: false,
+      highQuality: false,
+      promotePosition: false,
+      promoteQuality: false,
+      marker: "",
+      reason:
+        "FX Previous H/L已記錄，但只有Mon H/L享有位置Enhancement；PWH/PWL、PDH/PDL今版維持原本待遇。"
+    };
+  }
+
+  if (live) {
+    /*
+     * Live Quick Decision只有Native Q snapshot，
+     * Q1代表Setup失效；Q2/Q3代表故事仍成立。
+     * E只改Execution P，唔改Native Q。
+     */
+    const liveQuality =
+      qualityOverride ||
+      $("liveTriggerQuality").value;
+
+    const highQuality =
+      liveQuality !== "Q1";
+
+    return {
+      applicable: true,
+      sourceEligible: true,
+      highQuality,
+      promotePosition:
+        basePosition === "P3" &&
+        highQuality,
+      promoteQuality: false,
+      marker: "E+",
+      reason:
+        highQuality
+          ? `FX ${info.sourceLabel} E+：Raw P3可獲P2-effective；Native Q保持${liveQuality}。`
+          : `FX ${info.sourceLabel}：Native Q1代表Setup失效，E+唔可以救。`
+    };
+  }
+
+  const trigger =
+    baseTrigger || {};
+
+  const reclaimValid =
+    trigger.validSweep === true &&
+    trigger.validReclaim === true &&
+    trigger.reclaimQuality !==
+      "negated";
+
+  const controlShift =
+    trigger.microStructureShift ===
+      true;
+
+  const retestNotInvalid =
+    trigger.retestQuality !==
+      "invalid";
+
+  const highQuality =
+    reclaimValid &&
+    controlShift &&
+    retestNotInvalid;
+
+  return {
+    applicable: true,
+    sourceEligible: true,
+    highQuality,
+    promotePosition:
+      basePosition === "P3" &&
+      highQuality,
+    promoteQuality: false,
+    marker: "E+",
+    reason:
+      highQuality
+        ? `FX ${info.sourceLabel} E+高質Sweep成立：Raw P3→P2-effective；Native ${trigger.quality || "Q"}永久保留。`
+        : trigger.retestQuality === "invalid"
+          ? "FX Mon H/L：Retest已Invalid，E+唔可以救Setup。"
+          : trigger.reclaimQuality === "negated"
+            ? "FX Mon H/L：Reclaim失效，E+唔可以救Setup。"
+            : !controlShift
+              ? "FX Mon H/L：未有Control transfer，未達E+資格。"
+              : "FX Mon H/L：未完成有效Sweep＋Reclaim，未達E+資格。"
+  };
+}
+
 
 function xauLiquiditySourceInfo(
   value = "other"
@@ -850,13 +970,13 @@ function xauLiquiditySourceInfo(
       label:
         "PDH／PDL",
       rank:
-        "第二級｜PDH／PDL｜XAU高優先Liquidity"
+        "第三級｜PDH／PDL｜低於Mon H／L"
     },
     monHL: {
       label:
         "Mon H／Mon L",
       rank:
-        "第三級｜Mon H／L｜星期二後更有價值"
+        "第二級｜Mon H／L｜高於PDH／PDL"
     },
     asiaHL: {
       label:
@@ -937,14 +1057,12 @@ function xauLiquidityEdgeInfo(
 
   if (
     source === "pwhPwl" ||
-    source === "pdhPdl" ||
-    source === "htfMajor"
+    source === "monHL" ||
+    source === "pdhPdl"
   ) {
     marker = "E+";
   } else if (
-    source === "asiaHL" ||
-    source === "oprHL" ||
-    source === "monHL"
+    source === "asiaHL"
   ) {
     marker = "E";
   }
@@ -978,192 +1096,63 @@ function xauLiquidityEnhancementInfo(
 ) {
   if (marketCode(live) !== "XAU") {
     return {
-      applicable:false,
-      sourceEligible:false,
-      highQuality:false,
-      promotePosition:false,
-      promoteQuality:false,
-      marker:"",
+      applicable:false, sourceEligible:false, highQuality:false,
+      promotePosition:false, promoteQuality:false, marker:"",
       reason:"XAU Liquidity Enhancement不適用。"
     };
   }
 
-  const edge =
-    xauLiquidityEdgeInfo(
-      live,
-      basePosition
-    );
+  const edge = xauLiquidityEdgeInfo(live, basePosition);
+  const variant = setupVariant(live);
+  const sweepModel = ["sweep","session2B","p1ReversalSweep"].includes(variant);
+  const sourceEligible = ["pwhPwl","monHL","pdhPdl","asiaHL"].includes(edge.source);
 
-  const variant =
-    setupVariant(live);
-
-  const sweepModel =
-    [
-      "sweep",
-      "session2B",
-      "p1ReversalSweep"
-    ].includes(
-      variant
-    );
-
-  const sourceEligible =
-    [
-      "htfMajor",
-      "pwhPwl",
-      "pdhPdl",
-      "monHL",
-      "asiaHL",
-      "oprHL"
-    ].includes(
-      edge.source
-    );
-
-  if (
-    !sweepModel ||
-    !sourceEligible
-  ) {
+  if (!sweepModel || !sourceEligible) {
     return {
-      applicable:true,
-      sourceEligible,
-      highQuality:false,
-      promotePosition:false,
-      promoteQuality:false,
-      marker:edge.marker,
-      reason:
-        !sweepModel
-          ? "V1.4 E位置Enhancement只適用Sweep／Reclaim模型。"
-          : "呢個Liquidity來源只作記錄，冇P3→P2-E權力。"
+      applicable:true, sourceEligible, highQuality:false,
+      promotePosition:false, promoteQuality:false, marker:edge.marker,
+      reason: !sweepModel
+        ? "XAU E／E+位置Enhancement只適用Sweep／Reclaim模型。"
+        : "呢個Liquidity來源可記Edge，但V1.3冇P3→P2-effective權力。"
     };
   }
 
   if (live) {
-    const highQuality =
-      checked(
-        "liveXauEnhancementCoreValid"
-      );
-
+    const highQuality = checked("liveXauEnhancementCoreValid");
     return {
-      applicable:true,
-      sourceEligible:true,
-      highQuality,
-      promotePosition:
-        basePosition === "P3" &&
-        highQuality,
-      promoteQuality:false,
-      marker:edge.marker,
-      reason:
-        highQuality
-          ? `${edge.sourceLabel} ${edge.marker} V1.4 E Source成立：Raw P3可獲P2-E；Native Q保持${qualityOverride || $("liveTriggerQuality").value}。`
-          : `${edge.sourceLabel} ${edge.marker}只係候選E Source；要Sweep＋Reclaim＋Control transfer完整先升Execution P。`
+      applicable:true, sourceEligible:true, highQuality,
+      promotePosition: basePosition === "P3" && highQuality,
+      promoteQuality:false, marker:edge.marker,
+      reason: highQuality
+        ? `${edge.sourceLabel} ${edge.marker}高質Sweep：Raw P3可獲P2-effective；Native Q保持${qualityOverride || $("liveTriggerQuality").value}。`
+        : `${edge.sourceLabel} ${edge.marker}只係候選Edge；要Sweep＋Reclaim有效、Control transfer成立、Retest未被否定同空間合格先有位置Enhancement。`
     };
   }
 
-  const trigger =
-    baseTrigger || {};
+  const trigger = baseTrigger || {};
+  const reclaimValid = trigger.validSweep === true && trigger.validReclaim === true && trigger.reclaimQuality !== "negated";
+  const controlShift = trigger.microStructureShift === true;
+  const retestNotInvalid = trigger.retestQuality !== "invalid";
 
-  const reclaimValid =
-    trigger.validSweep === true &&
-    trigger.validReclaim === true &&
-    trigger.reclaimQuality !==
-      "negated";
+  // V1.28.3：Q2-F／D／S只係Native Q研究Tag，唔取消有效Liquidity Location Enhancement。
+  // RR亦由Obstacle層處理；E/E+只唔會救真正Invalid Retest／失效Sweep-Reclaim／冇Control transfer。
+  const highQuality = reclaimValid && controlShift && retestNotInvalid;
 
-  const controlShift =
-    trigger.microStructureShift ===
-      true;
-
-  const retestNotInvalid =
-    trigger.retestQuality !==
-      "invalid";
-
-  const firstRetest =
-    trigger.firstRetest ===
-      true;
-
-  const p3Context =
-    basePosition === "P3"
-      ? $("p3Context").value
-      : "";
-
-  const structuralConfluence =
-    $("backgroundDirectOverlap")
-      .value === "yes" ||
-    p3Context === "PB" ||
-    setupTemplateCode(false) ===
-      "xau_htf_location_sweep";
-
-  /*
-   * PDH/PDL V1.4只係Conditional E：
-   * Raw P3需要額外Location/Structure confluence。
-   */
-  const pdhConditionalOk =
-    edge.source !== "pdhPdl" ||
-    basePosition !== "P3" ||
-    structuralConfluence;
-
-  /*
-   * Mon H/L、Session extreme強調first meaningful test。
-   * 以現有First Retest欄做最接近嘅客觀gate。
-   */
-  const freshnessOk =
-    ![
-      "monHL",
-      "asiaHL",
-      "oprHL"
-    ].includes(edge.source) ||
-    firstRetest;
-
-  const highQuality =
-    reclaimValid &&
-    controlShift &&
-    retestNotInvalid &&
-    pdhConditionalOk &&
-    freshnessOk;
-
-  let reason =
-    `${edge.sourceLabel} ${edge.marker || ""}未取得V1.4位置Enhancement。`;
-
+  let reason = `${edge.sourceLabel} ${edge.marker}未取得位置Enhancement。`;
   if (highQuality) {
-    reason =
-      `${edge.sourceLabel} ${edge.marker} E Source成立：Raw P3可獲P2-E；Raw P身份永久保留，Native ${trigger.quality || "Q"}唔會因E升級。`;
-  } else if (
-    !pdhConditionalOk
-  ) {
-    reason =
-      "PDH／PDL只係Conditional E：Raw P3仲需要HTF structure、working structure／PB、range boundary或同級confluence。";
-  } else if (
-    !freshnessOk
-  ) {
-    reason =
-      "Session／Mon H-L E要求first meaningful retest／fresh level；目前未確認第一次Retest。";
-  } else if (
-    trigger.retestQuality ===
-      "invalid"
-  ) {
-    reason =
-      "Retest已Invalid：E唔可以救Setup。";
-  } else if (
-    trigger.reclaimQuality ===
-      "negated"
-  ) {
-    reason =
-      "Reclaim失效：E完全救唔到。";
-  } else if (
-    !controlShift
-  ) {
-    reason =
-      "未有control transfer／micro structure確認：未達E資格。";
+    reason = `${edge.sourceLabel} ${edge.marker}高質Sweep成立：可令Raw P3獲P2-effective；Native ${trigger.quality || "Q"}永久保留，E唔會Q2→Q3。`;
+  } else if (trigger.retestQuality === "invalid") {
+    reason = "Retest已真正Invalid：E／E+唔可以救Setup。Q2-F／D／S本身只係研究Tag，唔會取消Location Enhancement。";
+  } else if (trigger.reclaimQuality === "negated") {
+    reason = "Reclaim失效：E／E+完全救唔到。";
+  } else if (!controlShift) {
+    reason = "未有控制權轉移／微結構確認：未達高質Sweep。";
   }
 
   return {
-    applicable:true,
-    sourceEligible:true,
-    highQuality,
-    promotePosition:
-      basePosition === "P3" &&
-      highQuality,
-    promoteQuality:false,
-    marker:edge.marker,
-    reason
+    applicable:true, sourceEligible:true, highQuality,
+    promotePosition: basePosition === "P3" && highQuality,
+    promoteQuality:false, marker:edge.marker, reason
   };
 }
 
@@ -1425,7 +1414,7 @@ function updateXauLiquidityUI(
 
   $(`${controlPrefix}LiquidityNote`)
     .textContent =
-      `${eligibility.reason} 原生P仍照Raw P記錄；V1.3只有PWH／PWL、PDH／PDL E+或Asia H/L E高質Sweep可P3→P2-effective；Native Q永久保留，永遠唔創造方向權限。`;
+      `${eligibility.reason} 原生P仍照Raw P記錄；V1.3只有PWH／PWL、Mon H/L、PDH／PDL E+，或者Asia H/L E高質Sweep可P3→P2-effective；Mon H/L優先級高過PDH/PDL；Native Q永久保留，永遠唔創造方向權限。`;
 }
 
 function populateSetupTemplateSelect(
@@ -2083,8 +2072,8 @@ function combinedDeploymentInfo() {
   const map = {
     healthyAligned: {priority:"雙健康同向：P1／P2＋Native Q3最高1注。",secondary:"P3低一級；反向正常0。"},
     weakAligned: {priority:"同向含弱勢：P1／P2＋Q3最高0.5。",secondary:"Q2按Matrix降級；避免延伸段追價。"},
-    alignedTransition: {priority:"雙Transition同向：V1.4 Route Cap 0.25；Q3先有Entry資格。",secondary:"P1／P2／P2-E Q3＝0.25；Q2＝0；Runner到2R仍要Initiative Gate。"},
-    mixedTransition: {priority:"Mixed Transition：順Main bias、P1/P2/P2-E＋Q3 0.5 Candidate。",secondary:"2026 H1確認先Freeze；Medium Negative／MID+Structured／control deterioration會阻止Upgrade。"},
+    alignedTransition: {priority:"Aligned Transition：Early Trend Initiation；P1 Q3 0.5、P2 Q3正式0.25。",secondary:"P2 Q3→0.5只做Shadow Test，唔影響正式Size。"},
+    mixedTransition: {priority:"Mixed Transition：Conflict環境，只做邊界。",secondary:"P1 Q3 0.5、P2 Q3 0.25；Q2大幅收緊，Objective預設Reaction。"},
     neutralTransition: {priority:"Neutral／Range Transition：只做Range邊界。",secondary:"Long底25%、Short頂25%；中間P4＝0。"},
     alignedReverse: {priority:"反共同方向正常0。",secondary:"只有窄義HTF P1＋原生至少P2＋Native Q3＋等價右側確認＋新鮮反應先0.25 Probe。"},
     conflictMain: {priority:"方向衝突順主判：P1／P2＋Q3最高0.5。",secondary:"Control若Opposing要特別記錄；Q2通常0.25／0。"},
@@ -2094,7 +2083,7 @@ function combinedDeploymentInfo() {
     neutralMainConfirmed: {priority:"主判中性Transition＋次判Confirmed：常規跟次判，最高0.5。",secondary:"Trade Objective固定Reaction；唔歸neutralTransition。"},
     neutralMainReverse: {priority:"主判中性但逆次判Confirmed：正常0。",secondary:"只限HTF P1／Range Boundary＋Native Q3＝0.25 Reaction Probe。"},
     transitionVsConfirmedConflict: {priority:"主判Directional Transition × 次判Confirmed反向：P1 Q3 0.5、P2 Q3 0.25。",secondary:"兩個交易方向Size相同；Control Alignment分Confirmed／Opposing研究。"},
-    transitionConfirmed: {priority:"Single Transition同方向：最高0.5。",secondary:"Objective＝Reaction-first；Q3只提供Conditional Runner資格，到2R再判Initiative。"},
+    transitionConfirmed: {priority:"包含單層Directional Transition但同Confirmed方向一致：最高0.5。",secondary:"Native Q3可Expansion；P2-E＋Q2全局最多0.25。"},
     transitionReverse: {priority:"主判Transition反向部署：只作窄義Reaction Probe。",secondary:"真正P1 Q3或既有方向合格P1 Tailwind例外；最高0.25。"}
   };
   return map[route.code] || {priority:"方向權限未成立：不部署。",secondary:"等待Market State及方向關係清晰。"};
@@ -3131,7 +3120,15 @@ function evaluateAsia2B(baseTrigger) {
       false
     );
 
+  const fxMonEnhancement =
+    fxMonHLEnhancementInfo(
+      baseTrigger,
+      basePosition,
+      false
+    );
+
   let xauPositionPromoted = false;
+  let fxMonPositionPromoted = false;
   const xauTriggerPromoted = false;
 
   if (
@@ -3140,7 +3137,7 @@ function evaluateAsia2B(baseTrigger) {
     xauEnhancement.sourceEligible
   ) {
     warnings.push(
-      `V1.4 Native Q維持${baseTrigger.quality}：E／E+唔會將Q2改名Q3。`
+      `V1.3 Native Q維持${baseTrigger.quality}：E／E+唔再將Q2改名Q3。`
     );
   }
 
@@ -3161,13 +3158,38 @@ function evaluateAsia2B(baseTrigger) {
   }
 
   if (
+    marketCode(false) === "FX" &&
+    fxMonEnhancement.promotePosition &&
+    basePosition === "P3"
+  ) {
+    effectivePosition = "P2";
+    positionPromoted = true;
+    fxMonPositionPromoted = true;
+    positionTreatment =
+      "p2Effective";
+
+    reasons.push(
+      `${previousHLInfo.sourceLabel} ${fxMonEnhancement.marker}高質Sweep：Raw P3保留P3，但Execution P按P2-effective。`
+    );
+  }
+
+  if (
+    marketCode(false) === "FX" &&
+    fxMonEnhancement.sourceEligible
+  ) {
+    reasons.push(
+      `${fxMonEnhancement.reason} Mon H/L位置優先級高過PDH/PDL；E+只改善Execution P，唔改Native Q。`
+    );
+  }
+
+  if (
     marketCode(false) === "XAU" &&
     isXauFormalSetupCode(
       setupTemplateCode(false)
     )
   ) {
     reasons.push(
-      `XAU Liquidity：${xauEdge.rank}｜${xauEdge.positionLabel}。Raw P仍記${basePosition}；PWH／PWL、PDH／PDL E+或Asia H/L E只可有限度P3→P2-effective，Native Q永久保留。`
+      `XAU Liquidity：${xauEdge.rank}｜${xauEdge.positionLabel}。Raw P仍記${basePosition}；PWH／PWL、Mon H/L、PDH／PDL E+，或者Asia H/L E只可有限度P3→P2-effective，Native Q永久保留。`
     );
     reasons.push(
       xauEligibility.reason
@@ -3264,6 +3286,13 @@ function evaluateAsia2B(baseTrigger) {
     xauTriggerPromoted,
     xauEnhancementReason:
       xauEnhancement.reason,
+    fxMonHLEnhancementMarker:
+      fxMonEnhancement.marker,
+    fxMonHLHighQuality:
+      fxMonEnhancement.highQuality,
+    fxMonPositionPromoted,
+    fxMonHLEnhancementReason:
+      fxMonEnhancement.reason,
     previousHLSweepSource:
       previousHLInfo.source || "",
     previousHLSweepSourceLabel:
@@ -4725,18 +4754,15 @@ function insideObstacleCap(position, quality) {
 }
 
 function applyRangePosition(size) {
-  const neutralLayerPresent =
-    $("mainState").value ===
-      "轉換中－中性" ||
-    $("secondaryState").value ===
-      "轉換中－中性";
-
-  if (!neutralLayerPresent) {
+  if (
+    $("secondaryState").value !==
+    "轉換中－中性"
+  ) {
     return {
       state: "notApplicable",
       adjustedSize: size,
       explanation:
-        "主判／次判都唔係Transition Neutral；Range位置修正不適用。"
+        "次判唔係轉換中性，Range 25%修正不適用。"
     };
   }
 
@@ -4751,7 +4777,7 @@ function applyRangePosition(size) {
       state,
       adjustedSize: size,
       explanation:
-        "至少一層係Transition Neutral：Entry位於有效邊界／相應25%，維持原注碼。"
+        "次判轉換中性：Entry位於相應25%（Long底25%／Short頂25%），維持原注碼。"
     };
   }
 
@@ -4762,7 +4788,7 @@ function applyRangePosition(size) {
       state,
       adjustedSize: 0,
       explanation:
-        "Neutral／Range：Entry位於真正Range middle／冇Location Edge，直接0注。"
+        "次判轉換中性：Entry位於真正Range正中／冇邊界Edge，直接0注。"
     };
   }
 
@@ -4773,7 +4799,7 @@ function applyRangePosition(size) {
     state,
     adjustedSize: adjusted,
     explanation:
-      `Neutral／Range：Entry唔喺有效邊界，注碼降一級：${SIZE_LABELS[size]} → ${SIZE_LABELS[adjusted]}。`
+      `次判轉換中性：Entry唔喺相應頂／底25%，注碼降一級：${SIZE_LABELS[size]} → ${SIZE_LABELS[adjusted]}。`
   };
 }
 
@@ -4926,7 +4952,7 @@ function applyObstacle(
   if (state === "veto") {
     return result(
       0,
-      `第一真實障礙只有${firstObstacleR.toFixed(2)}R，低於V1.4仍沿用嘅最低可接受約1.5R。`,
+      `第一真實障礙只有${firstObstacleR.toFixed(2)}R，低於V1.3最低可接受約1.5R。`,
       "Hard Veto：RR不足，不開新倉。",
       {
         eligible: false,
@@ -4952,7 +4978,7 @@ function applyObstacle(
 
     return result(
       adjusted,
-      `有重大HTF／Hard obstacle阻住：Size由${SIZE_LABELS[matrixSize]}降一級至${SIZE_LABELS[adjusted]}。`,
+      `有重大HTF／Hard obstacle阻住：V1.3 Size由${SIZE_LABELS[matrixSize]}降一級至${SIZE_LABELS[adjusted]}。`,
       management
     );
   }
@@ -5054,6 +5080,17 @@ function enhancementEdgeInfo(
       label: setupResult.xauEdgeMarker
         ? `${setupResult.xauEdgeMarker}｜${setupResult.xauLiquiditySourceLabel}`
         : "None"
+    };
+  }
+
+  if (
+    marketCode(false) === "FX" &&
+    setupResult.fxMonPositionPromoted
+  ) {
+    return {
+      marker: "E+",
+      label:
+        `E+｜${setupResult.previousHLSweepSourceLabel || "Mon H／Mon L"}`
     };
   }
 
@@ -5595,6 +5632,125 @@ function normalizeRetestInternalStructure(
 }
 
 
+function openingContextLabel(
+  code
+) {
+  const labels = {
+    insideMid:
+      "Inside-Mid",
+    insideEdge:
+      "Inside-Edge",
+    outsideHold:
+      "Outside-Hold",
+    outsideFail:
+      "Outside-Fail"
+  };
+
+  return labels[code] || "";
+}
+
+function normalizeOpeningContext(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
+
+  const map = {
+    insidemid: "insideMid",
+    insideedge: "insideEdge",
+    outsidehold: "outsideHold",
+    outsidefail: "outsideFail"
+  };
+
+  return map[raw] || "";
+}
+
+function auctionMoveLabel(
+  code
+) {
+  if (code === "responsive") {
+    return "Responsive";
+  }
+
+  if (code === "initiative") {
+    return "Initiative";
+  }
+
+  return "";
+}
+
+function normalizeAuctionMove(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  if (raw === "responsive") {
+    return "responsive";
+  }
+
+  if (raw === "initiative") {
+    return "initiative";
+  }
+
+  return "";
+}
+
+
+function initiativeTriggerLevelValue(
+  value
+) {
+  return String(value || "")
+    .trim();
+}
+
+function initiativeAt2RLabel(
+  code
+) {
+  if (code === "No") {
+    return "No";
+  }
+
+  if (code === "Attempt") {
+    return "Attempt";
+  }
+
+  if (code === "Confirmed") {
+    return "Confirmed";
+  }
+
+  return "";
+}
+
+function normalizeInitiativeAt2R(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  if (raw === "no") {
+    return "No";
+  }
+
+  if (raw === "attempt") {
+    return "Attempt";
+  }
+
+  if (raw === "confirmed") {
+    return "Confirmed";
+  }
+
+  return "";
+}
+
+
 function retestAcceptanceLabel(
   code
 ) {
@@ -5914,13 +6070,11 @@ function syncObjectiveUpgradeUI(
   }
 }
 
-const AUTO_TP_PLAN_STANDARD = "2R全平";
-const AUTO_TP_PLAN_RUNNER = "80%於2R＋20%於4R Runner";
-
-function autoValidCandidateFromSize(
-  size
+function autoValidCandidateValue(
+  finalSize
 ) {
-  const numeric = Number(size);
+  const numeric =
+    Number(finalSize);
 
   return (
     Number.isFinite(numeric) &&
@@ -5930,10 +6084,11 @@ function autoValidCandidateFromSize(
     : "No";
 }
 
-function autoReachedTP2FromMfe(
+function autoReachedTP2Value(
   mfeR
 ) {
-  const numeric = Number(mfeR);
+  const numeric =
+    Number(mfeR);
 
   return (
     Number.isFinite(numeric) &&
@@ -5943,18 +6098,10 @@ function autoReachedTP2FromMfe(
     : "No";
 }
 
-function autoTpPlanFromRunnerEligibility(
-  runnerEligibility
-) {
-  return runnerEligibility === "Conditional"
-    ? AUTO_TP_PLAN_RUNNER
-    : AUTO_TP_PLAN_STANDARD;
-}
-
 function recordAutoValidCandidate(
   record
 ) {
-  return autoValidCandidateFromSize(
+  return autoValidCandidateValue(
     record?.finalSize
   );
 }
@@ -5962,113 +6109,48 @@ function recordAutoValidCandidate(
 function recordAutoReachedTP2(
   record
 ) {
-  return autoReachedTP2FromMfe(
+  return autoReachedTP2Value(
     record?.mfeR
   );
 }
 
-function recordAutoTpPlan(
-  record
-) {
-  const derivedRunner =
-    recordRunnerEligibilityInfo({
-      ...record,
-      runnerEligibility: "",
-      runnerTier: "",
-      runnerEligibilityReason: ""
-    });
-
-  return autoTpPlanFromRunnerEligibility(
-    derivedRunner.code
-  );
-}
-
-function syncAutomaticJournalFields() {
-  if (!currentDecision) {
-    $("validCandidate").value = "No";
-    $("tpPlan").value = AUTO_TP_PLAN_STANDARD;
-    $("reachedTP2").value =
-      autoReachedTP2FromMfe(
-        optionalNumberFromInput("mfeR")
+function syncAutoJournalFields() {
+  if (currentDecision) {
+    $("validCandidate").value =
+      autoValidCandidateValue(
+        currentDecision.finalSize
       );
-    return;
+  } else {
+    $("validCandidate").value =
+      "No";
   }
 
-  $("validCandidate").value =
-    autoValidCandidateFromSize(
-      currentDecision.finalSize
-    );
-
-  $("tpPlan").value =
-    autoTpPlanFromRunnerEligibility(
-      currentDecision.runnerEligibility
-    );
-
   $("reachedTP2").value =
-    autoReachedTP2FromMfe(
-      optionalNumberFromInput("mfeR")
+    autoReachedTP2Value(
+      optionalNumberFromInput(
+        "mfeR"
+      )
     );
 }
 
-function syncEditAutomaticJournalFields(
-  sourceRecord = null
+function syncEditAutoJournalFields(
+  record = null
 ) {
-  const record =
-    sourceRecord ||
-    loadRecords().find(
-      (item) =>
-        item.id === activeRecordId
-    );
-
-  if (!record) return;
-
-  const preview = {
-    ...record,
-    mfeR:
-      optionalNumberFromInput("editMfeR"),
-    p3Context:
-      recordRawP(record) === "P3"
-        ? $("editP3Context").value
-        : record.p3Context,
-    retestInternalStructure:
-      normalizeRetestInternalStructure(
-        $("editRetestInternalStructure").value
-      ),
-    retestVsReclaimStructure:
-      normalizeRetestVsReclaimStructure(
-        $("editRetestVsReclaimStructure").value
-      ) || "na",
-    retestAcceptance:
-      normalizeRetestAcceptance(
-        $("editRetestAcceptance").value
-      ),
-    auctionMoveV14:
-      normalizeAuctionMoveV14(
-        $("editAuctionMoveV14").value
-      ),
-    runnerEligibility: "",
-    runnerTier: "",
-    runnerEligibilityReason: ""
-  };
-
-  const runner =
-    recordRunnerEligibilityInfo(preview);
-
-  $("editValidCandidate").value =
-    autoValidCandidateFromSize(
-      record.finalSize
-    );
+  if (record) {
+    $("editValidCandidate").value =
+      recordAutoValidCandidate(
+        record
+      );
+  }
 
   $("editReachedTP2").value =
-    autoReachedTP2FromMfe(
-      preview.mfeR
-    );
-
-  $("editTpPlan").value =
-    autoTpPlanFromRunnerEligibility(
-      runner.code
+    autoReachedTP2Value(
+      optionalNumberFromInput(
+        "editMfeR"
+      )
     );
 }
+
 
 function updateShadowResearchPreview() {
   const decision =
@@ -6131,39 +6213,6 @@ function updateShadowResearchPreview() {
     .textContent =
       objectiveAtEntry;
 
-  $("shadowESourceV14")
-    .textContent =
-      decision.eSourceV14Label ||
-      "None";
-
-  $("shadowQ2NegativeInteraction")
-    .textContent =
-      decision.nativeQ === "Q2"
-        ? (
-            decision.q2NegativeInteractionLabel ||
-            "None"
-          )
-        : "N/A";
-
-  $("shadowRunnerEligibility")
-    .textContent =
-      `${decision.runnerEligibility || "No"}${
-        decision.runnerTier &&
-        decision.runnerTier !== "N/A"
-          ? `｜${decision.runnerTier}`
-          : ""
-      }`;
-
-  const runnerGate =
-    v14RunnerGateInfo(
-      decision.runnerEligibility,
-      $("auctionMoveV14").value
-    );
-
-  $("shadowRunnerGate")
-    .textContent =
-      runnerGate.label;
-
   $("shadowNormalizedR")
     .textContent =
       formatResearchR(
@@ -6175,1861 +6224,67 @@ function updateShadowResearchPreview() {
     objectiveAtEntry
   );
 
-  syncAutomaticJournalFields();
   syncDeepRFShadowUI(false);
-}
-
-
-const V14_E_SOURCE_LABELS = {
-  none: "None",
-  session: "Session",
-  monHL: "Mon H-L",
-  pdhPdl: "PDH-PDL",
-  htfStructure: "HTF Structure",
-  other: "Other"
-};
-
-const V14_OPENING_CONTEXT_LABELS = {
-  "": "未記錄",
-  insideMid: "Inside-Mid",
-  insideEdge: "Inside-Edge",
-  outsideHold: "Outside-Hold",
-  outsideFail: "Outside-Fail"
-};
-
-const V14_AUCTION_MOVE_LABELS = {
-  "": "未記錄",
-  responsive: "Responsive",
-  initiative: "Initiative"
-};
-
-function v14ESourceLabel(
-  code
-) {
-  return V14_E_SOURCE_LABELS[
-    code
-  ] || "None";
-}
-
-function normalizeV14ESource(
-  value
-) {
-  const raw =
-    String(value || "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, " ");
-
-  const aliases = {
-    none: "none",
-    session: "session",
-    "mon h-l": "monHL",
-    "mon h/l": "monHL",
-    monhl: "monHL",
-    "pdh-pdl": "pdhPdl",
-    "pdh/pdl": "pdhPdl",
-    pdhpdl: "pdhPdl",
-    "htf structure": "htfStructure",
-    htfstructure: "htfStructure",
-    other: "other"
-  };
-
-  return aliases[raw] || "";
-}
-
-function openingContextV14Label(
-  code
-) {
-  return V14_OPENING_CONTEXT_LABELS[
-    code
-  ] || "未記錄";
-}
-
-function normalizeOpeningContextV14(
-  value
-) {
-  const raw =
-    String(value || "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, " ");
-
-  const aliases = {
-    "inside-mid": "insideMid",
-    insidemid: "insideMid",
-    "inside-edge": "insideEdge",
-    insideedge: "insideEdge",
-    "outside-hold": "outsideHold",
-    outsidehold: "outsideHold",
-    "outside-fail": "outsideFail",
-    outsidefail: "outsideFail"
-  };
-
-  return aliases[raw] || "";
-}
-
-function auctionMoveV14Label(
-  code
-) {
-  return V14_AUCTION_MOVE_LABELS[
-    code
-  ] || "未記錄";
-}
-
-function normalizeAuctionMoveV14(
-  value
-) {
-  const raw =
-    String(value || "")
-      .trim()
-      .toLowerCase();
-
-  if (raw === "responsive") {
-    return "responsive";
-  }
-
-  if (raw === "initiative") {
-    return "initiative";
-  }
-
-  return "";
-}
-
-function q2SubtypeCodesFromRecord(
-  record
-) {
-  if (
-    Array.isArray(
-      record?.q2SubtypeCodes
-    )
-  ) {
-    return [
-      ...new Set(
-        record.q2SubtypeCodes
-          .map(
-            (code) =>
-              String(code || "")
-                .trim()
-                .toUpperCase()
-          )
-          .filter(Boolean)
-      )
-    ];
-  }
-
-  const label =
-    String(
-      record?.q2Subtype || ""
-    )
-      .trim()
-      .toUpperCase();
-
-  if (!label.startsWith("Q2-")) {
-    return [];
-  }
-
-  return label
-    .slice(3)
-    .split("+")
-    .map(
-      (code) =>
-        code.trim()
-    )
-    .filter(
-      (code) =>
-        ["R","F","D","S","RR"]
-          .includes(code)
-    );
-}
-
-function q2NegativeInteractionInfoFromValues({
-  nativeQ = "",
-  codes = [],
-  retestInternalStructure = "",
-  retestAcceptance = ""
-} = {}) {
-  if (nativeQ !== "Q2") {
-    return {
-      level: "none",
-      code: "None",
-      label: "None",
-      reasons: [],
-      blocksUpgrade: false,
-      downgradeOneLevel: false
-    };
-  }
-
-  const codeSet =
-    new Set(
-      (codes || [])
-        .map(
-          (code) =>
-            String(code || "")
-              .trim()
-              .toUpperCase()
-        )
-    );
-
-  const structured =
-    normalizeRetestInternalStructure(
-      retestInternalStructure
-    ) === "structured";
-
-  const closeThrough =
-    normalizeRetestAcceptance(
-      retestAcceptance
-    ) === "closeThrough";
-
-  const highReasons = [];
-  const mediumReasons = [];
-
-  if (
-    codeSet.has("R") &&
-    codeSet.has("S") &&
-    structured
-  ) {
-    highReasons.push(
-      "R + S + Structured"
-    );
-  }
-
-  if (
-    codeSet.has("F") &&
-    codeSet.has("S")
-  ) {
-    highReasons.push(
-      "F + S"
-    );
-  }
-
-  if (
-    codeSet.has("S") &&
-    structured
-  ) {
-    mediumReasons.push(
-      "S + Structured"
-    );
-  }
-
-  if (
-    codeSet.has("F") &&
-    closeThrough
-  ) {
-    mediumReasons.push(
-      "F + Close Through"
-    );
-  }
-
-  if (highReasons.length) {
-    return {
-      level: "high",
-      code: "High",
-      label:
-        `High｜${[
-          ...new Set(
-            highReasons
-          )
-        ].join("｜")}`,
-      reasons:
-        [...new Set(highReasons)],
-      blocksUpgrade: true,
-      downgradeOneLevel: true
-    };
-  }
-
-  if (mediumReasons.length) {
-    return {
-      level: "medium",
-      code: "Medium",
-      label:
-        `Medium｜${[
-          ...new Set(
-            mediumReasons
-          )
-        ].join("｜")}`,
-      reasons:
-        [...new Set(mediumReasons)],
-      blocksUpgrade: true,
-      downgradeOneLevel: false
-    };
-  }
-
-  return {
-    level: "none",
-    code: "None",
-    label: "None",
-    reasons: [],
-    blocksUpgrade: false,
-    downgradeOneLevel: false
-  };
-}
-
-function currentQ2NegativeInteractionInfo(
-  trigger = currentBaseTrigger
-) {
-  const subtype =
-    q2SubtypeInfo(trigger);
-
-  return q2NegativeInteractionInfoFromValues({
-    nativeQ:
-      trigger?.quality || "",
-    codes:
-      subtype.codes,
-    retestInternalStructure:
-      $("retestInternalStructure").value,
-    retestAcceptance:
-      $("retestAcceptance").value
-  });
-}
-
-function recordQ2NegativeInteractionInfo(
-  record
-) {
-  return q2NegativeInteractionInfoFromValues({
-    nativeQ:
-      record?.nativeQ || "",
-    codes:
-      q2SubtypeCodesFromRecord(
-        record
-      ),
-    retestInternalStructure:
-      record?.retestInternalStructure || "",
-    retestAcceptance:
-      record?.retestAcceptance || ""
-  });
-}
-
-function recordV14ESource(
-  record
-) {
-  const direct =
-    normalizeV14ESource(
-      record?.eSourceV14 ||
-      record?.eSourceV14Label
-    );
-
-  if (direct) {
-    return direct;
-  }
-
-  const source =
-    record?.xauLiquiditySource ||
-    "";
-
-  const map = {
-    asiaHL: "session",
-    oprHL: "session",
-    monHL: "monHL",
-    pdhPdl: "pdhPdl",
-    pwhPwl: "htfStructure",
-    htfMajor: "htfStructure"
-  };
-
-  if (map[source]) {
-    return map[source];
-  }
-
-  if (
-    record?.positionTreatment ===
-      "p2Effective"
-  ) {
-    return "session";
-  }
-
-  return "none";
-}
-
-function recordRunnerEligibilityInfo(
-  record
-) {
-  if (
-    record?.runnerEligibility ===
-      "Conditional" ||
-    record?.runnerEligibility ===
-      "No"
-  ) {
-    return {
-      code:
-        record.runnerEligibility,
-      tier:
-        record.runnerTier ||
-        "N/A",
-      reason:
-        record.runnerEligibilityReason ||
-        ""
-    };
-  }
-
-  if (
-    !Number.isFinite(
-      Number(
-        record?.finalSize
-      )
-    ) ||
-    Number(
-      record?.finalSize
-    ) <= 0 ||
-    record?.nativeQ !== "Q3" ||
-    recordRawP(record) === "P4"
-  ) {
-    return {
-      code: "No",
-      tier: "N/A",
-      reason:
-        "Legacy／Derived：冇Runner資格。"
-    };
-  }
-
-  if (
-    record?.v14ScenarioCode ===
-      "S11"
-  ) {
-    return {
-      code: "No",
-      tier: "N/A",
-      reason:
-        "Counter Healthy Main。"
-    };
-  }
-
-  const recordObstacleHasValue =
-    record?.firstObstacleR !== null &&
-    record?.firstObstacleR !== undefined &&
-    record?.firstObstacleR !== "";
-
-  if (
-    recordObstacleHasValue &&
-    Number.isFinite(
-      Number(
-        record.firstObstacleR
-      )
-    ) &&
-    Number(
-      record.firstObstacleR
-    ) < 2
-  ) {
-    return {
-      code: "No",
-      tier: "N/A",
-      reason:
-        "第一障礙低過2R。"
-    };
-  }
-
-  if (
-    recordRetestVsReclaimStructure(
-      record
-    ) === "breakAccept" ||
-    normalizeRetestAcceptance(
-      record?.retestAcceptance
-    ) === "closeThrough"
-  ) {
-    return {
-      code: "No",
-      tier: "N/A",
-      reason:
-        "Control deterioration／Acceptance loss。"
-    };
-  }
-
-  const p3Context =
-    recordP3Context(
-      record
-    );
-
-  const structured =
-    normalizeRetestInternalStructure(
-      record?.retestInternalStructure
-    ) === "structured";
-
-  if (
-    p3Context === "MID" &&
-    structured
-  ) {
-    return {
-      code: "No",
-      tier: "N/A",
-      reason:
-        "P3-MID + Structured。"
-    };
-  }
-
-  const tier =
-    [
-      "S6",
-      "S7"
-    ].includes(
-      record?.v14ScenarioCode
-    ) ||
-    p3Context === "PB" ||
-    (
-      recordRawP(record) ===
-        "P3" &&
-      (
-        record?.executionP ||
-        record?.position
-      ) === "P2"
-    )
-      ? "Tier A"
-      : "Secondary";
-
-  return {
-    code: "Conditional",
-    tier,
-    reason:
-      "Derived：Native Q3，去到2R仍要Initiative Gate。"
-  };
-}
-
-function v14ScenarioInfo(
-  routeCode = "",
-  setupResult = null
-) {
-  const mainState =
-    $("mainState").value;
-  const secondaryState =
-    $("secondaryState").value;
-
-  const mainBias =
-    stateBias(mainState);
-  const secondaryBias =
-    stateBias(
-      secondaryState
-    );
-
-  const mainTransition =
-    isTransition(mainState);
-  const secondaryTransition =
-    isTransition(
-      secondaryState
-    );
-
-  const mainNeutral =
-    mainTransition &&
-    mainBias === null;
-
-  const secondaryNeutral =
-    secondaryTransition &&
-    secondaryBias === null;
-
-  const currentBias =
-    tradeBias();
-
-  const result = (
-    code,
-    label,
-    cap
-  ) => ({
-    code,
-    label,
-    cap
-  });
-
-  if (
-    setupResult?.basePosition ===
-      "P4"
-  ) {
-    return result(
-      "S12",
-      "Scenario 12｜P4 / Middle / Chase",
-      0
-    );
-  }
-
-  if (
-    routeCode ===
-      "healthyAligned"
-  ) {
-    return result(
-      "S1",
-      "Scenario 1｜雙健康同向",
-      1
-    );
-  }
-
-  if (
-    routeCode ===
-      "weakAligned"
-  ) {
-    return result(
-      mainTransition ||
-      secondaryTransition
-        ? "S3"
-        : "S2",
-      mainTransition ||
-      secondaryTransition
-        ? "Scenario 3｜Single Transition，同方向"
-        : "Scenario 2｜同向有弱勢",
-      0.5
-    );
-  }
-
-  if (
-    routeCode ===
-      "transitionConfirmed"
-  ) {
-    return result(
-      "S3",
-      "Scenario 3｜Single Transition，同方向",
-      0.5
-    );
-  }
-
-  if (
-    routeCode ===
-      "alignedTransition"
-  ) {
-    return result(
-      "S4",
-      "Scenario 4｜雙Transition同向",
-      0.25
-    );
-  }
-
-  if (
-    routeCode ===
-      "neutralMainConfirmed" ||
-    (
-      routeCode ===
-        "conflictMain" &&
-      (
-        mainNeutral ||
-        secondaryNeutral
-      )
-    )
-  ) {
-    return result(
-      "S5",
-      "Scenario 5｜Directional + Neutral",
-      0.5
-    );
-  }
-
-  if (
-    routeCode ===
-      "neutralTransition"
-  ) {
-    return result(
-      "S6",
-      "Scenario 6｜Neutral / Range Transition",
-      0.5
-    );
-  }
-
-  if (
-    routeCode ===
-      "mixedTransition"
-  ) {
-    return result(
-      "S7",
-      "Scenario 7｜Mixed Transition",
-      0.5
-    );
-  }
-
-  if (
-    routeCode ===
-      "conflictMain"
-  ) {
-    const hardHealthyConflict =
-      isHealthy(mainState) &&
-      isHealthy(
-        secondaryState
-      ) &&
-      mainBias !== null &&
-      secondaryBias !== null &&
-      mainBias !==
-        secondaryBias;
-
-    if (hardHealthyConflict) {
-      return result(
-        "S9",
-        "Scenario 9｜Hard Direction Conflict",
-        0
-      );
-    }
-
-    return result(
-      "S8",
-      "Scenario 8｜方向衝突／順Main Reaction",
-      0.5
-    );
-  }
-
-  if (
-    routeCode ===
-      "transitionVsConfirmedConflict" ||
-    routeCode ===
-      "neutralMainReverse" ||
-    routeCode ===
-      "transitionReverse"
-  ) {
-    return result(
-      "S8",
-      "Scenario 8｜方向衝突／Transition Conflict",
-      0.5
-    );
-  }
-
-  if (
-    routeCode ===
-      "reverseWeakMain"
-  ) {
-    return result(
-      "S10",
-      "Scenario 10｜Counter Weak Main",
-      0.25
-    );
-  }
-
-  if (
-    routeCode ===
-      "reverseHealthyMain"
-  ) {
-    return result(
-      "S11",
-      "Scenario 11｜Counter Healthy Main",
-      0.25
-    );
-  }
-
-  if (
-    routeCode ===
-      "alignedReverse"
-  ) {
-    return result(
-      isWeak(mainState)
-        ? "S10"
-        : "S11",
-      isWeak(mainState)
-        ? "Scenario 10｜Counter Weak Main"
-        : "Scenario 11｜Counter Healthy Main",
-      0.25
-    );
-  }
-
-  return result(
-    "Legacy",
-    "Legacy / Special Route",
-    liveRouteCap(
-      routeCode
-    )
-  );
-}
-
-function v14ESourceInfo(
-  setupResult = null,
-  enhancement = null
-) {
-  const resolved =
-    setupResult ||
-    currentAsia2B;
-
-  const edge =
-    enhancement ||
-    enhancementEdgeInfo(
-      resolved
-    );
-
-  if (!resolved) {
-    return {
-      code: "none",
-      label: "None"
-    };
-  }
-
-  if (
-    marketCode(false) === "XAU"
-  ) {
-    const source =
-      resolved.xauLiquiditySource ||
-      "";
-
-    const codeMap = {
-      asiaHL: "session",
-      oprHL: "session",
-      monHL: "monHL",
-      pdhPdl: "pdhPdl",
-      pwhPwl: "htfStructure",
-      htfMajor: "htfStructure"
-    };
-
-    const code =
-      codeMap[source] ||
-      (
-        edge?.marker
-          ? "other"
-          : "none"
-      );
-
-    return {
-      code,
-      label:
-        v14ESourceLabel(
-          code
-        )
-    };
-  }
-
-  if (
-    resolved.positionTreatment ===
-      "p2Effective"
-  ) {
-    const sessionLike =
-      resolved.effectiveSetupType ===
-        "A" ||
-      resolved.setupVariant ===
-        "postOpenConfirmation" ||
-      resolved.setupVariant ===
-        "oprContinuation";
-
-    const code =
-      sessionLike
-        ? "session"
-        : "other";
-
-    return {
-      code,
-      label:
-        v14ESourceLabel(
-          code
-        )
-    };
-  }
-
-  return {
-    code: "none",
-    label: "None"
-  };
-}
-
-function v14CandidateMatrixInfo({
-  baselineMatrix,
-  setupResult,
-  baseTrigger,
-  q2NegativeInfo
-}) {
-  const scenario =
-    v14ScenarioInfo(
-      baselineMatrix.routeCode,
-      setupResult
-    );
-
-  const rawP =
-    setupResult.basePosition;
-
-  const executionP =
-    setupResult.effectivePosition;
-
-  const nativeQ =
-    baseTrigger.quality;
-
-  const p2E =
-    rawP === "P3" &&
-    executionP === "P2" &&
-    setupResult.positionTreatment ===
-      "p2Effective";
-
-  const p3Context =
-    rawP === "P3"
-      ? $("p3Context").value
-      : "";
-
-  const structured =
-    normalizeRetestInternalStructure(
-      $("retestInternalStructure").value
-    ) === "structured";
-
-  const controlDeterioration =
-    normalizeRetestVsReclaimStructure(
-      $("retestVsReclaimStructure").value
-    ) === "breakAccept" ||
-    normalizeRetestAcceptance(
-      $("retestAcceptance").value
-    ) === "closeThrough";
-
-  const mainBias =
-    stateBias(
-      $("mainState").value
-    );
-
-  const followsMain =
-    mainBias === null ||
-    tradeBias() === mainBias;
-
-  const boundarySelected =
-    $("secondaryRangePosition")
-      .value === "favorable" ||
-    checked(
-      "bothTransitionP3Testable"
-    ) ||
-    checked(
-      "p3ConflictTestable"
-    );
-
-  const nativeP12 =
-    rawP === "P1" ||
-    rawP === "P2";
-
-  let rawSize = 0;
-  let candidateUpgrade = false;
-  const notes = [];
-
-  if (nativeQ === "Q1") {
-    rawSize = 0;
-  } else if (
-    scenario.code === "S1"
-  ) {
-    if (
-      ["P1","P2"].includes(
-        executionP
-      )
-    ) {
-      if (nativeQ === "Q3") {
-        rawSize =
-          p2E
-            ? 0.5
-            : 1;
-      } else if (
-        nativeQ === "Q2"
-      ) {
-        rawSize = 0.5;
-      }
-    } else if (
-      executionP === "P3"
-    ) {
-      rawSize =
-        nativeQ === "Q3"
-          ? 0.5
-          : nativeQ === "Q2"
-            ? 0.25
-            : 0;
-    }
-  } else if (
-    ["S2","S3"].includes(
-      scenario.code
-    )
-  ) {
-    if (
-      ["P1","P2"].includes(
-        executionP
-      )
-    ) {
-      rawSize =
-        nativeQ === "Q3"
-          ? 0.5
-          : nativeQ === "Q2"
-            ? 0.25
-            : 0;
-    } else if (
-      executionP === "P3"
-    ) {
-      rawSize =
-        nativeQ === "Q3"
-          ? 0.25
-          : 0;
-    }
-  } else if (
-    scenario.code === "S4"
-  ) {
-    if (
-      ["P1","P2"].includes(
-        executionP
-      ) &&
-      nativeQ === "Q3"
-    ) {
-      rawSize = 0.25;
-    } else if (
-      executionP === "P3" &&
-      nativeQ === "Q3" &&
-      boundarySelected
-    ) {
-      rawSize = 0.25;
-    }
-  } else if (
-    scenario.code === "S5"
-  ) {
-    if (
-      ["P1","P2"].includes(
-        executionP
-      )
-    ) {
-      rawSize =
-        nativeQ === "Q3"
-          ? 0.5
-          : nativeQ === "Q2"
-            ? 0.25
-            : 0;
-    } else if (
-      executionP === "P3" &&
-      nativeQ === "Q3" &&
-      boundarySelected
-    ) {
-      rawSize = 0.25;
-    }
-  } else if (
-    scenario.code === "S6"
-  ) {
-    if (
-      executionP === "P1"
-    ) {
-      rawSize =
-        nativeQ === "Q3"
-          ? 0.5
-          : nativeQ === "Q2"
-            ? 0.25
-            : 0;
-    } else if (
-      executionP === "P2" &&
-      nativeQ === "Q3"
-    ) {
-      rawSize = 0.25;
-    } else if (
-      executionP === "P3" &&
-      nativeQ === "Q3" &&
-      boundarySelected
-    ) {
-      rawSize = 0.25;
-    }
-  } else if (
-    scenario.code === "S7"
-  ) {
-    if (!followsMain) {
-      rawSize = 0;
-      notes.push(
-        "Mixed Transition逆Main bias預設0。"
-      );
-    } else if (
-      ["P1","P2"].includes(
-        executionP
-      ) &&
-      nativeQ === "Q3"
-    ) {
-      rawSize = 0.5;
-      candidateUpgrade =
-        baselineMatrix.size <
-        rawSize;
-      notes.push(
-        "Mixed Transition P1/P2/P2-E＋Q3：V1.4 Candidate 0.5。"
-      );
-    } else if (
-      executionP === "P1" &&
-      nativeQ === "Q2"
-    ) {
-      rawSize = 0.25;
-    } else if (
-      executionP === "P3" &&
-      nativeQ === "Q3" &&
-      boundarySelected
-    ) {
-      rawSize = 0.25;
-    }
-  } else if (
-    scenario.code === "S8"
-  ) {
-    /*
-     * Conflict route沿用V1.3 base as conservative anchor。
-     * P2-E Q3唔會因Execution P標籤直接當Raw P2 full treatment。
-     */
-    rawSize =
-      baselineMatrix.size;
-
-    if (
-      p2E &&
-      nativeQ === "Q3"
-    ) {
-      rawSize =
-        Math.min(
-          rawSize,
-          0.25
-        );
-    }
-  } else if (
-    scenario.code === "S9"
-  ) {
-    rawSize = 0;
-  } else if (
-    ["S10","S11"].includes(
-      scenario.code
-    )
-  ) {
-    rawSize =
-      baselineMatrix.size;
-  } else {
-    rawSize =
-      baselineMatrix.size;
-  }
-
-  const constrained =
-    applySetupMatrixConstraint(
-      rawSize,
-      setupResult
-    );
-
-  let size =
-    Math.min(
-      constrained.size,
-      scenario.cap
-    );
-
-  const beforeLocation =
-    size;
-
-  let locationModifier =
-    "None";
-
-  if (
-    rawP === "P3" &&
-    p3Context === "MID"
-  ) {
-    /*
-     * MID唔主動食V1.4 upgrade。
-     * Structured時額外標記Negative Location Interaction。
-     */
-    if (
-      size >
-      baselineMatrix.size
-    ) {
-      size =
-        baselineMatrix.size;
-    }
-
-    locationModifier =
-      structured
-        ? "MID + Structured｜Block Upgrade"
-        : "P3-MID｜No Aggressive Upgrade";
-  }
-
-  if (
-    rawP === "P3" &&
-    p3Context === "EXT"
-  ) {
-    if (
-      size >
-      baselineMatrix.size
-    ) {
-      size =
-        baselineMatrix.size;
-    }
-
-    size =
-      Math.min(
-        size,
-        0.5
-      );
-
-    locationModifier =
-      "P3-EXT｜Conservative Entry Size / No Full Size";
-  }
-
-  if (
-    p2E &&
-    nativeQ === "Q3"
-  ) {
-    const capped =
-      Math.min(
-        size,
-        0.5
-      );
-
-    if (capped < size) {
-      notes.push(
-        "V1.4 Candidate：Raw P3→P2-E＋Q3暫時最高0.5；待2026 H1確認。"
-      );
-    }
-
-    size = capped;
-  }
-
-  if (
-    controlDeterioration &&
-    size >
-      baselineMatrix.size
-  ) {
-    size =
-      baselineMatrix.size;
-
-    notes.push(
-      "Retest已出現Break-Accept／Close Through：阻止V1.4 Size Upgrade；唔單獨Hard Veto。"
-    );
-  }
-
-  if (
-    q2NegativeInfo
-      ?.blocksUpgrade &&
-    size >
-      baselineMatrix.size
-  ) {
-    size =
-      baselineMatrix.size;
-
-    notes.push(
-      `${q2NegativeInfo.label}：阻止V1.4 Size Upgrade。`
-    );
-  }
-
-  if (
-    q2NegativeInfo
-      ?.downgradeOneLevel &&
-    size > 0
-  ) {
-    const downgraded =
-      downgradeOneLevel(
-        size
-      );
-
-    notes.push(
-      `${q2NegativeInfo.label}：V1.4 Candidate一級降注 ${SIZE_LABELS[size]} → ${SIZE_LABELS[downgraded]}；待2026 H1確認。`
-    );
-
-    size =
-      downgraded;
-  }
-
-  const afterModifiers =
-    Math.min(
-      size,
-      scenario.cap
-    );
-
-  return {
-    scenario,
-    baselineSize:
-      baselineMatrix.size,
-    rawCandidateSize:
-      Math.min(
-        constrained.size,
-        scenario.cap
-      ),
-    size:
-      afterModifiers,
-    marketCap:
-      scenario.cap,
-    p2E,
-    p3Context,
-    locationModifier,
-    candidateUpgrade:
-      candidateUpgrade ||
-      afterModifiers >
-        baselineMatrix.size,
-    notes,
-    setupConstraintReason:
-      constrained.reason,
-    explanation:
-      `${scenario.label}；V1.3 Baseline ${SIZE_LABELS[baselineMatrix.size]} → V1.4 Candidate ${SIZE_LABELS[afterModifiers]}。${locationModifier !== "None" ? ` Location：${locationModifier}。` : ""}${q2NegativeInfo?.label && q2NegativeInfo.label !== "None" ? ` Q2 Interaction：${q2NegativeInfo.label}。` : ""}`
-  };
-}
-
-function applyV14RangePosition(
-  size,
-  scenario,
-  setupResult
-) {
-  const neutralLayerPresent =
-    $("mainState").value ===
-      "轉換中－中性" ||
-    $("secondaryState").value ===
-      "轉換中－中性";
-
-  if (!neutralLayerPresent) {
-    return {
-      state: "notApplicable",
-      adjustedSize: size,
-      explanation:
-        "主判／次判都唔係Transition Neutral；V1.4 Range位置修正不適用。"
-    };
-  }
-
-  const state =
-    $("secondaryRangePosition")
-      .value;
-
-  if (state === "middle") {
-    return {
-      state,
-      adjustedSize: 0,
-      explanation:
-        "V1.4：真正Range middle固定0；P／Q／E都救唔返。"
-    };
-  }
-
-  if (
-    scenario?.code === "S5"
-  ) {
-    if (
-      setupResult?.basePosition ===
-        "P3" &&
-      state !== "favorable"
-    ) {
-      return {
-        state,
-        adjustedSize: 0,
-        explanation:
-          "Directional + Neutral：Raw P3＋Q3只限真正boundary／meaningful location；離開邊界＝0。"
-      };
-    }
-
-    return {
-      state,
-      adjustedSize: size,
-      explanation:
-        "Directional + Neutral：P1／P2／P2-E按原Scenario Size；只有Range middle固定0，Raw P3則要真正boundary。"
-    };
-  }
-
-  if (
-    scenario?.code === "S6"
-  ) {
-    if (state === "favorable") {
-      return {
-        state,
-        adjustedSize: size,
-        explanation:
-          "Strict Neutral / Range：Entry位於有效邊界，維持Scenario Size。"
-      };
-    }
-
-    const adjusted =
-      downgradeOneLevel(size);
-
-    return {
-      state,
-      adjustedSize: adjusted,
-      explanation:
-        `Strict Neutral / Range：唔喺有效邊界，Size由${SIZE_LABELS[size]}降一級至${SIZE_LABELS[adjusted]}。`
-    };
-  }
-
-  return applyRangePosition(
-    size
-  );
-}
-
-function v14ObjectiveInfo({
-  finalSize,
-  scenario,
-  setupResult,
-  baseTrigger,
-  obstacle,
-  q2NegativeInfo
-}) {
-  if (
-    !Number.isFinite(
-      Number(finalSize)
-    ) ||
-    Number(finalSize) <= 0
-  ) {
-    return {
-      code: "Skip",
-      label: "N/A",
-      reason:
-        "Final Size＝0／Hard Veto，冇正式Objective。"
-    };
-  }
-
-  const nativeQ =
-    baseTrigger.quality;
-
-  const rawP =
-    setupResult.basePosition;
-
-  const p3Context =
-    rawP === "P3"
-      ? $("p3Context").value
-      : "";
-
-  const obstaclePresent =
-    obstacle.firstObstacleR !==
-      null &&
-    obstacle.firstObstacleR !==
-      undefined &&
-    obstacle.firstObstacleR !==
-      "" &&
-    Number.isFinite(
-      Number(
-        obstacle.firstObstacleR
-      )
-    );
-
-  const cleanSpace =
-    (
-      !obstaclePresent ||
-      Number(
-        obstacle.firstObstacleR
-      ) >= 2
-    ) &&
-    obstacle.state !==
-      "inside";
-
-  if (
-    obstacle.state ===
-      "rfManaged" ||
-    q2NegativeInfo?.level ===
-      "high"
-  ) {
-    return {
-      code: "Reaction",
-      label: "Reaction",
-      reason:
-        "Obstacle／Control deterioration令Entry Objective維持Reaction。"
-    };
-  }
-
-  if (
-    scenario.code === "S1" &&
-    nativeQ === "Q3" &&
-    cleanSpace &&
-    controlAlignmentInfo()
-      .code !== "Opposing" &&
-    (
-      rawP !== "P3" ||
-      p3Context === "PB"
-    )
-  ) {
-    return {
-      code: "Expansion",
-      label: "Expansion",
-      reason:
-        rawP === "P3"
-          ? "雙健康同向＋P3-PB＋Native Q3＋clean ≥2R space；Location同Execution都支持Expansion。Raw P3身份仍保留。"
-          : "雙健康同向＋Raw P1/P2＋Native Q3＋clean ≥2R space，符合Expansion entry edge。"
-    };
-  }
-
-  if (
-    scenario.code === "S1" &&
-    nativeQ === "Q3" &&
-    rawP === "P3" &&
-    ["MID","EXT"].includes(
-      p3Context
-    )
-  ) {
-    return {
-      code: "Reaction-first",
-      label: "Reaction-first",
-      reason:
-        p3Context === "EXT"
-          ? "P3-EXT Entry Location較弱；即使Q3／P2-E亦先按Reaction-first，唔預設Expansion。"
-          : "P3-MID缺乏明確Location advantage；即使Q3亦先按Reaction-first。"
-    };
-  }
-
-  if (
-    ["S2","S3"].includes(
-      scenario.code
-    )
-  ) {
-    return {
-      code: "Reaction-first",
-      label: "Reaction-first",
-      reason:
-        "同向有弱勢／Single Transition：先食Reaction，之後要Break → Acceptance → Hold → Space先升Expansion。"
-    };
-  }
-
-  if (
-    scenario.code === "S5"
-  ) {
-    return {
-      code:
-        nativeQ === "Q3"
-          ? "Reaction-first"
-          : "Reaction",
-      label:
-        nativeQ === "Q3"
-          ? "Reaction-first"
-          : "Reaction",
-      reason:
-        nativeQ === "Q3"
-          ? "Directional + Neutral：Q3可以先Reaction-first，等Initiative證明。"
-          : "Directional + Neutral但Native Q2：Objective維持Reaction。"
-    };
-  }
-
-  if (
-    [
-      "S4",
-      "S6",
-      "S7",
-      "S8",
-      "S10",
-      "S11"
-    ].includes(
-      scenario.code
-    )
-  ) {
-    return {
-      code: "Reaction",
-      label: "Reaction",
-      reason:
-        "Transition／Range／Conflict／Counter route：Entry時唔假設成熟Expansion。"
-    };
-  }
-
-  return {
-    code: "Reaction",
-    label: "Reaction",
-    reason:
-      "V1.4 Candidate保守預設Reaction。"
-  };
-}
-
-function v14RunnerEligibilityInfo({
-  finalSize,
-  scenario,
-  setupResult,
-  baseTrigger,
-  obstacle,
-  objective,
-  q2NegativeInfo
-}) {
-  if (
-    !Number.isFinite(
-      Number(finalSize)
-    ) ||
-    Number(finalSize) <= 0
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        "Final Size＝0。"
-    };
-  }
-
-  if (
-    baseTrigger.quality !==
-      "Q3"
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        "Runner只開放俾Native Q3；Q2預設No。"
-    };
-  }
-
-  if (
-    setupResult.basePosition ===
-      "P4"
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        "P4冇Runner資格。"
-    };
-  }
-
-  if (
-    ["S10","S11"].includes(
-      scenario.code
-    )
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        scenario.code === "S10"
-          ? "Counter Weak Main Entry時Runner預設No；只有post-entry真正改變Main authority先另行研究。"
-          : "Counter Healthy Main只係Reaction Probe；Runner預設No。"
-    };
-  }
-
-  const obstacleHasValue =
-    obstacle.firstObstacleR !== null &&
-    obstacle.firstObstacleR !== undefined &&
-    obstacle.firstObstacleR !== "";
-
-  const obstacleR =
-    obstacleHasValue
-      ? Number(
-          obstacle.firstObstacleR
-        )
-      : null;
-
-  if (
-    obstacleHasValue &&
-    Number.isFinite(
-      obstacleR
-    ) &&
-    obstacleR < 2
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        "第一真實障礙低過2R，Right-tail空間不足。"
-    };
-  }
-
-  if (
-    normalizeRetestVsReclaimStructure(
-      $("retestVsReclaimStructure").value
-    ) === "breakAccept"
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        "Retest已Break-Accept reclaim micro control；唔開Runner。"
-    };
-  }
-
-  if (
-    normalizeRetestAcceptance(
-      $("retestAcceptance").value
-    ) === "closeThrough"
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        "Reclaimed setup level出現Close Through；Runner預設No。"
-    };
-  }
-
-  const p3Context =
-    setupResult.basePosition ===
-      "P3"
-      ? $("p3Context").value
-      : "";
-
-  const structured =
-    normalizeRetestInternalStructure(
-      $("retestInternalStructure").value
-    ) === "structured";
-
-  if (
-    p3Context === "MID" &&
-    structured
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        "P3-MID + Structured屬Negative Location Interaction；唔開Runner。"
-    };
-  }
-
-  if (
-    q2NegativeInfo?.level &&
-    q2NegativeInfo.level !==
-      "none"
-  ) {
-    return {
-      code: "No",
-      label: "No",
-      tier: "N/A",
-      reason:
-        "Negative control interaction存在；Runner預設No。"
-    };
-  }
-
-  let tier =
-    "Secondary";
-
-  if (
-    ["S6","S7"].includes(
-      scenario.code
-    ) ||
-    p3Context === "PB" ||
-    (
-      setupResult.basePosition ===
-        "P3" &&
-      setupResult.effectivePosition ===
-        "P2"
-    )
-  ) {
-    tier = "Tier A";
-  }
-
-  return {
-    code: "Conditional",
-    label:
-      "Conditional",
-    tier,
-    reason:
-      `${tier}｜Native Q3只提供Runner資格；真正去到2R要再過Initiative Gate。`
-  };
-}
-
-function v14RunnerGateInfo(
-  runnerEligibility,
-  auctionMove
-) {
-  if (
-    runnerEligibility !==
-      "Conditional"
-  ) {
-    return {
-      code: "N/A",
-      label: "N/A｜Runner Eligibility = No"
-    };
-  }
-
-  const move =
-    normalizeAuctionMoveV14(
-      auctionMove
-    );
-
-  if (
-    move === "initiative"
-  ) {
-    return {
-      code: "ON",
-      label:
-        "ON｜80%@2R＋20%@4R"
-    };
-  }
-
-  if (
-    move === "responsive"
-  ) {
-    return {
-      code: "OFF",
-      label:
-        "OFF｜Responsive only → 100%@2R"
-    };
-  }
-
-  return {
-    code: "Pending",
-    label:
-      "Pending｜到2R再判Responsive / Initiative"
-  };
 }
 
 function evaluateDecision(
   baseTrigger,
   setupResult
 ) {
-  /*
-   * V1.4 Candidate保留V1.3 Direction / Market State骨架。
-   * evaluateMatrix()先作V1.3 Baseline，之後先套V1.4 Candidate Risk Layer。
-   */
-  const baselineMatrix =
-    evaluateMatrix(
-      setupResult.effectivePosition,
-      setupResult.effectiveQuality,
-      setupResult.effectiveSetupType,
-      setupResult,
-      baseTrigger
-    );
+  const matrix = evaluateMatrix(
+    setupResult.effectivePosition,
+    setupResult.effectiveQuality,
+    setupResult.effectiveSetupType,
+    setupResult,
+    baseTrigger
+  );
 
-  const preferred =
-    preferredDirectionInfo();
+  const preferred = preferredDirectionInfo();
+  const background = backgroundRelationInfo();
+  const control = controlAlignmentInfo();
+  const transitionType = transitionTypeInfo();
+  const q2Subtype = q2SubtypeInfo(baseTrigger);
+  const enhancement = enhancementEdgeInfo(setupResult);
 
-  const background =
-    backgroundRelationInfo();
+  const range = applyRangePosition(matrix.size);
+  const obstacle = applyObstacle(
+    range.adjustedSize,
+    setupResult.effectivePosition,
+    setupResult.effectiveQuality
+  );
 
-  const control =
-    controlAlignmentInfo();
+  const hardVetoes = evaluateHardVeto(
+    setupResult.effectivePosition,
+    baseTrigger,
+    setupResult,
+    obstacle
+  );
 
-  const transitionType =
-    transitionTypeInfo();
+  const finalSize = hardVetoes.length > 0 ? 0 : obstacle.adjustedSize;
 
-  const q2Subtype =
-    q2SubtypeInfo(
-      baseTrigger
-    );
+  const objective = tradeObjectiveInfo({
+    finalSize,
+    matrixRouteCode: matrix.routeCode,
+    setupResult,
+    baseTrigger,
+    firstObstacleR: obstacle.firstObstacleR,
+    obstacleState: obstacle.state,
+    control,
+    transitionType
+  });
 
-  const q2Negative =
-    currentQ2NegativeInteractionInfo(
-      baseTrigger
-    );
-
-  const enhancement =
-    enhancementEdgeInfo(
-      setupResult
-    );
-
-  const eSource =
-    v14ESourceInfo(
-      setupResult,
-      enhancement
-    );
-
-  const v14Matrix =
-    v14CandidateMatrixInfo({
-      baselineMatrix,
-      setupResult,
-      baseTrigger,
-      q2NegativeInfo:
-        q2Negative
-    });
-
-  const range =
-    applyV14RangePosition(
-      v14Matrix.size,
-      v14Matrix.scenario,
-      setupResult
-    );
-
-  const obstacle =
-    applyObstacle(
-      range.adjustedSize,
-      setupResult.effectivePosition,
-      setupResult.effectiveQuality
-    );
-
-  const hardVetoes =
-    evaluateHardVeto(
-      setupResult.effectivePosition,
-      baseTrigger,
-      setupResult,
-      obstacle
-    );
-
-  const finalSize =
-    hardVetoes.length > 0
-      ? 0
-      : obstacle.adjustedSize;
-
-  const objective =
-    v14ObjectiveInfo({
-      finalSize,
-      scenario:
-        v14Matrix.scenario,
-      setupResult,
-      baseTrigger,
-      obstacle,
-      q2NegativeInfo:
-        q2Negative
-    });
-
-  const runner =
-    v14RunnerEligibilityInfo({
-      finalSize,
-      scenario:
-        v14Matrix.scenario,
-      setupResult,
-      baseTrigger,
-      obstacle,
-      objective,
-      q2NegativeInfo:
-        q2Negative
-    });
-
-  const runnerGate =
-    v14RunnerGateInfo(
-      runner.code,
-      $("auctionMoveV14").value
-    );
+  const shadowAlignedTransitionSize =
+    matrix.routeCode === "alignedTransition" &&
+    setupResult.effectivePosition === "P2" &&
+    baseTrigger.quality === "Q3"
+      ? 0.5
+      : null;
 
   const capReason =
     capReasonInfo({
       finalSize,
       routeCode:
-        baselineMatrix.routeCode,
+        matrix.routeCode,
       rawPosition:
         setupResult.basePosition,
       executionPosition:
@@ -8043,7 +6298,7 @@ function evaluateDecision(
       obstacleState:
         obstacle.state,
       matrixSize:
-        v14Matrix.size,
+        matrix.size,
       rangeSize:
         range.adjustedSize,
       controlCode:
@@ -8054,21 +6309,18 @@ function evaluateDecision(
     ...setupResult.reasons,
     `① 大局背景：${background.label}。${background.note}`,
     `② 主判／次判 Market State：${$("mainState").value} × ${$("secondaryState").value}；Transition Type＝${transitionType.label}。`,
-    `③ Direction Permission：${baselineMatrix.routeLabel}；V1.4 Scenario＝${v14Matrix.scenario.label}；Route Cap ${SIZE_LABELS[v14Matrix.marketCap]}。後面Location／Q／Runner唔可以救返前面0 Permission。`,
-    `④ Control Alignment：${control.label}。${control.note} V1.4繼續只作描述／研究，唔直接加減Size。`,
+    `③ Direction Permission：${matrix.routeLabel}；Market Cap ${SIZE_LABELS[matrix.marketCap]}。${matrix.routeReason}`,
+    `④ Control Alignment：${control.label}。${control.note}`,
     `⑤ Raw P：${setupResult.basePosition}；${
       setupResult.basePosition === "P3"
-        ? `P3 Context＝${p3ContextLabel($("p3Context").value) || "未分類"}；`
+        ? `P3 Context＝${p3ContextLabel($("p3Context").value) || "未分類"}（Shadow only）；`
         : ""
-    }Execution P：${setupResult.effectivePosition}${setupResult.positionTreatment === "p2Effective" ? "-E" : ""}。Raw P身份永久保留。`,
-    `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}；E Source＝${eSource.label}。E只可以P3→P2-E；唔可以P2→P1、Q2→Q3、P4→P2或創造Direction Permission。`,
-    `⑦ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；Q2 Negative Interaction＝${q2Negative.label}。`,
-    `⑧ Risk Layer：V1.3 Baseline ${SIZE_LABELS[baselineMatrix.size]} → V1.4 Candidate ${SIZE_LABELS[v14Matrix.size]}。${v14Matrix.locationModifier !== "None" ? `Location Modifier＝${v14Matrix.locationModifier}。` : ""}${v14Matrix.notes.length ? ` ${v14Matrix.notes.join(" ")}` : ""}`,
-    `⑨ Range／Location修正：${range.explanation}`,
-    `⑩ Obstacle／RR：${obstacle.explanation}`,
-    `⑪ Final Entry Size：${SIZE_LABELS[finalSize]}。`,
-    `⑫ Objective at Entry：${objective.label}。${objective.reason}`,
-    `⑬ Runner Eligibility：${runner.label}${runner.tier !== "N/A" ? `｜${runner.tier}` : ""}。${runner.reason} Post-entry Gate＝${runnerGate.label}。`
+    }Execution P：${setupResult.effectivePosition}。`,
+    `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／MID／EXT唔會改E升級權或Frozen Size。`,
+    `⑦ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
+    `⑧ Obstacle／RR：${obstacle.explanation}`,
+    `⑨ Final Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
+    `⑩ Objective at Entry：${simplifiedObjectiveAtEntry(objective.code, objective.shadowClass)}。${objective.reason}`
   ];
 
   const warnings = [
@@ -8076,57 +6328,11 @@ function evaluateDecision(
     preferred.note
   ];
 
-  if (
-    v14Matrix.scenario.code ===
-      "S7" &&
-    v14Matrix.size >
-      baselineMatrix.size
-  ) {
-    warnings.push(
-      "V1.4 Candidate Research：Mixed Transition P1/P2/P2-E＋Q3 0.25→0.5仍待2026 H1驗證先Freeze。"
-    );
+  if (shadowAlignedTransitionSize !== null) {
+    warnings.push("Research Shadow：Aligned Transition P2＋Native Q3另記0.5 Shadow Size，但正式Size仍按0.25。")
   }
 
-  if (
-    v14Matrix.p2E &&
-    baseTrigger.quality ===
-      "Q3"
-  ) {
-    warnings.push(
-      "V1.4 Candidate Research：Raw P3→P2-E＋Q3最高0.5限制仍待2026 H1確認；Raw P origin必須保留。"
-    );
-  }
-
-  if (
-    q2Negative.level ===
-      "high"
-  ) {
-    warnings.push(
-      "V1.4 Candidate Research：High Q2 Negative Interaction目前套一級降注；降幅仍待2026 H1確認。"
-    );
-  } else if (
-    q2Negative.level ===
-      "medium"
-  ) {
-    warnings.push(
-      "V1.4 Candidate：Medium Q2 Negative Interaction只阻止Upgrade，暫時唔主動降注。"
-    );
-  }
-
-  if (
-    v14Matrix.locationModifier.includes(
-      "MID + Structured"
-    )
-  ) {
-    warnings.push(
-      "V1.4 Negative Location Interaction：P3-MID + Structured只阻止Upgrade，唔單獨Hard Veto。"
-    );
-  }
-
-  if (
-    baselineMatrix.routeCode ===
-      "alignedReverse"
-  ) {
+  if (matrix.routeCode === "alignedReverse") {
     warnings.push(
       htfP1ReversalExceptionInfo(
         baseTrigger,
@@ -8136,13 +6342,10 @@ function evaluateDecision(
     );
   }
 
-  if (
-    baselineMatrix.routeCode ===
-      "reverseWeakMain"
-  ) {
+  if (matrix.routeCode === "reverseWeakMain") {
     warnings.push(
       baseTrigger.quality === "Q2"
-        ? "Counter Weak Main Q2固定0；Q2 subtype只作Failure Interaction研究。"
+        ? "逆弱主判Q2固定0；Q2 subtype只作研究記錄。"
         : weakCounterRouteConfirmationInfo(
             setupResult.effectivePosition,
             setupResult.effectiveQuality,
@@ -8152,10 +6355,7 @@ function evaluateDecision(
     );
   }
 
-  if (
-    baselineMatrix.routeCode ===
-      "reverseHealthyMain"
-  ) {
+  if (matrix.routeCode === "reverseHealthyMain") {
     warnings.push(
       healthyCounterReversalInfo(
         setupResult.effectivePosition,
@@ -8164,238 +6364,92 @@ function evaluateDecision(
     );
   }
 
-  if (
-    baselineMatrix.routeCode ===
-      "neutralMainReverse"
-  ) {
-    warnings.push(
-      "主判中性唔等於逆次判有權；只限清晰HTF P1／Range Boundary＋Native Q3 Reaction Probe。"
-    );
+  if (matrix.routeCode === "neutralMainReverse") {
+    warnings.push("主判中性唔等於逆次判有權；只限清晰HTF P1／Range Boundary＋Native Q3 Reaction Probe。")
   }
 
-  if (
-    [
-      "mixedTransition",
-      "neutralTransition"
-    ].includes(
-      baselineMatrix.routeCode
-    )
-  ) {
-    warnings.push(
-      "Transition／Range環境Entry Risk保持Location-first；Q3唔會推翻Range middle／P4／Direction Permission。"
-    );
+  if (["mixedTransition","neutralTransition"].includes(matrix.routeCode)) {
+    warnings.push("Mixed／Neutral Transition只按邊界部署；Neutral／大型Range中間固定0。")
   }
 
-  if (
-    $("backgroundDirectOverlap")
-      .value === "yes" &&
-    ["P2","P3"].includes(
-      setupResult.basePosition
-    )
-  ) {
-    warnings.push(
-      "Entry zone同HTF真實價格結構直接交集；重新檢查Raw P有冇低估。"
-    );
+  if ($("backgroundDirectOverlap").value === "yes" && ["P2","P3"].includes(setupResult.basePosition)) {
+    warnings.push("Entry zone同HTF真實價格結構直接交集；重新檢查Raw P有冇低估。")
   }
 
-  if (
-    $("p1BackgroundTailwind")
-      .value === "valid"
-  ) {
-    warnings.push(
-      "Active P1 Tailwind只提供指定逆向資格；唔會將Raw P2升P1。"
-    );
+  if ($("p1BackgroundTailwind").value === "valid") {
+    warnings.push("Active P1 Tailwind只提供指定逆向資格；唔會將Raw P2升P1。")
   }
 
-  if (
-    marketCode(false) === "HSI"
-  ) {
-    warnings.push(
-      "HSI-C保持獨立：主次雙同向先可做；順向順勢／反向順勢Context照記，唔因V1.4 Runner改Direction Permission。"
-    );
+  if (marketCode(false) === "HSI") {
+    warnings.push("HSI：10:30後唔開新Setup；HSI-C OPR Continuation & Retest仍屬Research／Provisional，暫時冇E。");
 
     if (
       setupResult.setupVariant ===
         "oprContinuation" &&
-      checked(
-        "hsiOprTrendAligned"
-      ) &&
-      !$(
-        "hsiOprDirectionContext"
-      ).value
+      checked("hsiOprTrendAligned") &&
+      !$("hsiOprDirectionContext").value
     ) {
-      warnings.push(
-        "HSI-C Research：未填OPR Direction Context。"
-      );
+      warnings.push("HSI-C Research：未填OPR Direction Context；請標記順向順勢／反向順勢，方便之後比較Expectancy。");
     }
   }
 
-  if (
-    ["UK100","GER40"].includes(
-      marketCode(false)
-    )
-  ) {
-    warnings.push(
-      "EU Opening thesis仍然唔Double E／Size；V1.4新增Runner只處理成功後right-tail extraction。"
-    );
+  if (["UK100","GER40"].includes(marketCode(false))) {
+    warnings.push("EU V1.3：正式核心係EU-A POR 2B、EU-B Asia Sweep＋Post-open Confirmation、EU-D POR Full Repair；Asia Sweep＋POR Repair只係同一thesis多個Tag，唔Double E／Size。")
   }
 
-  if (
-    checked(
-      "loosenedTriggerBecauseBias"
-    )
-  ) {
-    warnings.push(
-      "紀律標籤：曾因方向偏見想放寬Trigger；唔允許。"
-    );
-  }
-
-  if (
-    checked(
-      "emotionalSizing"
-    )
-  ) {
-    warnings.push(
-      "紀律標籤：曾因情緒／信心想加注；Final Size仍取規則結果。"
-    );
-  }
+  if (checked("loosenedTriggerBecauseBias")) warnings.push("紀律標籤：曾因方向偏見想放寬Trigger；唔允許。")
+  if (checked("emotionalSizing")) warnings.push("紀律標籤：曾因情緒／信心想加注；Final Size仍取最低限制。")
 
   return {
-    relation:
-      baselineMatrix.relation,
-    marketRoute:
-      baselineMatrix.routeLabel,
-    marketRouteCode:
-      baselineMatrix.routeCode,
-    preferredDirection:
-      preferred.label,
-    priorityNote:
-      preferred.note,
-    backgroundRelation:
-      background.label,
-    backgroundRelationNote:
-      background.note,
-    transitionType:
-      transitionType.code,
-    transitionTypeLabel:
-      transitionType.label,
-    controlAlignment:
-      control.code,
-    controlAlignmentLabel:
-      control.label,
-    controlAlignmentNote:
-      control.note,
-    setupType:
-      setupResult.effectiveSetupType,
-    setupTypeLabel:
-      setupResult.effectiveSetupTypeLabel,
-    setupTemplate:
-      setupResult.setupTemplate,
-    setupTemplateLabel:
-      setupResult.setupTemplateLabel,
-    setupVariant:
-      setupResult.setupVariant,
-    enhancementMarker:
-      enhancement.marker,
-    enhancementLabel:
-      enhancement.label,
-    eSourceV14:
-      eSource.code,
-    eSourceV14Label:
-      eSource.label,
-    rawPosition:
-      setupResult.basePosition,
-    executionPosition:
-      setupResult.effectivePosition,
-    nativeQ:
-      baseTrigger.quality,
-    q2Subtype:
-      q2Subtype.label,
-    q2SubtypeCodes:
-      q2Subtype.codes,
-    q2NegativeInteraction:
-      q2Negative.code,
-    q2NegativeInteractionLabel:
-      q2Negative.label,
-    q2NegativeInteractionReasons:
-      q2Negative.reasons,
-    v14ScenarioCode:
-      v14Matrix.scenario.code,
-    v14ScenarioLabel:
-      v14Matrix.scenario.label,
-    v14LocationModifier:
-      v14Matrix.locationModifier,
-    v13BaselineMatrixSize:
-      baselineMatrix.size,
-    v14CandidateRawSize:
-      v14Matrix.rawCandidateSize,
-    marketCap:
-      v14Matrix.marketCap,
-    matrixMode:
-      baselineMatrix.mode,
-    matrixRoute:
-      baselineMatrix.route,
-    rawMatrixSize:
-      v14Matrix.size,
-    matrixSize:
-      v14Matrix.size,
-    positionQualitySize:
-      v14Matrix.size,
-    shadowAlignedTransitionSize:
-      null,
-    rangeState:
-      range.state,
-    rangeSize:
-      range.adjustedSize,
-    obstacleState:
-      obstacle.state,
-    hasFirstObstacle:
-      obstacle.obstaclePresent,
-    firstObstacleR:
-      obstacle.firstObstacleR,
-    obstacleKind:
-      obstacle.kind,
-    obstacleManagementChoice:
-      obstacle.managementChoice,
-    hardObstacleTreatment:
-      obstacle.hardTreatment,
-    obstacleSize:
-      obstacle.adjustedSize,
-    obstacleManagement:
-      obstacle.management,
-    obstacleManagementMode:
-      obstacle.managementMode,
-    obstacleEligible:
-      obstacle.eligible,
-    tradeObjective:
-      objective.code,
-    tradeObjectiveReason:
-      objective.reason,
+    relation: matrix.relation,
+    marketRoute: matrix.routeLabel,
+    marketRouteCode: matrix.routeCode,
+    preferredDirection: preferred.label,
+    priorityNote: preferred.note,
+    backgroundRelation: background.label,
+    backgroundRelationNote: background.note,
+    transitionType: transitionType.code,
+    transitionTypeLabel: transitionType.label,
+    controlAlignment: control.code,
+    controlAlignmentLabel: control.label,
+    controlAlignmentNote: control.note,
+    setupType: setupResult.effectiveSetupType,
+    setupTypeLabel: setupResult.effectiveSetupTypeLabel,
+    setupTemplate: setupResult.setupTemplate,
+    setupTemplateLabel: setupResult.setupTemplateLabel,
+    setupVariant: setupResult.setupVariant,
+    enhancementMarker: enhancement.marker,
+    enhancementLabel: enhancement.label,
+    rawPosition: setupResult.basePosition,
+    executionPosition: setupResult.effectivePosition,
+    nativeQ: baseTrigger.quality,
+    q2Subtype: q2Subtype.label,
+    q2SubtypeCodes: q2Subtype.codes,
+    marketCap: matrix.marketCap,
+    matrixMode: matrix.mode,
+    matrixRoute: matrix.route,
+    rawMatrixSize: matrix.size,
+    matrixSize: matrix.size,
+    positionQualitySize: matrix.size,
+    shadowAlignedTransitionSize,
+    rangeState: range.state,
+    rangeSize: range.adjustedSize,
+    obstacleState: obstacle.state,
+    hasFirstObstacle: obstacle.obstaclePresent,
+    firstObstacleR: obstacle.firstObstacleR,
+    obstacleKind: obstacle.kind,
+    obstacleManagementChoice: obstacle.managementChoice,
+    hardObstacleTreatment: obstacle.hardTreatment,
+    obstacleSize: obstacle.adjustedSize,
+    obstacleManagement: obstacle.management,
+    obstacleManagementMode: obstacle.managementMode,
+    obstacleEligible: obstacle.eligible,
+    tradeObjective: objective.code,
+    tradeObjectiveReason: objective.reason,
     objectiveAtEntry:
-      objective.label,
+      objective.code,
     reactionFirstShadowClass:
-      objective.code ===
-        "Reaction-first"
-        ? "Reaction-first / Expansion-eligible"
-        : "N/A",
-    runnerEligibility:
-      runner.code,
-    runnerTier:
-      runner.tier,
-    runnerEligibilityReason:
-      runner.reason,
-    runnerPostEntryGate:
-      runnerGate.code,
-    runnerPostEntryGateLabel:
-      runnerGate.label,
-    openingContextV14:
-      normalizeOpeningContextV14(
-        $("openingContextV14").value
-      ),
-    auctionMoveV14:
-      normalizeAuctionMoveV14(
-        $("auctionMoveV14").value
-      ),
+      objective.shadowClass,
     primaryCapReason:
       capReason.primary,
     additionalCapFlags:
@@ -8637,9 +6691,6 @@ function renderDecision(decision) {
         : "冇";
   $("resultMarketRoute").textContent =
     decision.marketRoute;
-  $("resultV14Scenario").textContent =
-    decision.v14ScenarioLabel ||
-    "N/A";
   $("resultSetupType").textContent =
     currentAsia2B
       .effectiveSetupTypeLabel;
@@ -8652,19 +6703,9 @@ function renderDecision(decision) {
     decision.controlAlignmentLabel;
   $("resultEnhancement").textContent =
     decision.enhancementLabel;
-  $("resultESourceV14").textContent =
-    decision.eSourceV14Label ||
-    "None";
   $("resultQ2Subtype").textContent =
     decision.nativeQ === "Q2"
       ? decision.q2Subtype
-      : "N/A";
-  $("resultQ2NegativeInteraction").textContent =
-    decision.nativeQ === "Q2"
-      ? (
-          decision.q2NegativeInteractionLabel ||
-          "None"
-        )
       : "N/A";
   $("resultTradeObjective").textContent =
     decisionObjectiveAtEntry(
@@ -8703,16 +6744,10 @@ function renderDecision(decision) {
           .join("｜")
       : "N/A";
 
-  $("resultRunnerEligibility").textContent =
-    `${decision.runnerEligibility || "No"}${
-      decision.runnerTier &&
-      decision.runnerTier !== "N/A"
-        ? `｜${decision.runnerTier}`
-        : ""
-    }`;
-  $("resultRunnerGate").textContent =
-    decision.runnerPostEntryGateLabel ||
-    "N/A";
+  $("resultShadowSize").textContent =
+    decision.shadowAlignedTransitionSize === null
+      ? "N/A"
+      : `${SIZE_LABELS[decision.shadowAlignedTransitionSize]}｜Research only`;
   $("resultAsia2B").textContent =
     currentAsia2B.selectedSetupType ===
       "A"
@@ -8721,10 +6756,6 @@ function renderDecision(decision) {
   $("resultMarketCap").textContent =
     SIZE_LABELS[
       decision.marketCap
-    ];
-  $("resultV13BaselineSize").textContent =
-    SIZE_LABELS[
-      decision.v13BaselineMatrixSize
     ];
   $("resultMatrixSize").textContent =
     SIZE_LABELS[
@@ -8776,6 +6807,8 @@ function renderDecision(decision) {
   renderHardVetoPreview(
     decision.hardVetoes
   );
+
+  syncAutoJournalFields();
 }
 
 function syncObstacleModelInputs() {
@@ -9290,10 +7323,8 @@ function updateInterface() {
   }
 
   const rangeActive =
-    mainState ===
-      "轉換中－中性" ||
     secondaryState ===
-      "轉換中－中性";
+    "轉換中－中性";
 
   $("secondaryRangePanel")
     .classList.toggle(
@@ -9306,16 +7337,16 @@ function updateInterface() {
       .value = "favorable";
     $("secondaryRangeNote")
       .textContent =
-        "主判／次判都唔係中性Transition／Range，位置修正不適用。";
+        "次判唔係中性Transition／Range，25%修正不適用。";
   } else {
     const side =
       direction() === "Long"
-        ? "底部／Long有效邊界"
-        : "頂部／Short有效邊界";
+        ? "底部25%"
+        : "頂部25%";
 
     $("secondaryRangeNote")
       .textContent =
-        `V1.4：只要主判或次判有Transition Neutral，就要標記Range位置；${direction()}優先${side}，Range middle固定0。`;
+        `次判中性Transition／Range：${direction()}只優先${side}；未進入相關25%降一級，Range中間固定0。`;
   }
 
   const route =
@@ -9650,25 +7681,16 @@ function checklistSummary() {
     "",
     `大局實際結構重疊：${$("backgroundDirectOverlap").value === "yes" ? "有" : "冇"}`,
     `P1順風：${tailwind === "valid" ? "有｜仍有效" : tailwind === "expired" ? "曾有｜已失效" : "冇"}`,
-    `Matrix Version：Master Trade Matrix V1.4｜Candidate｜2026/09`,
+    `Matrix Version：Master Trade Matrix V1.3｜2026/08 Frozen`,
     `Transition Type：${currentDecision?.transitionTypeLabel || transitionTypeInfo().label}`,
     `Control Alignment：${currentDecision?.controlAlignmentLabel || controlAlignmentInfo().label}`,
-    `V1.4 Scenario：${currentDecision?.v14ScenarioLabel || "N/A"}`,
     `Raw P → P3 Context → E → Execution P：${currentAsia2B.basePosition} → ${
       currentAsia2B.basePosition === "P3"
         ? (p3ContextLabel($("p3Context").value) || "未分類")
         : "N/A"
     } → ${currentDecision?.enhancementLabel || "None"} → ${currentAsia2B.effectivePosition}`,
-    `E Source：${currentDecision?.eSourceV14Label || "None"}`,
     `Native Q：${currentBaseTrigger.quality}${currentBaseTrigger.quality === "Q2" ? `｜${q2SubtypeInfo(currentBaseTrigger).label}` : ""}`,
-    `Q2 Negative Interaction：${currentDecision?.q2NegativeInteractionLabel || "None"}`,
-    `V1.3 Baseline Matrix：${SIZE_LABELS[currentDecision?.v13BaselineMatrixSize ?? 0]}`,
-    `V1.4 Candidate Matrix：${SIZE_LABELS[currentDecision?.rawMatrixSize ?? 0]}`,
     `Objective at Entry：${decisionObjectiveAtEntry(currentDecision)}`,
-    `Runner Eligibility：${currentDecision?.runnerEligibility || "No"}${currentDecision?.runnerTier && currentDecision.runnerTier !== "N/A" ? `｜${currentDecision.runnerTier}` : ""}`,
-    `Opening Context：${openingContextV14Label($("openingContextV14").value)}`,
-    `Auction Move：${auctionMoveV14Label($("auctionMoveV14").value)}`,
-    `Runner Gate：${v14RunnerGateInfo(currentDecision?.runnerEligibility, $("auctionMoveV14").value).label}`,
     `Transition主判P1順風P2資格：${transitionP1TailwindEligibilityInfo(
       currentAsia2B.effectivePosition,
       currentAsia2B.effectiveQuality
@@ -9702,7 +7724,7 @@ function checklistSummary() {
     `次判Range修正：${currentDecision.rangeState}`,
     `Range修正後：${SIZE_LABELS[currentDecision.rangeSize]}`,
     `障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
-    `V1.4 Candidate P×Q／方向Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
+    `P×Q／方向Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
     `障礙修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
     `最終注碼：${SIZE_LABELS[currentDecision.finalSize]}`,
     "",
@@ -10174,6 +8196,11 @@ async function saveDecision(event) {
       "profitR"
     );
 
+  const mfeRValue =
+    optionalNumberFromInput(
+      "mfeR"
+    );
+
   const normalizedR =
     normalizedRValue(
       profitRValue,
@@ -10202,11 +8229,11 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.31.1",
+      "PracticeJournal-V1.30.18",
     engineVersion:
-      "MasterTradeMatrix-V1.4-Candidate-2026-09-r2-AutoJournalFields",
+      "MasterTradeMatrix-V1.3-Amended-2026-09-r31-InitiativeResearchFields",
     matrixVersion:
-      "Master Trade Matrix V1.4｜Candidate｜2026/09",
+      "Master Trade Matrix V1.3｜2026/08 Frozen",
 
     recordMode:
       recordMode(),
@@ -10334,38 +8361,12 @@ async function saveDecision(event) {
       currentDecision.enhancementMarker,
     enhancementLabel:
       currentDecision.enhancementLabel,
-    eSourceV14:
-      currentDecision.eSourceV14 ||
-      "none",
-    eSourceV14Label:
-      currentDecision.eSourceV14Label ||
-      "None",
-    v14ScenarioCode:
-      currentDecision.v14ScenarioCode ||
-      "",
-    v14ScenarioLabel:
-      currentDecision.v14ScenarioLabel ||
-      "",
-    v14LocationModifier:
-      currentDecision.v14LocationModifier ||
-      "None",
-    v13BaselineMatrixSize:
-      currentDecision.v13BaselineMatrixSize,
     nativeQ:
       currentDecision.nativeQ,
     q2Subtype:
       currentDecision.q2Subtype,
     q2SubtypeCodes:
       currentDecision.q2SubtypeCodes,
-    q2NegativeInteraction:
-      currentDecision.q2NegativeInteraction ||
-      "None",
-    q2NegativeInteractionLabel:
-      currentDecision.q2NegativeInteractionLabel ||
-      "None",
-    q2NegativeInteractionReasons:
-      currentDecision.q2NegativeInteractionReasons ||
-      [],
     // Legacy/raw objective retained internally; Objective at Entry is the analysis source of truth.
     tradeObjective:
       currentDecision.tradeObjective,
@@ -10376,34 +8377,7 @@ async function saveDecision(event) {
         currentDecision
       ),
     shadowResearchVersion:
-      "V1.4 Candidate Research v1",
-    runnerEligibility:
-      currentDecision.runnerEligibility ||
-      "No",
-    runnerTier:
-      currentDecision.runnerTier ||
-      "N/A",
-    runnerEligibilityReason:
-      currentDecision.runnerEligibilityReason ||
-      "",
-    runnerPostEntryGate:
-      v14RunnerGateInfo(
-        currentDecision.runnerEligibility,
-        $("auctionMoveV14").value
-      ).code,
-    runnerPostEntryGateLabel:
-      v14RunnerGateInfo(
-        currentDecision.runnerEligibility,
-        $("auctionMoveV14").value
-      ).label,
-    openingContextV14:
-      normalizeOpeningContextV14(
-        $("openingContextV14").value
-      ),
-    auctionMoveV14:
-      normalizeAuctionMoveV14(
-        $("auctionMoveV14").value
-      ),
+      "2025 H2 Shadow Overlay v9",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -10570,12 +8544,7 @@ async function saveDecision(event) {
       currentAsia2B.triggerPromoted,
 
     secondaryRangePosition:
-      (
-        $("mainState").value ===
-          "轉換中－中性" ||
-        $("secondaryState").value ===
-          "轉換中－中性"
-      )
+      $("secondaryState").value === "轉換中－中性"
         ? $("secondaryRangePosition").value
         : "notApplicable",
     rangeSize:
@@ -10670,27 +8639,41 @@ async function saveDecision(event) {
     postEntryAction:
       $("postEntryAction").value,
     tpPlan:
-      autoTpPlanFromRunnerEligibility(
-        currentDecision.runnerEligibility
-      ),
+      $("tpPlan").value,
     profitR:
       profitRValue,
     actualR:
       profitRValue,
     normalizedR,
     mfeR:
-      optionalNumberFromInput("mfeR"),
+      mfeRValue,
     maeR:
       optionalNumberFromInput("maeR"),
     timeToRF:
       timeToRFMinutes,
     validCandidate:
-      autoValidCandidateFromSize(
-        currentDecision.finalSize
+      autoValidCandidateValue(
+        currentDecision?.finalSize
       ),
     postEntryObjectiveUpgrade:
       normalizePostEntryObjectiveUpgrade(
         $("postEntryObjectiveUpgrade").value
+      ),
+    auctionMove:
+      normalizeAuctionMove(
+        $("auctionMove").value
+      ),
+    openingContext:
+      normalizeOpeningContext(
+        $("openingContext").value
+      ),
+    initiativeTriggerLevel:
+      initiativeTriggerLevelValue(
+        $("initiativeTriggerLevel").value
+      ),
+    initiativeAt2R:
+      normalizeInitiativeAt2R(
+        $("initiativeAt2R").value
       ),
     retestInternalStructure:
       normalizeRetestInternalStructure(
@@ -10719,8 +8702,8 @@ async function saveDecision(event) {
     reachedRF:
       $("reachedRF").value,
     reachedTP2:
-      autoReachedTP2FromMfe(
-        optionalNumberFromInput("mfeR")
+      autoReachedTP2Value(
+        mfeRValue
       ),
     hasImage:
       pendingImageBlobs.length > 0,
@@ -10767,8 +8750,10 @@ async function saveDecision(event) {
   $("timeToRF").value = "";
   $("validCandidate").value = "No";
   $("postEntryObjectiveUpgrade").value = "No";
-  $("openingContextV14").value = "";
-  $("auctionMoveV14").value = "";
+  $("auctionMove").value = "";
+  $("openingContext").value = "";
+  $("initiativeTriggerLevel").value = "";
+  $("initiativeAt2R").value = "No";
   $("retestInternalStructure").value = "";
   $("retestVsReclaimStructure").value = "na";
   $("retestAcceptance").value = "";
@@ -11090,7 +9075,7 @@ function normalizePostEntryObjectiveUpgrade(
     raw ===
       "reaction→ expansion"
   )
-    ? "Reaction→Expansion"
+    ? "Yes"
     : "No";
 }
 
@@ -11505,7 +9490,9 @@ function renderHistory() {
   const validCandidates =
     allRecords.filter(
       (record) =>
-        recordAutoValidCandidate(record) === "Yes"
+        recordAutoValidCandidate(
+          record
+        ) === "Yes"
     ).length;
   $("statValidCandidates").textContent =
     validCandidates;
@@ -11565,7 +9552,14 @@ function renderHistory() {
     );
 
   const tp2Applicable =
-    allRecords;
+    allRecords.filter(
+      (record) =>
+        Number.isFinite(
+          Number(
+            record.mfeR
+          )
+        )
+    );
 
   if (rfApplicable.length > 0) {
     const rfRate =
@@ -11587,7 +9581,9 @@ function renderHistory() {
     const tp2Rate =
       tp2Applicable.filter(
         (record) =>
-          recordAutoReachedTP2(record) === "Yes"
+          recordAutoReachedTP2(
+            record
+          ) === "Yes"
       ).length /
       tp2Applicable.length *
       100;
@@ -12233,7 +10229,7 @@ async function openRecord(recordId) {
       "舊版Matrix"
     )}
     <br>
-    <strong>Operating Matrix：</strong>
+    <strong>Frozen Matrix：</strong>
     ${escapeHtml(record.matrixVersion || "舊版／未記錄")}
     <br>
     <strong>Transition Type：</strong>
@@ -12460,12 +10456,6 @@ async function openRecord(recordId) {
     → ${escapeHtml(record.enhancementLabel || record.enhancement || "None")}
     → ${escapeHtml(record.executionP || effectivePosition)}
     <br>
-    <strong>E Source｜V1.4：</strong>
-    ${escapeHtml(v14ESourceLabel(recordV14ESource(record)))}
-    <br>
-    <strong>V1.4 Scenario：</strong>
-    ${escapeHtml(record.v14ScenarioLabel || "Legacy／N/A")}
-    <br>
     <strong>原始位置：</strong>
     ${escapeHtml(basePosition)}
     <br>
@@ -12491,12 +10481,6 @@ async function openRecord(recordId) {
     <strong>Native Q：</strong>
     ${escapeHtml(record.nativeQ || baseTrigger)}${record.q2Subtype ? `｜${escapeHtml(record.q2Subtype)}` : ""}
     <br>
-    <strong>Q2 Negative Interaction：</strong>
-    ${escapeHtml(recordQ2NegativeInteractionInfo(record).label)}
-    <br>
-    <strong>V1.4 Location Modifier：</strong>
-    ${escapeHtml(record.v14LocationModifier || "None")}
-    <br>
     <strong>舊版／Execution Q欄：</strong>
     ${escapeHtml(effectiveTrigger)}
     <br>
@@ -12518,26 +10502,11 @@ async function openRecord(recordId) {
           )
     )}
     <br>
-    <strong>Research Version：</strong>
+    <strong>Shadow Research Version：</strong>
     ${escapeHtml(record.shadowResearchVersion || "Legacy／N/A")}
     <br>
-    <strong>V1.3 Baseline Matrix：</strong>
-    ${Number.isFinite(record.v13BaselineMatrixSize) ? escapeHtml(safeSizeLabel(record.v13BaselineMatrixSize)) : "Legacy／N/A"}
-    <br>
-    <strong>Runner Eligibility：</strong>
-    ${escapeHtml(recordRunnerEligibilityInfo(record).code)}${recordRunnerEligibilityInfo(record).tier !== "N/A" ? `｜${escapeHtml(recordRunnerEligibilityInfo(record).tier)}` : ""}
-    <br>
-    <strong>Opening Context：</strong>
-    ${escapeHtml(openingContextV14Label(normalizeOpeningContextV14(record.openingContextV14)))}
-    <br>
-    <strong>Auction Move：</strong>
-    ${escapeHtml(auctionMoveV14Label(normalizeAuctionMoveV14(record.auctionMoveV14)))}
-    <br>
-    <strong>Runner Post-entry Gate：</strong>
-    ${escapeHtml(v14RunnerGateInfo(
-      recordRunnerEligibilityInfo(record).code,
-      record.auctionMoveV14
-    ).label)}
+    <strong>Aligned Transition Shadow：</strong>
+    ${Number.isFinite(record.shadowAlignedTransitionSize) ? escapeHtml(safeSizeLabel(record.shadowAlignedTransitionSize)) + "｜Research only" : "N/A"}
     <br>
     <strong>Range位置：</strong>
     ${escapeHtml(record.secondaryRangePosition || "N/A")}
@@ -12611,11 +10580,45 @@ async function openRecord(recordId) {
     <strong>Time to RF：</strong>
     ${formatDurationMinutes(record.timeToRF)}
     <br>
-    <strong>Valid Candidate：</strong>
+    <strong>Valid Candidate｜Auto：</strong>
     ${escapeHtml(recordAutoValidCandidate(record))}
     <br>
     <strong>Post-entry Objective Upgrade：</strong>
     ${escapeHtml(normalizePostEntryObjectiveUpgrade(record.postEntryObjectiveUpgrade))}
+    <br>
+    <strong>Auction Move：</strong>
+    ${escapeHtml(
+      auctionMoveLabel(
+        normalizeAuctionMove(
+          record.auctionMove
+        )
+      ) || "未記錄"
+    )}
+    <br>
+    <strong>Opening Context：</strong>
+    ${escapeHtml(
+      openingContextLabel(
+        normalizeOpeningContext(
+          record.openingContext
+        )
+      ) || "未記錄"
+    )}
+    <br>
+    <strong>Initiative Trigger Level：</strong>
+    ${escapeHtml(
+      initiativeTriggerLevelValue(
+        record.initiativeTriggerLevel
+      ) || "未記錄"
+    )}
+    <br>
+    <strong>Initiative @ 2R：</strong>
+    ${escapeHtml(
+      initiativeAt2RLabel(
+        normalizeInitiativeAt2R(
+          record.initiativeAt2R
+        )
+      ) || "未記錄"
+    )}
     <br>
     <strong>Retest Internal Structure：</strong>
     ${escapeHtml(
@@ -12729,7 +10732,8 @@ async function openRecord(recordId) {
     record.postEntryAction ||
     "N/A";
   $("editTpPlan").value =
-    recordAutoTpPlan(record);
+    record.tpPlan ||
+    "2R全平";
   $("editProfitR").value =
     Number.isFinite(
       record.profitR
@@ -12756,28 +10760,37 @@ async function openRecord(recordId) {
     record.reachedRF ||
     "No";
   $("editReachedTP2").value =
-    recordAutoReachedTP2(record);
-  $("editValidCandidate").value =
-    recordAutoValidCandidate(record);
-
-  $("editESourceV14").value =
-    recordV14ESource(
+    recordAutoReachedTP2(
       record
     );
-
-  $("editOpeningContextV14").value =
-    normalizeOpeningContextV14(
-      record.openingContextV14
-    );
-
-  $("editAuctionMoveV14").value =
-    normalizeAuctionMoveV14(
-      record.auctionMoveV14
+  $("editValidCandidate").value =
+    recordAutoValidCandidate(
+      record
     );
 
   $("editPostEntryObjectiveUpgrade").value =
     normalizePostEntryObjectiveUpgrade(
       record.postEntryObjectiveUpgrade
+    );
+
+  $("editAuctionMove").value =
+    normalizeAuctionMove(
+      record.auctionMove
+    );
+
+  $("editOpeningContext").value =
+    normalizeOpeningContext(
+      record.openingContext
+    );
+
+  $("editInitiativeTriggerLevel").value =
+    initiativeTriggerLevelValue(
+      record.initiativeTriggerLevel
+    );
+
+  $("editInitiativeAt2R").value =
+    normalizeInitiativeAt2R(
+      record.initiativeAt2R
     );
 
   $("editRetestInternalStructure").value =
@@ -12825,7 +10838,6 @@ async function openRecord(recordId) {
   );
 
   syncDeepRFShadowUI(true);
-  syncEditAutomaticJournalFields(record);
 
   $("editNote").value =
     record.note || "";
@@ -13069,6 +11081,8 @@ async function saveRecordEdit() {
     $("editPostEntryQ").value;
   records[index].postEntryAction =
     $("editPostEntryAction").value;
+  records[index].tpPlan =
+    $("editTpPlan").value;
   records[index].profitR =
     optionalNumberFromInput(
       "editProfitR"
@@ -13093,32 +11107,32 @@ async function saveRecordEdit() {
   records[index].reachedRF =
     $("editReachedRF").value;
   records[index].reachedTP2 =
-    autoReachedTP2FromMfe(
+    autoReachedTP2Value(
       records[index].mfeR
     );
   records[index].validCandidate =
-    autoValidCandidateFromSize(
+    autoValidCandidateValue(
       records[index].finalSize
-    );
-  records[index].eSourceV14 =
-    normalizeV14ESource(
-      $("editESourceV14").value
-    ) || "none";
-  records[index].eSourceV14Label =
-    v14ESourceLabel(
-      records[index].eSourceV14
-    );
-  records[index].openingContextV14 =
-    normalizeOpeningContextV14(
-      $("editOpeningContextV14").value
-    );
-  records[index].auctionMoveV14 =
-    normalizeAuctionMoveV14(
-      $("editAuctionMoveV14").value
     );
   records[index].postEntryObjectiveUpgrade =
     normalizePostEntryObjectiveUpgrade(
       $("editPostEntryObjectiveUpgrade").value
+    );
+  records[index].auctionMove =
+    normalizeAuctionMove(
+      $("editAuctionMove").value
+    );
+  records[index].openingContext =
+    normalizeOpeningContext(
+      $("editOpeningContext").value
+    );
+  records[index].initiativeTriggerLevel =
+    initiativeTriggerLevelValue(
+      $("editInitiativeTriggerLevel").value
+    );
+  records[index].initiativeAt2R =
+    normalizeInitiativeAt2R(
+      $("editInitiativeAt2R").value
     );
   records[index].retestInternalStructure =
     normalizeRetestInternalStructure(
@@ -13132,50 +11146,6 @@ async function saveRecordEdit() {
     normalizeRetestAcceptance(
       $("editRetestAcceptance").value
     );
-
-  const editedQ2Interaction =
-    recordQ2NegativeInteractionInfo(
-      records[index]
-    );
-
-  records[index].q2NegativeInteraction =
-    editedQ2Interaction.code;
-  records[index].q2NegativeInteractionLabel =
-    editedQ2Interaction.label;
-  records[index].q2NegativeInteractionReasons =
-    editedQ2Interaction.reasons;
-
-  const editedRunner =
-    recordRunnerEligibilityInfo(
-      {
-        ...records[index],
-        runnerEligibility: "",
-        runnerTier: "",
-        runnerEligibilityReason: ""
-      }
-    );
-
-  records[index].runnerEligibility =
-    editedRunner.code;
-  records[index].runnerTier =
-    editedRunner.tier;
-  records[index].runnerEligibilityReason =
-    editedRunner.reason;
-  records[index].tpPlan =
-    autoTpPlanFromRunnerEligibility(
-      editedRunner.code
-    );
-
-  const editedRunnerGate =
-    v14RunnerGateInfo(
-      editedRunner.code,
-      records[index].auctionMoveV14
-    );
-
-  records[index].runnerPostEntryGate =
-    editedRunnerGate.code;
-  records[index].runnerPostEntryGateLabel =
-    editedRunnerGate.label;
 
   records[index].deepRFTriggered =
     $("editDeepRFTriggered").value;
@@ -13444,17 +11414,16 @@ function buildCsv(records) {
     "圖片數量",
     "方向偏見標籤",
     "情緒加注標籤",
-    "Operating Matrix Version",
+    "Frozen Matrix Version",
     "Transition Type V1.3",
     "Control Alignment V1.3",
     "Raw P V1.3",
     "P3 Context",
     "Enhancement E V1.3",
-    "E Source V1.4",
     "Execution P V1.3",
     "Native Q V1.3",
     "Q2 Subtype V1.3",
-    "Q2 Negative Interaction V1.4",
+    "Aligned Transition Shadow Size",
     "Setup Family V1.3",
     "MFE R",
     "MAE R",
@@ -13467,10 +11436,11 @@ function buildCsv(records) {
     "0.25 Additional Cap Flags",
     "Normalized R",
     "Objective at Entry",
-    "Runner Eligibility V1.4",
-    "Opening Context V1.4",
-    "Auction Move V1.4",
     "Post-entry Objective Upgrade",
+    "Auction Move",
+    "Opening Context",
+    "Initiative Trigger Level",
+    "Initiative @ 2R",
     "Retest Internal Structure",
     "Retest vs Reclaim Structure",
     "Retest Acceptance",
@@ -13744,12 +11714,14 @@ function buildCsv(records) {
       record.entryTimeQ || "",
       record.postEntryQ || "",
       record.postEntryAction || "",
-      recordAutoTpPlan(record),
+      record.tpPlan || "",
       Number.isFinite(record.profitR)
         ? record.profitR
         : "",
       record.reachedRF || "",
-      recordAutoReachedTP2(record),
+      recordAutoReachedTP2(
+        record
+      ),
       record.hasImage
         ? "Yes"
         : "No",
@@ -13774,17 +11746,12 @@ function buildCsv(records) {
         ? recordP3Context(record)
         : "",
       record.enhancementLabel || record.enhancement || "",
-      v14ESourceLabel(
-        recordV14ESource(
-          record
-        )
-      ),
       record.executionP || record.position || "",
       record.nativeQ || record.baseTrigger || record.trigger || "",
       record.q2Subtype || "",
-      recordQ2NegativeInteractionInfo(
-        record
-      ).label,
+      Number.isFinite(record.shadowAlignedTransitionSize)
+        ? record.shadowAlignedTransitionSize
+        : "",
       record.setupFamily || record.setupTemplateLabel || "",
       Number.isFinite(record.mfeR) ? record.mfeR : "",
       Number.isFinite(record.maeR) ? record.maeR : "",
@@ -13795,7 +11762,9 @@ function buildCsv(records) {
           ? record.profitR
           : "",
       record.reviewedSession || "",
-      recordAutoValidCandidate(record),
+      recordAutoValidCandidate(
+        record
+      ),
       record.shadowResearchVersion || "",
       record.primaryCapReason || "",
       Array.isArray(record.additionalCapFlags)
@@ -13821,21 +11790,26 @@ function buildCsv(records) {
       recordObjectiveAtEntry(
         record
       ),
-      recordRunnerEligibilityInfo(
-        record
-      ).code,
-      openingContextV14Label(
-        normalizeOpeningContextV14(
-          record.openingContextV14
-        )
-      ),
-      auctionMoveV14Label(
-        normalizeAuctionMoveV14(
-          record.auctionMoveV14
-        )
-      ),
       normalizePostEntryObjectiveUpgrade(
         record.postEntryObjectiveUpgrade
+      ),
+      auctionMoveLabel(
+        normalizeAuctionMove(
+          record.auctionMove
+        )
+      ),
+      openingContextLabel(
+        normalizeOpeningContext(
+          record.openingContext
+        )
+      ),
+      initiativeTriggerLevelValue(
+        record.initiativeTriggerLevel
+      ),
+      initiativeAt2RLabel(
+        normalizeInitiativeAt2R(
+          record.initiativeAt2R
+        )
       ),
       retestInternalStructureLabel(
         normalizeRetestInternalStructure(
@@ -15893,11 +13867,14 @@ function recordFromCsvRow(row) {
       ) ||
       "N/A",
     reachedTP2:
-      firstCsvValue(
-        row,
-        "去到TP2"
-      ) ||
-      "N/A",
+      autoReachedTP2Value(
+        csvNumber(
+          firstCsvValue(
+            row,
+            "MFE R"
+          )
+        )
+      ),
     hasImage: false,
     imageCount: 0,
     loosenedTriggerBecauseBias:
@@ -15917,7 +13894,6 @@ function recordFromCsvRow(row) {
     matrixVersion:
       firstCsvValue(
         row,
-        "Operating Matrix Version",
         "Frozen Matrix Version"
       ) || "Legacy／Imported",
     transitionTypeLabel:
@@ -15973,18 +13949,6 @@ function recordFromCsvRow(row) {
         row,
         "Enhancement E V1.3"
       ),
-    eSourceV14:
-      normalizeV14ESource(
-        firstCsvValue(
-          row,
-          "E Source V1.4"
-        )
-      ),
-    eSourceV14Label:
-      firstCsvValue(
-        row,
-        "E Source V1.4"
-      ),
     executionP:
       firstCsvValue(
         row,
@@ -16002,36 +13966,6 @@ function recordFromCsvRow(row) {
         row,
         "Q2 Subtype V1.3"
       ),
-    q2NegativeInteractionLabel:
-      firstCsvValue(
-        row,
-        "Q2 Negative Interaction V1.4"
-      ) || "",
-    q2NegativeInteraction:
-      (() => {
-        const value =
-          String(
-            firstCsvValue(
-              row,
-              "Q2 Negative Interaction V1.4"
-            ) || ""
-          )
-            .trim();
-
-        if (
-          value.startsWith("High")
-        ) {
-          return "High";
-        }
-
-        if (
-          value.startsWith("Medium")
-        ) {
-          return "Medium";
-        }
-
-        return "None";
-      })(),
     tradeObjective:
       firstCsvValue(
         row,
@@ -16063,7 +13997,14 @@ function recordFromCsvRow(row) {
     reviewedSession:
       firstCsvValue(row, "Reviewed Session") || "",
     validCandidate:
-      firstCsvValue(row, "Valid Candidate") || "No",
+      autoValidCandidateValue(
+        csvNumber(
+          firstCsvValue(
+            row,
+            "最終注碼"
+          )
+        ) ?? 0
+      ),
     postEntryPricePattern:
       firstCsvValue(
         row,
@@ -16116,39 +14057,39 @@ function recordFromCsvRow(row) {
         row,
         "Reaction-first Shadow Class"
       ) || "N/A",
-    runnerEligibility:
-      (() => {
-        const value =
-          firstCsvValue(
-            row,
-            "Runner Eligibility V1.4"
-          );
-
-        return value === "Conditional"
-          ? "Conditional"
-          : value === "No"
-            ? "No"
-            : "";
-      })(),
-    openingContextV14:
-      normalizeOpeningContextV14(
-        firstCsvValue(
-          row,
-          "Opening Context V1.4"
-        )
-      ),
-    auctionMoveV14:
-      normalizeAuctionMoveV14(
-        firstCsvValue(
-          row,
-          "Auction Move V1.4"
-        )
-      ),
     postEntryObjectiveUpgrade:
       normalizePostEntryObjectiveUpgrade(
         firstCsvValue(
           row,
           "Post-entry Objective Upgrade"
+        )
+      ),
+    auctionMove:
+      normalizeAuctionMove(
+        firstCsvValue(
+          row,
+          "Auction Move"
+        )
+      ),
+    openingContext:
+      normalizeOpeningContext(
+        firstCsvValue(
+          row,
+          "Opening Context"
+        )
+      ),
+    initiativeTriggerLevel:
+      initiativeTriggerLevelValue(
+        firstCsvValue(
+          row,
+          "Initiative Trigger Level"
+        )
+      ),
+    initiativeAt2R:
+      normalizeInitiativeAt2R(
+        firstCsvValue(
+          row,
+          "Initiative @ 2R"
         )
       ),
     reclaimStrongBarAtrRatio:
@@ -17085,13 +15026,6 @@ async function mergeImportedRecords(
       ...sourceRecord
     };
 
-    record.validCandidate =
-      recordAutoValidCandidate(record);
-    record.reachedTP2 =
-      recordAutoReachedTP2(record);
-    record.tpPlan =
-      recordAutoTpPlan(record);
-
     if (!record.id) {
       record.id =
         stableImportedRecordId(
@@ -17511,7 +15445,7 @@ function liveRouteCap(value) {
     neutralMainReverse: 0.25,
     transitionVsConfirmedConflict: 0.5,
     transitionConfirmed: 0.5,
-    alignedTransition: 0.25,
+    alignedTransition: 0.5,
     mixedTransition: 0.5,
     neutralTransition: 0.5,
     transitionReverse: 0.25
@@ -17635,29 +15569,25 @@ function recalculateLiveDecision() {
 
   const basePosition =
     $("livePosition").value;
-
-  $("liveP3ContextRow")
-    .classList.toggle(
-      "hidden",
-      basePosition !== "P3"
-    );
-
-  const liveP3Context =
-    basePosition === "P3"
-      ? $("liveP3Context").value
-      : "";
-
   updateXauLiquidityUI(
     true,
     basePosition
   );
 
-  // V1.4：Native Q永久保留；E只可以改善Execution P，唔會Q2→Q3。
+  // V1.3: Native Q永久保留，E／Session唔再Q2→Q3。
   const effectiveQuality =
     nativeQuality;
 
   const liveXauEnhancement =
     xauLiquidityEnhancementInfo(
+      null,
+      basePosition,
+      true,
+      nativeQuality
+    );
+
+  const liveFxMonEnhancement =
+    fxMonHLEnhancementInfo(
       null,
       basePosition,
       true,
@@ -17691,6 +15621,15 @@ function recalculateLiveDecision() {
     liveXauPositionPromoted = true;
   }
 
+  if (
+    liveFxMonEnhancement.promotePosition &&
+    basePosition === "P3"
+  ) {
+    effectivePosition = "P2";
+    livePositionTreatment =
+      "p2Effective";
+  }
+
   const liveOpeningFresh =
     !euOpeningVariant ||
     $("liveOpeningDriveStatus").value !==
@@ -17699,7 +15638,7 @@ function recalculateLiveDecision() {
     nativeQuality !== "Q1" &&
     liveOpeningFresh;
 
-  // V1.4沿用V1.3 EU-D：POR Full Repair完整時原生P2。
+  // V1.3 EU-D = POR Full Repair; native P2 when complete.
   if (
     ["fullRepairAsia","fullRepairPure"].includes(variant) &&
     basePosition === "P3" &&
@@ -17710,7 +15649,7 @@ function recalculateLiveDecision() {
       "nativeP2";
   }
 
-  // V1.4沿用V1.3 EU-B：Asia Sweep + Post-open Confirmation；P3→P2-E一次。
+  // V1.3 EU-B = Asia Sweep + Post-open Confirmation; P3→P2-E once.
   const livePostOpenQualified =
     euPostOpen &&
     liveSetupCoreUsable &&
@@ -17881,11 +15820,7 @@ function recalculateLiveDecision() {
   const marketCap =
     liveRouteCap(routeCode);
 
-  /*
-   * Live Quick Decision先保留V1.3 base cell，再套V1.4 Candidate Size Layer。
-   * Full Matrix先會再用完整Q2 Interaction / Retest shadow做進一步modifier。
-   */
-  let liveV13BaselineSize =
+  let matrixSize =
     matrixCell(
       routeCode,
       effectivePosition,
@@ -17911,229 +15846,23 @@ function recalculateLiveDecision() {
           checked("liveBothTransitionP3Testable")
       }
     );
+  matrixSize = Math.min(
+    marketCap,
+    matrixSize
+  );
 
-  liveV13BaselineSize =
-    Math.min(
-      marketCap,
-      liveV13BaselineSize
-    );
-
-  const liveP2E =
+  // V1.3 P2-E + Native Q2限制。
+  const p2EWithQ2 =
     basePosition === "P3" &&
     effectivePosition === "P2" &&
-    livePositionTreatment ===
-      "p2Effective";
-
-  /*
-   * V1.3 baseline保留舊P2-E + Q2 max .25，
-   * 只用嚟顯示跨版本比較；V1.4 Candidate會按新Scenario重算。
-   */
-  if (
-    liveP2E &&
-    nativeQuality === "Q2"
-  ) {
-    liveV13BaselineSize =
-      Math.min(
-        liveV13BaselineSize,
-        0.25
-      );
-  }
-
-  let matrixSize =
-    liveV13BaselineSize;
-
-  if (
-    routeCode ===
-      "healthyAligned"
-  ) {
-    if (
-      ["P1","P2"].includes(
-        effectivePosition
-      )
-    ) {
-      matrixSize =
-        nativeQuality === "Q3"
-          ? (
-              liveP2E
-                ? 0.5
-                : 1
-            )
-          : nativeQuality === "Q2"
-            ? 0.5
-            : 0;
-    } else if (
-      effectivePosition === "P3"
-    ) {
-      matrixSize =
-        nativeQuality === "Q3"
-          ? 0.5
-          : nativeQuality === "Q2"
-            ? 0.25
-            : 0;
-    }
-  } else if (
-    [
-      "weakAligned",
-      "transitionConfirmed",
-      "neutralMainConfirmed"
-    ].includes(
-      routeCode
-    )
-  ) {
-    if (
-      ["P1","P2"].includes(
-        effectivePosition
-      )
-    ) {
-      matrixSize =
-        nativeQuality === "Q3"
-          ? 0.5
-          : nativeQuality === "Q2"
-            ? 0.25
-            : 0;
-    } else if (
-      effectivePosition === "P3"
-    ) {
-      matrixSize =
-        nativeQuality === "Q3"
-          ? 0.25
-          : 0;
-    }
-  } else if (
-    routeCode ===
-      "alignedTransition"
-  ) {
-    matrixSize =
-      ["P1","P2"].includes(
-        effectivePosition
-      ) &&
-      nativeQuality === "Q3"
-        ? 0.25
-        : (
-            effectivePosition === "P3" &&
-            nativeQuality === "Q3" &&
-            checked(
-              "liveBothTransitionP3Testable"
-            )
-          )
-          ? 0.25
-          : 0;
-  } else if (
-    routeCode ===
-      "neutralTransition"
-  ) {
-    if (
-      effectivePosition === "P1"
-    ) {
-      matrixSize =
-        nativeQuality === "Q3"
-          ? 0.5
-          : nativeQuality === "Q2"
-            ? 0.25
-            : 0;
-    } else if (
-      effectivePosition === "P2" &&
-      nativeQuality === "Q3"
-    ) {
-      matrixSize = 0.25;
-    } else if (
-      effectivePosition === "P3" &&
-      nativeQuality === "Q3" &&
-      checked(
-        "liveBothTransitionP3Testable"
-      )
-    ) {
-      matrixSize = 0.25;
-    } else {
-      matrixSize = 0;
-    }
-  } else if (
-    routeCode ===
-      "mixedTransition"
-  ) {
-    if (
-      ["P1","P2"].includes(
-        effectivePosition
-      ) &&
-      nativeQuality === "Q3"
-    ) {
-      matrixSize = 0.5;
-    } else if (
-      effectivePosition === "P1" &&
-      nativeQuality === "Q2"
-    ) {
-      matrixSize = 0.25;
-    } else if (
-      effectivePosition === "P3" &&
-      nativeQuality === "Q3" &&
-      checked(
-        "liveBothTransitionP3Testable"
-      )
-    ) {
-      matrixSize = 0.25;
-    } else {
-      matrixSize = 0;
-    }
-  } else {
-    /*
-     * Direction Conflict / Counter routes繼續用V1.3 permission skeleton。
-     * Q3唔會因V1.4自動突破原有route cap。
-     */
-    matrixSize =
-      liveV13BaselineSize;
-
-    if (
-      routeCode ===
-        "conflictMain" &&
-      liveP2E &&
-      nativeQuality === "Q3"
-    ) {
-      matrixSize =
-        Math.min(
-          matrixSize,
-          0.25
-        );
-    }
-  }
-
-  if (
-    basePosition === "P3" &&
-    liveP3Context === "MID" &&
-    matrixSize >
-      liveV13BaselineSize
-  ) {
-    matrixSize =
-      liveV13BaselineSize;
-  }
-
-  if (
-    basePosition === "P3" &&
-    liveP3Context === "EXT"
-  ) {
-    matrixSize =
-      Math.min(
-        matrixSize,
-        liveV13BaselineSize,
-        0.5
-      );
-  }
-
-  if (
-    liveP2E &&
-    nativeQuality === "Q3"
-  ) {
-    matrixSize =
-      Math.min(
-        matrixSize,
-        0.5
-      );
-  }
-
-  matrixSize =
-    Math.min(
-      marketCap,
-      matrixSize
+    livePositionTreatment === "p2Effective" &&
+    nativeQuality === "Q2";
+  if (p2EWithQ2) {
+    matrixSize = Math.min(
+      matrixSize,
+      0.25
     );
+  }
 
   let rangeSize =
     matrixSize;
@@ -18268,81 +15997,52 @@ function recalculateLiveDecision() {
       ? 0
       : obstacleSize;
 
-  let liveObjectiveAtEntry =
-    "Reaction";
+  const liveTransitionTypeCode =
+    routeCode === "mixedTransition"
+      ? "Mixed"
+      : routeCode === "neutralTransition"
+        ? "Neutral"
+        : "";
 
-  const liveClean2R =
-    !liveObstaclePresent ||
-    (
-      Number.isFinite(
-        liveObstacleR
-      ) &&
-      liveObstacleR >= 2
-    );
+  const tradeObjective =
+    objectiveAtEntryCode({
+      finalSize,
+      routeCode,
+      nativeQ:
+        nativeQuality,
+      position:
+        effectivePosition,
+      firstObstacleR:
+        liveObstaclePresent
+          ? liveObstacleR
+          : null,
+      obstacleState,
+      controlCode:
+        controlAlignment,
+      transitionTypeCode:
+        liveTransitionTypeCode,
+      setupVariant:
+        variant
+    });
 
-  if (finalSize <= 0) {
-    liveObjectiveAtEntry =
-      "N/A";
-  } else if (
-    routeCode ===
-      "healthyAligned" &&
-    nativeQuality === "Q3" &&
-    ["P1","P2"].includes(
-      basePosition
-    ) &&
-    liveClean2R &&
-    obstacleState !== "inside"
-  ) {
-    liveObjectiveAtEntry =
-      "Expansion";
-  } else if (
-    routeCode ===
-      "healthyAligned" &&
-    nativeQuality === "Q3"
-  ) {
-    liveObjectiveAtEntry =
-      "Reaction-first";
-  } else if (
-    [
-      "weakAligned",
-      "transitionConfirmed"
-    ].includes(
-      routeCode
-    )
-  ) {
-    liveObjectiveAtEntry =
-      "Reaction-first";
-  } else if (
-    routeCode ===
-      "neutralMainConfirmed" &&
-    nativeQuality === "Q3"
-  ) {
-    liveObjectiveAtEntry =
-      "Reaction-first";
-  } else {
-    liveObjectiveAtEntry =
-      "Reaction";
-  }
-
-  const liveRunnerEligible =
-    finalSize > 0 &&
-    nativeQuality === "Q3" &&
-    basePosition !== "P4" &&
-    routeCode !==
-      "reverseHealthyMain" &&
-    liveClean2R &&
-    obstacleState !==
-      "inside";
-
-  const liveRunnerEligibility =
-    liveRunnerEligible
-      ? "Conditional"
-      : "No";
-
-  const liveRunnerGate =
-    liveRunnerEligible
-      ? "Pending｜到2R判Initiative"
-      : "N/A";
+  const liveReactionFirstShadow =
+    reactionFirstShadowClass({
+      tradeObjective,
+      routeCode,
+      nativeQ:
+        nativeQuality,
+      position:
+        effectivePosition,
+      firstObstacleR:
+        liveObstaclePresent
+          ? liveObstacleR
+          : null,
+      obstacleState,
+      controlCode:
+        controlAlignment,
+      transitionTypeCode:
+        liveTransitionTypeCode
+    });
 
   const liveCapReason =
     capReasonInfo({
@@ -18367,6 +16067,13 @@ function recalculateLiveDecision() {
         controlAlignment
     });
 
+  const shadowSize =
+    routeCode === "alignedTransition" &&
+    effectivePosition === "P2" &&
+    nativeQuality === "Q3"
+      ? 0.5
+      : null;
+
   $("liveMarketCap").textContent =
     SIZE_LABELS[marketCap];
   $("liveEffectivePosition").textContent =
@@ -18383,6 +16090,12 @@ function recalculateLiveDecision() {
     SIZE_LABELS[obstacleSize];
   $("liveFinalSize").textContent =
     SIZE_LABELS[finalSize];
+  const liveObjectiveAtEntry =
+    simplifiedObjectiveAtEntry(
+      tradeObjective,
+      liveReactionFirstShadow
+    );
+
   $("liveTradeObjective").textContent =
     liveObjectiveAtEntry;
 
@@ -18414,16 +16127,10 @@ function recalculateLiveDecision() {
       ? liveCapReason.flags.join("｜")
       : "N/A";
 
-  $("liveV13BaselineSize").textContent =
-    SIZE_LABELS[
-      liveV13BaselineSize
-    ];
-
-  $("liveRunnerEligibility").textContent =
-    liveRunnerEligibility;
-
-  $("liveRunnerGate").textContent =
-    liveRunnerGate;
+  $("liveShadowSize").textContent =
+    shadowSize === null
+      ? "N/A"
+      : `${SIZE_LABELS[shadowSize]}｜Research only`;
 
   const relationNotes = {
     healthyAligned: "雙健康同向：P1／P2 Native Q3最高1。",
@@ -18437,8 +16144,8 @@ function recalculateLiveDecision() {
     neutralMainReverse: "主判中性但逆次判Confirmed：正常0；清晰P1／Range Boundary＋Q3先0.25。",
     transitionVsConfirmedConflict: "Directional Transition × Confirmed反向：P1 Q3 0.5、P2 Q3 0.25；Objective Reaction。",
     transitionConfirmed: "Single Directional Transition同Confirmed方向：最高0.5。",
-    alignedTransition: "雙Transition同向：V1.4仍以Q3 0.25為主；Q2＝0。",
-    mixedTransition: "Mixed Transition：P1/P2/P2-E＋Q3 0.5 Candidate；Medium Negative／MID+Structured會阻止Upgrade。",
+    alignedTransition: "Aligned Transition：P2＋Native Q3正式0.25；0.5只Shadow Test。",
+    mixedTransition: "Mixed Transition：Conflict邊界；P2 Q3 0.25，Q2 0。",
     neutralTransition: "Neutral／Range Transition：只做邊界；Range middle 0。",
     transitionReverse: "Transition反向Probe：Q3 only，最高0.25。"
   };
@@ -18446,7 +16153,7 @@ function recalculateLiveDecision() {
     relationNotes[routeCode] || "";
 
   const notes = [
-    `Matrix V1.4 Candidate｜市場：${MARKET_CONFIG[marketCode(true)].label}。`,
+    `Matrix V1.3 Frozen｜市場：${MARKET_CONFIG[marketCode(true)].label}。`,
     `Setup：${definition.label}。`,
     showCounterContext
       ? effectivePosition === "P1"
@@ -18454,11 +16161,16 @@ function recalculateLiveDecision() {
         : `逆弱主判P2解鎖：${liveCounterBasis === "weakBreakRetest" ? "Route A" : liveCounterBasis === "weakFreshSession" ? "Route B" : "冇A/B"}；Route成立＋Native Q3先最高0.25。P1 Tailwind只作背景記錄，唔係K嘅第三條Route。`
       : "",
     livePreviousHLInfo.applicable
-      ? `Previous H/L Sweep：${livePreviousHLInfo.sourceLabel}｜${livePreviousHLInfo.sessionLabel}。`
+      ? `Previous H/L Sweep：${livePreviousHLInfo.sourceLabel}｜${livePreviousHLInfo.sessionLabel}。${
+          marketCode(true) === "FX" &&
+          livePreviousHLInfo.source === "monHL"
+            ? " FX Mon H/L＝E+；Raw P3可獲P2-effective，Native Q不變。"
+            : ""
+        }`
       : "",
     `Direction Permission：${liveRouteLabel(routeCode)}｜Cap ${SIZE_LABELS[marketCap]}。`,
-    `Control Alignment：${controlAlignment}｜V1.4繼續只描述，唔直接加減Size。`,
-    `Raw P ${basePosition}${basePosition === "P3" ? `-${liveP3Context}` : ""} → Execution P ${effectivePosition}${livePositionTreatment === "p2Effective" ? "-E" : ""}；Raw origin保留。`,
+    `Control Alignment：${controlAlignment}｜研究欄位，V1.3唔直接改Size。`,
+    `Raw P ${basePosition} → Execution P ${effectivePosition}${livePositionTreatment === "p2Effective" ? "-E" : ""}。`,
     marketCode(true) === "XAU"
       ? `XAU Edge：${xauLiquidityEdgeInfo(true, basePosition).positionLabel}；Native Q唔升級。`
       : "",
@@ -18466,8 +16178,8 @@ function recalculateLiveDecision() {
     p2EWithQ2
       ? "P2-E＋Native Q2全局最高0.25；如果該route本身Q2＝0仍然0。Q2 subtype只作記錄。"
       : "",
-    routeCode === "mixedTransition" && matrixSize > liveV13BaselineSize
-      ? "V1.4 Candidate：Mixed Transition P1/P2/P2-E＋Q3 0.25→0.5；2026 H1確認先Freeze。"
+    routeCode === "alignedTransition" && shadowSize !== null
+      ? "Aligned Transition P2 Q3：正式0.25；0.5只做Shadow Test。"
       : "",
     ["reverseWeakMain","reverseHealthyMain"].includes(routeCode) && nativeQuality === "Q2"
       ? "Counter-main Q2正式0注；Subtype只作研究記錄。"
@@ -18476,15 +16188,10 @@ function recalculateLiveDecision() {
       ? "HSI-C OPR Continuation & Retest：Research／Provisional，暫時冇E。"
       : "",
     ["UK100","GER40"].includes(marketCode(true))
-      ? "EU V1.4沿用原骨架：EU-A POR 2B／EU-B Asia Sweep＋Post-open Confirmation／EU-D POR Full Repair；同一Opening thesis唔Double E／Size。"
-      : "",
-    `V1.3 Baseline Matrix：${SIZE_LABELS[liveV13BaselineSize]}；V1.4 Candidate Matrix：${SIZE_LABELS[matrixSize]}。`,
-    liveP2E && nativeQuality === "Q3"
-      ? "Raw P3→P2-E＋Q3 V1.4 Candidate最高0.5；待2026 H1確認。"
+      ? "EU V1.3：EU-A POR 2B／EU-B Asia Sweep＋Post-open Confirmation／EU-D POR Full Repair；同一Opening thesis唔Double E／Size。"
       : "",
     obstacleNote,
-    `Objective at Entry：${liveObjectiveAtEntry}。`,
-    `Runner Eligibility：${liveRunnerEligibility}；${liveRunnerGate}。`
+    `Objective at Entry：${liveObjectiveAtEntry}。`
   ].filter(Boolean);
 
   if (vetoes.length > 0) {
@@ -19011,6 +16718,13 @@ function setupEvents() {
     );
   });
 
+  $("editMfeR")
+    .addEventListener(
+      "input",
+      () =>
+        syncEditAutoJournalFields()
+    );
+
   [
     "timeToRF",
     "editTimeToRF"
@@ -19047,27 +16761,6 @@ function setupEvents() {
       "submit",
       saveDecision
     );
-
-  $("editMfeR")
-    .addEventListener(
-      "input",
-      () =>
-        syncEditAutomaticJournalFields()
-    );
-
-  [
-    "editP3Context",
-    "editRetestInternalStructure",
-    "editRetestVsReclaimStructure",
-    "editRetestAcceptance",
-    "editAuctionMoveV14"
-  ].forEach((id) => {
-    $(id).addEventListener(
-      "change",
-      () =>
-        syncEditAutomaticJournalFields()
-    );
-  });
 
   $("deepRFTriggered")
     .addEventListener(

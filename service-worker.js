@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-31-1-auto-journal-fields";
+const CACHE_NAME = "master-trade-system-v1-30-18-initiative-research-fields";
 const ASSETS = [
   "./",
   "./index.html",

@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.31.1",
+  "name": "Master Trade System V1.30.18",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.4 Candidate with automatic Valid Candidate, TP2 attainment from MFE, and Runner-based TP plan.",
+  "description": "Master Trade Matrix V1.3 with record-only Auction Move, Opening Context, Initiative Trigger Level and Initiative @ 2R research fields.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
