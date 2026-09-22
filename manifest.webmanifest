@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.18",
+  "name": "Master Trade System V1.30.19",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 with record-only Auction Move, Opening Context, Initiative Trigger Level and Initiative @ 2R research fields.",
+  "description": "Master Trade Matrix V1.3 with Skip entry status automatically setting Profit R to 0, plus existing Auction/Opening/Initiative research fields.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

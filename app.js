@@ -6098,6 +6098,85 @@ function autoReachedTP2Value(
     : "No";
 }
 
+function profitRForEntryStatus(
+  entryStatus,
+  value
+) {
+  if (entryStatus === "Skip") {
+    return 0;
+  }
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const numeric =
+    Number(value);
+
+  return Number.isFinite(numeric)
+    ? numeric
+    : null;
+}
+
+function recordProfitR(
+  record
+) {
+  return profitRForEntryStatus(
+    record?.entryStatus,
+    record?.profitR
+  );
+}
+
+function syncProfitRWithEntryStatus(
+  editMode = false
+) {
+  const status =
+    $(
+      editMode
+        ? "editEntryStatus"
+        : "entryStatus"
+    );
+
+  const input =
+    $(
+      editMode
+        ? "editProfitR"
+        : "profitR"
+    );
+
+  const isSkip =
+    status.value === "Skip";
+
+  if (isSkip) {
+    input.value = "0";
+    input.readOnly = true;
+    input.dataset.autoSkipR =
+      "1";
+  } else {
+    input.readOnly = false;
+
+    if (
+      input.dataset.autoSkipR ===
+        "1"
+    ) {
+      input.value = "";
+      delete input.dataset.autoSkipR;
+    }
+  }
+
+  if (
+    !editMode &&
+    currentDecision
+  ) {
+    updateShadowResearchPreview();
+  }
+}
+
+
 function recordAutoValidCandidate(
   record
 ) {
@@ -8192,8 +8271,11 @@ async function saveDecision(event) {
   }
 
   const profitRValue =
-    optionalNumberFromInput(
-      "profitR"
+    profitRForEntryStatus(
+      $("entryStatus").value,
+      optionalNumberFromInput(
+        "profitR"
+      )
     );
 
   const mfeRValue =
@@ -8229,9 +8311,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.18",
+      "PracticeJournal-V1.30.19",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-09-r31-InitiativeResearchFields",
+      "MasterTradeMatrix-V1.3-Amended-2026-09-r32-SkipAutoProfitR",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -8768,6 +8850,9 @@ async function saveDecision(event) {
   $("reachedTP2").value = "No";
   $("note").value = "";
 
+  syncProfitRWithEntryStatus(
+    false
+  );
   updateShadowResearchPreview();
   renderHistory();
   showToast(
@@ -9527,14 +9612,21 @@ function renderHistory() {
   const recordsWithR =
     allRecords.filter(
       (record) =>
-        Number.isFinite(record.profitR)
+        Number.isFinite(
+          recordProfitR(
+            record
+          )
+        )
     );
 
   if (recordsWithR.length > 0) {
     const averageR =
       recordsWithR.reduce(
         (sum, record) =>
-          sum + record.profitR,
+          sum +
+          recordProfitR(
+            record
+          ),
         0
       ) / recordsWithR.length;
 
@@ -9750,9 +9842,16 @@ function renderHistory() {
           record.id
         ) || "—";
 
+      const historyProfitR =
+        recordProfitR(
+          record
+        );
+
       const profitText =
-        Number.isFinite(record.profitR)
-          ? `${record.profitR}R`
+        Number.isFinite(
+          historyProfitR
+        )
+          ? `${historyProfitR}R`
           : "未填R";
 
       const imageCount =
@@ -10734,12 +10833,24 @@ async function openRecord(recordId) {
   $("editTpPlan").value =
     record.tpPlan ||
     "2R全平";
+  delete $("editProfitR")
+    .dataset.autoSkipR;
+
+  const editProfitRValue =
+    recordProfitR(
+      record
+    );
+
   $("editProfitR").value =
     Number.isFinite(
-      record.profitR
+      editProfitRValue
     )
-      ? record.profitR
+      ? editProfitRValue
       : "";
+
+  syncProfitRWithEntryStatus(
+    true
+  );
 
   $("editMfeR").value =
     Number.isFinite(record.mfeR)
@@ -11084,8 +11195,11 @@ async function saveRecordEdit() {
   records[index].tpPlan =
     $("editTpPlan").value;
   records[index].profitR =
-    optionalNumberFromInput(
-      "editProfitR"
+    profitRForEntryStatus(
+      records[index].entryStatus,
+      optionalNumberFromInput(
+        "editProfitR"
+      )
     );
   records[index].actualR =
     records[index].profitR;
@@ -11715,8 +11829,14 @@ function buildCsv(records) {
       record.postEntryQ || "",
       record.postEntryAction || "",
       record.tpPlan || "",
-      Number.isFinite(record.profitR)
-        ? record.profitR
+      Number.isFinite(
+        recordProfitR(
+          record
+        )
+      )
+        ? recordProfitR(
+            record
+          )
         : "",
       record.reachedRF || "",
       recordAutoReachedTP2(
@@ -11756,11 +11876,13 @@ function buildCsv(records) {
       Number.isFinite(record.mfeR) ? record.mfeR : "",
       Number.isFinite(record.maeR) ? record.maeR : "",
       Number.isFinite(record.timeToRF) ? record.timeToRF : "",
-      Number.isFinite(record.actualR)
-        ? record.actualR
-        : Number.isFinite(record.profitR)
-          ? record.profitR
-          : "",
+      record.entryStatus === "Skip"
+        ? 0
+        : Number.isFinite(record.actualR)
+          ? record.actualR
+          : Number.isFinite(record.profitR)
+            ? record.profitR
+            : "",
       record.reviewedSession || "",
       recordAutoValidCandidate(
         record
@@ -11774,16 +11896,20 @@ function buildCsv(records) {
         ? record.normalizedR
         : Number.isFinite(
             normalizedRValue(
-              Number.isFinite(record.actualR)
-                ? record.actualR
-                : record.profitR,
+              record.entryStatus === "Skip"
+                ? 0
+                : Number.isFinite(record.actualR)
+                  ? record.actualR
+                  : recordProfitR(record),
               record.finalSize
             )
           )
           ? normalizedRValue(
-              Number.isFinite(record.actualR)
-                ? record.actualR
-                : record.profitR,
+              record.entryStatus === "Skip"
+                ? 0
+                : Number.isFinite(record.actualR)
+                  ? record.actualR
+                  : recordProfitR(record),
               record.finalSize
             )
           : "",
@@ -12778,11 +12904,21 @@ function recordFromCsvRow(row) {
       triggerModelLabel
     );
 
+  const entryStatus =
+    firstCsvValue(
+      row,
+      "入市結果"
+    ) ||
+    "Skip";
+
   const profitR =
-    csvNumber(
-      firstCsvValue(
-        row,
-        "獲利R"
+    profitRForEntryStatus(
+      entryStatus,
+      csvNumber(
+        firstCsvValue(
+          row,
+          "獲利R"
+        )
       )
     );
 
@@ -13830,12 +13966,7 @@ function recordFromCsvRow(row) {
           "最終注碼"
         )
       ) ?? 0,
-    entryStatus:
-      firstCsvValue(
-        row,
-        "入市結果"
-      ) ||
-      "Skip",
+    entryStatus,
     entryTimeQ:
       firstCsvValue(
         row,
@@ -13993,7 +14124,17 @@ function recordFromCsvRow(row) {
     timeToMFE:
       csvNumber(firstCsvValue(row, "Time to MFE")),
     actualR:
-      csvNumber(firstCsvValue(row, "Actual R")) ?? profitR,
+      entryStatus === "Skip"
+        ? 0
+        : (
+            csvNumber(
+              firstCsvValue(
+                row,
+                "Actual R"
+              )
+            ) ??
+            profitR
+          ),
     reviewedSession:
       firstCsvValue(row, "Reviewed Session") || "",
     validCandidate:
@@ -14034,12 +14175,22 @@ function recordFromCsvRow(row) {
         )
         .filter(Boolean),
     normalizedR:
-      csvNumber(
-        firstCsvValue(
-          row,
-          "Normalized R"
-        )
-      ),
+      entryStatus === "Skip"
+        ? normalizedRValue(
+            0,
+            csvNumber(
+              firstCsvValue(
+                row,
+                "最終注碼"
+              )
+            ) ?? 0
+          )
+        : csvNumber(
+            firstCsvValue(
+              row,
+              "Normalized R"
+            )
+          ),
     objectiveAtEntry:
       simplifiedObjectiveAtEntry(
         firstCsvValue(
@@ -16717,6 +16868,24 @@ function setupEvents() {
       }
     );
   });
+
+  $("entryStatus")
+    .addEventListener(
+      "change",
+      () =>
+        syncProfitRWithEntryStatus(
+          false
+        )
+    );
+
+  $("editEntryStatus")
+    .addEventListener(
+      "change",
+      () =>
+        syncProfitRWithEntryStatus(
+          true
+        )
+    );
 
   $("editMfeR")
     .addEventListener(

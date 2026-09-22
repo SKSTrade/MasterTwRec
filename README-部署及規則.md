@@ -1,44 +1,28 @@
-# Master Trade System V1.30.18
+# Master Trade System V1.30.19
 ## Master Trade Matrix V1.3
 
-### 新增 Initiative Research 欄位
+### Skip → 獲利R自動0
 
-#### Initiative Trigger Level
-自由文字記錄實際要突破／接受嘅level，例如：
-- Asia High
-- 15M Working High
-- PDH
-- Range High
+當 `有冇入到市` 選擇：
 
-#### Initiative @ 2R
-只分：
-- No
-- Attempt
-- Confirmed
+> `Skip｜主動放棄`
 
-兩項都係純紀錄／Shadow欄位：
-- 唔改 Direction Permission
-- 唔改 Raw / Execution P
-- 唔改 Native Q
-- 唔改 Matrix Size / Final Size
-- 唔改 Valid Candidate
-- 唔改 Objective / Management
+App會自動：
 
-主介面可以直接填，Record Library可以事後Edit。
+- 將 `獲利R` 填成 `0`
+- 暫時鎖住獲利R欄，避免Skip狀態下誤填其他數字
+- 儲存時再次強制使用 `0`
+- Record Library Edit同樣適用
+- CSV Import遇到 `Entry Status = Skip` 時亦會將Profit R / Actual R正規化為 `0`
 
-### CSV
+如果由 `Skip` 改返 `Entry` 或 `Miss`，由Skip自動產生嘅0會清空，獲利R恢復可輸入。
 
-CSV schema由164欄增加至166欄：
-- `Initiative Trigger Level`
-- `Initiative @ 2R`
+### 其他規則保持
 
-舊CSV冇呢兩欄仍可正常Import，會當成未記錄。
-
-### 既有欄位保留
-
-- Auction Move：Responsive / Initiative
-- Opening Context：Inside-Mid / Inside-Edge / Outside-Hold / Outside-Fail
 - Valid Candidate：Final Size > 0 → Yes；否則No
 - 去唔去到TP2：MFE R > 3.9 → Yes；否則No
-- XAU / FX Mon H/L E+規則保持
+- Auction Move / Opening Context
+- Initiative Trigger Level / Initiative @ 2R
+- XAU / FX Mon H/L E+
+- CSV schema維持166欄
 - V1.4未啟用
