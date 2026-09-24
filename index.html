@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.19</span>
+    <span class="version-badge">V1.30.21</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1338,7 +1338,7 @@
           <div class="shadow-research-panel">
             <div class="shadow-research-heading">
               <strong>2025 H2 Shadow Research｜Pruned</strong>
-              <span>只保留目前information value最高嘅欄位；Auction Move／Opening Context／Initiative Trigger Level／Initiative @ 2R同其他Shadow一樣唔改Frozen Decision。</span>
+              <span>只保留目前information value最高嘅欄位；Auction Move／Opening Context／Initiative Trigger Level／Initiative @ 2R／Entry-TF Working Structure同其他Shadow一樣唔改Frozen Decision。</span>
             </div>
 
             <div class="summary-grid shadow-auto-grid">
@@ -1389,6 +1389,21 @@
                   <option value="Attempt">Attempt</option>
                   <option value="Confirmed">Confirmed</option>
                 </select>
+              </label>
+
+              <label>
+                Entry-TF Working Structure
+                <select id="entryTFWorkingStructure">
+                  <option value="" selected>未記錄</option>
+                  <option value="opposingIntact">Opposing Intact</option>
+                  <option value="opposingBrokenTransition">Opposing Broken / Transition</option>
+                  <option value="aligned">Aligned</option>
+                </select>
+                <small>
+                  Opposing Intact＝入場TF原本同交易方向相反嘅工作結構，入場時仍未被有效破壞。<br>
+                  Opposing Broken / Transition＝反向工作結構已被有效破，但新嘅順交易方向工作結構仲未正式建立。<br>
+                  Aligned＝入場TF工作結構已經同交易方向一致。
+                </small>
               </label>
 
               <label>
@@ -2104,6 +2119,19 @@
               <option value="Attempt">Attempt</option>
               <option value="Confirmed">Confirmed</option>
             </select>
+          </label>
+
+          <label>
+            Entry-TF Working Structure
+            <select id="editEntryTFWorkingStructure">
+              <option value="">未記錄</option>
+              <option value="opposingIntact">Opposing Intact</option>
+              <option value="opposingBrokenTransition">Opposing Broken / Transition</option>
+              <option value="aligned">Aligned</option>
+            </select>
+            <small>
+              Opposing Intact＝反向工作結構仍未被有效破壞；Opposing Broken / Transition＝反向工作結構已破，但順向工作結構未正式建立；Aligned＝工作結構已同交易方向一致。
+            </small>
           </label>
 
           <label>

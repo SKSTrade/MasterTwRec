@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-19-skip-auto-profit-r";
+const CACHE_NAME = "master-trade-system-v1-30-21-entry-tf-working-structure-states";
 const ASSETS = [
   "./",
   "./index.html",

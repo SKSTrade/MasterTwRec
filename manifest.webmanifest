@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.19",
+  "name": "Master Trade System V1.30.21",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 with Skip entry status automatically setting Profit R to 0, plus existing Auction/Opening/Initiative research fields.",
+  "description": "Master Trade Matrix V1.3 with revised record-only Entry-TF Working Structure states: Opposing Intact, Opposing Broken / Transition, and Aligned.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

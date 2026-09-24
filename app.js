@@ -5751,6 +5751,65 @@ function normalizeInitiativeAt2R(
 }
 
 
+function entryTFWorkingStructureLabel(
+  code
+) {
+  const labels = {
+    opposingIntact:
+      "Opposing Intact",
+    opposingBrokenTransition:
+      "Opposing Broken / Transition",
+    aligned:
+      "Aligned"
+  };
+
+  return labels[code] || "";
+}
+
+function normalizeEntryTFWorkingStructure(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_／/-]+/g, "");
+
+  const map = {
+    opposingintact:
+      "opposingIntact",
+    intact:
+      "opposingIntact",
+    未破:
+      "opposingIntact",
+    hold:
+      "opposingIntact",
+
+    opposingbrokentransition:
+      "opposingBrokenTransition",
+    broken:
+      "opposingBrokenTransition",
+    已破:
+      "opposingBrokenTransition",
+    break:
+      "opposingBrokenTransition",
+    transition:
+      "opposingBrokenTransition",
+
+    aligned:
+      "aligned",
+    與交易方向一致:
+      "aligned",
+    交易方向一致:
+      "aligned",
+    samedirection:
+      "aligned"
+  };
+
+  return map[raw] || "";
+}
+
+
 function retestAcceptanceLabel(
   code
 ) {
@@ -8311,9 +8370,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.19",
+      "PracticeJournal-V1.30.21",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-09-r32-SkipAutoProfitR",
+      "MasterTradeMatrix-V1.3-Amended-2026-09-r34-EntryTFWorkingStructureStates",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -8459,7 +8518,7 @@ async function saveDecision(event) {
         currentDecision
       ),
     shadowResearchVersion:
-      "2025 H2 Shadow Overlay v9",
+      "2025 H2 Shadow Overlay v11",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -8757,6 +8816,10 @@ async function saveDecision(event) {
       normalizeInitiativeAt2R(
         $("initiativeAt2R").value
       ),
+    entryTFWorkingStructure:
+      normalizeEntryTFWorkingStructure(
+        $("entryTFWorkingStructure").value
+      ),
     retestInternalStructure:
       normalizeRetestInternalStructure(
         $("retestInternalStructure").value
@@ -8836,6 +8899,7 @@ async function saveDecision(event) {
   $("openingContext").value = "";
   $("initiativeTriggerLevel").value = "";
   $("initiativeAt2R").value = "No";
+  $("entryTFWorkingStructure").value = "";
   $("retestInternalStructure").value = "";
   $("retestVsReclaimStructure").value = "na";
   $("retestAcceptance").value = "";
@@ -10719,6 +10783,15 @@ async function openRecord(recordId) {
       ) || "未記錄"
     )}
     <br>
+    <strong>Entry-TF Working Structure：</strong>
+    ${escapeHtml(
+      entryTFWorkingStructureLabel(
+        normalizeEntryTFWorkingStructure(
+          record.entryTFWorkingStructure
+        )
+      ) || "未記錄"
+    )}
+    <br>
     <strong>Retest Internal Structure：</strong>
     ${escapeHtml(
       retestInternalStructureLabel(
@@ -10902,6 +10975,11 @@ async function openRecord(recordId) {
   $("editInitiativeAt2R").value =
     normalizeInitiativeAt2R(
       record.initiativeAt2R
+    );
+
+  $("editEntryTFWorkingStructure").value =
+    normalizeEntryTFWorkingStructure(
+      record.entryTFWorkingStructure
     );
 
   $("editRetestInternalStructure").value =
@@ -11248,6 +11326,10 @@ async function saveRecordEdit() {
     normalizeInitiativeAt2R(
       $("editInitiativeAt2R").value
     );
+  records[index].entryTFWorkingStructure =
+    normalizeEntryTFWorkingStructure(
+      $("editEntryTFWorkingStructure").value
+    );
   records[index].retestInternalStructure =
     normalizeRetestInternalStructure(
       $("editRetestInternalStructure").value
@@ -11555,6 +11637,7 @@ function buildCsv(records) {
     "Opening Context",
     "Initiative Trigger Level",
     "Initiative @ 2R",
+    "Entry-TF Working Structure",
     "Retest Internal Structure",
     "Retest vs Reclaim Structure",
     "Retest Acceptance",
@@ -11935,6 +12018,11 @@ function buildCsv(records) {
       initiativeAt2RLabel(
         normalizeInitiativeAt2R(
           record.initiativeAt2R
+        )
+      ),
+      entryTFWorkingStructureLabel(
+        normalizeEntryTFWorkingStructure(
+          record.entryTFWorkingStructure
         )
       ),
       retestInternalStructureLabel(
@@ -14241,6 +14329,15 @@ function recordFromCsvRow(row) {
         firstCsvValue(
           row,
           "Initiative @ 2R"
+        )
+      ),
+    entryTFWorkingStructure:
+      normalizeEntryTFWorkingStructure(
+        firstCsvValue(
+          row,
+          "Entry-TF Working Structure",
+          "Entry TF Working Structure",
+          "入場TF工作結構"
         )
       ),
     reclaimStrongBarAtrRatio:

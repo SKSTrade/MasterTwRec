@@ -1,28 +1,47 @@
-# Master Trade System V1.30.19
+# Master Trade System V1.30.21
 ## Master Trade Matrix V1.3
 
-### Skip → 獲利R自動0
+### Entry-TF Working Structure
 
-當 `有冇入到市` 選擇：
+正式改名為：
 
-> `Skip｜主動放棄`
+> `Entry-TF Working Structure`
 
-App會自動：
+三個互斥狀態：
 
-- 將 `獲利R` 填成 `0`
-- 暫時鎖住獲利R欄，避免Skip狀態下誤填其他數字
-- 儲存時再次強制使用 `0`
-- Record Library Edit同樣適用
-- CSV Import遇到 `Entry Status = Skip` 時亦會將Profit R / Actual R正規化為 `0`
+#### Opposing Intact
+入場TF原本同交易方向相反嘅工作結構，入場時仍未被有效破壞。
 
-如果由 `Skip` 改返 `Entry` 或 `Miss`，由Skip自動產生嘅0會清空，獲利R恢復可輸入。
+#### Opposing Broken / Transition
+反向工作結構已被有效破，但新嘅順交易方向工作結構仲未正式建立。
 
-### 其他規則保持
+#### Aligned
+入場TF工作結構已經同交易方向一致。
 
-- Valid Candidate：Final Size > 0 → Yes；否則No
-- 去唔去到TP2：MFE R > 3.9 → Yes；否則No
-- Auction Move / Opening Context
-- Initiative Trigger Level / Initiative @ 2R
-- XAU / FX Mon H/L E+
-- CSV schema維持166欄
-- V1.4未啟用
+### 舊資料兼容
+
+V1.30.20舊值會自動映射：
+
+- `未破` → `Opposing Intact`
+- `已破` → `Opposing Broken / Transition`
+- `與交易方向一致` → `Aligned`
+
+CSV欄名更新為：
+- `Entry-TF Working Structure`
+
+Import仍兼容舊欄名：
+- `Entry TF Working Structure`
+- `入場TF工作結構`
+
+### 性質
+
+純紀錄／Shadow：
+- 唔改 Direction Permission
+- 唔改 Raw / Execution P
+- 唔改 Native Q
+- 唔改 Matrix Size / Final Size
+- 唔改 Valid Candidate
+- 唔改 Objective / Management
+
+CSV schema維持167欄。
+V1.4未啟用。
