@@ -1,47 +1,43 @@
-# Master Trade System V1.30.21
+# Master Trade System V1.30.22
 ## Master Trade Matrix V1.3
 
-### Entry-TF Working Structure
+### 1. 移除 Auction Move
 
-正式改名為：
+`Auction Move` 已由正式操作介面、Record Detail及CSV Export移除。
 
-> `Entry-TF Working Structure`
+舊V1.30.17–V1.30.21資料如果本身有 `Auction Move`：
+- 唔會影響舊紀錄載入；
+- 舊CSV含 `Auction Move` 欄仍可Import；
+- 但V1.30.22唔再顯示／匯出呢個欄位。
 
-三個互斥狀態：
+### 2. Entry-TF Working Structure 說明改為條件式
 
-#### Opposing Intact
-入場TF原本同交易方向相反嘅工作結構，入場時仍未被有效破壞。
+選項維持：
+- Opposing Intact
+- Opposing Broken / Transition
+- Aligned
 
-#### Opposing Broken / Transition
-反向工作結構已被有效破，但新嘅順交易方向工作結構仲未正式建立。
+而家唔會長期顯示三段說明。
 
-#### Aligned
-入場TF工作結構已經同交易方向一致。
+只有揀咗某個選項，先會喺該欄下面顯示對應說明：
 
-### 舊資料兼容
+- `Opposing Intact` → 入場TF原本同交易方向相反嘅工作結構，入場時仍未被有效破壞。
+- `Opposing Broken / Transition` → 反向工作結構已被有效破，但新嘅順交易方向工作結構仲未正式建立。
+- `Aligned` → 入場TF工作結構已經同交易方向一致。
 
-V1.30.20舊值會自動映射：
+未記錄時說明保持隱藏。
 
-- `未破` → `Opposing Intact`
-- `已破` → `Opposing Broken / Transition`
-- `與交易方向一致` → `Aligned`
+Record Library Edit亦使用同一套行為。
 
-CSV欄名更新為：
-- `Entry-TF Working Structure`
+### 3. 性質
 
-Import仍兼容舊欄名：
-- `Entry TF Working Structure`
-- `入場TF工作結構`
-
-### 性質
-
-純紀錄／Shadow：
+Entry-TF Working Structure仍然係純Shadow：
 - 唔改 Direction Permission
 - 唔改 Raw / Execution P
 - 唔改 Native Q
-- 唔改 Matrix Size / Final Size
+- 唔改 Matrix / Final Size
 - 唔改 Valid Candidate
 - 唔改 Objective / Management
 
-CSV schema維持167欄。
+CSV由167欄減至166欄，原因只係移除 `Auction Move`。
 V1.4未啟用。

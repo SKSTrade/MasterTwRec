@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.21",
+  "name": "Master Trade System V1.30.22",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 with revised record-only Entry-TF Working Structure states: Opposing Intact, Opposing Broken / Transition, and Aligned.",
+  "description": "Master Trade Matrix V1.3 with Auction Move removed from active journal fields and conditional help for Entry-TF Working Structure.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

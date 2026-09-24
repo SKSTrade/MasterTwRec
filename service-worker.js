@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-21-entry-tf-working-structure-states";
+const CACHE_NAME = "master-trade-system-v1-30-22-conditional-entry-tf-help";
 const ASSETS = [
   "./",
   "./index.html",

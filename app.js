@@ -5751,6 +5751,57 @@ function normalizeInitiativeAt2R(
 }
 
 
+function entryTFWorkingStructureDescription(
+  code
+) {
+  const descriptions = {
+    opposingIntact:
+      "入場TF原本同交易方向相反嘅工作結構，入場時仍未被有效破壞。",
+    opposingBrokenTransition:
+      "反向工作結構已被有效破，但新嘅順交易方向工作結構仲未正式建立。",
+    aligned:
+      "入場TF工作結構已經同交易方向一致。"
+  };
+
+  return descriptions[code] || "";
+}
+
+function syncEntryTFWorkingStructureHelp(
+  editMode = false
+) {
+  const selectId =
+    editMode
+      ? "editEntryTFWorkingStructure"
+      : "entryTFWorkingStructure";
+
+  const helpId =
+    editMode
+      ? "editEntryTFWorkingStructureHelp"
+      : "entryTFWorkingStructureHelp";
+
+  const code =
+    normalizeEntryTFWorkingStructure(
+      $(selectId).value
+    );
+
+  const description =
+    entryTFWorkingStructureDescription(
+      code
+    );
+
+  const help =
+    $(helpId);
+
+  help.textContent =
+    description;
+
+  help.classList.toggle(
+    "hidden",
+    !description
+  );
+}
+
+
 function entryTFWorkingStructureLabel(
   code
 ) {
@@ -8370,9 +8421,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.21",
+      "PracticeJournal-V1.30.22",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-09-r34-EntryTFWorkingStructureStates",
+      "MasterTradeMatrix-V1.3-Amended-2026-09-r35-ConditionalEntryTFHelp",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -8518,7 +8569,7 @@ async function saveDecision(event) {
         currentDecision
       ),
     shadowResearchVersion:
-      "2025 H2 Shadow Overlay v11",
+      "2025 H2 Shadow Overlay v12",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -8800,10 +8851,6 @@ async function saveDecision(event) {
       normalizePostEntryObjectiveUpgrade(
         $("postEntryObjectiveUpgrade").value
       ),
-    auctionMove:
-      normalizeAuctionMove(
-        $("auctionMove").value
-      ),
     openingContext:
       normalizeOpeningContext(
         $("openingContext").value
@@ -8895,11 +8942,13 @@ async function saveDecision(event) {
   $("timeToRF").value = "";
   $("validCandidate").value = "No";
   $("postEntryObjectiveUpgrade").value = "No";
-  $("auctionMove").value = "";
   $("openingContext").value = "";
   $("initiativeTriggerLevel").value = "";
   $("initiativeAt2R").value = "No";
   $("entryTFWorkingStructure").value = "";
+  syncEntryTFWorkingStructureHelp(
+    false
+  );
   $("retestInternalStructure").value = "";
   $("retestVsReclaimStructure").value = "na";
   $("retestAcceptance").value = "";
@@ -10749,15 +10798,6 @@ async function openRecord(recordId) {
     <strong>Post-entry Objective Upgrade：</strong>
     ${escapeHtml(normalizePostEntryObjectiveUpgrade(record.postEntryObjectiveUpgrade))}
     <br>
-    <strong>Auction Move：</strong>
-    ${escapeHtml(
-      auctionMoveLabel(
-        normalizeAuctionMove(
-          record.auctionMove
-        )
-      ) || "未記錄"
-    )}
-    <br>
     <strong>Opening Context：</strong>
     ${escapeHtml(
       openingContextLabel(
@@ -10957,11 +10997,6 @@ async function openRecord(recordId) {
       record.postEntryObjectiveUpgrade
     );
 
-  $("editAuctionMove").value =
-    normalizeAuctionMove(
-      record.auctionMove
-    );
-
   $("editOpeningContext").value =
     normalizeOpeningContext(
       record.openingContext
@@ -10981,6 +11016,10 @@ async function openRecord(recordId) {
     normalizeEntryTFWorkingStructure(
       record.entryTFWorkingStructure
     );
+
+  syncEntryTFWorkingStructureHelp(
+    true
+  );
 
   $("editRetestInternalStructure").value =
     normalizeRetestInternalStructure(
@@ -11310,10 +11349,6 @@ async function saveRecordEdit() {
     normalizePostEntryObjectiveUpgrade(
       $("editPostEntryObjectiveUpgrade").value
     );
-  records[index].auctionMove =
-    normalizeAuctionMove(
-      $("editAuctionMove").value
-    );
   records[index].openingContext =
     normalizeOpeningContext(
       $("editOpeningContext").value
@@ -11633,7 +11668,6 @@ function buildCsv(records) {
     "Normalized R",
     "Objective at Entry",
     "Post-entry Objective Upgrade",
-    "Auction Move",
     "Opening Context",
     "Initiative Trigger Level",
     "Initiative @ 2R",
@@ -12001,11 +12035,6 @@ function buildCsv(records) {
       ),
       normalizePostEntryObjectiveUpgrade(
         record.postEntryObjectiveUpgrade
-      ),
-      auctionMoveLabel(
-        normalizeAuctionMove(
-          record.auctionMove
-        )
       ),
       openingContextLabel(
         normalizeOpeningContext(
@@ -16966,6 +16995,24 @@ function setupEvents() {
     );
   });
 
+  $("entryTFWorkingStructure")
+    .addEventListener(
+      "change",
+      () =>
+        syncEntryTFWorkingStructureHelp(
+          false
+        )
+    );
+
+  $("editEntryTFWorkingStructure")
+    .addEventListener(
+      "change",
+      () =>
+        syncEntryTFWorkingStructureHelp(
+          true
+        )
+    );
+
   $("entryStatus")
     .addEventListener(
       "change",
@@ -17440,6 +17487,10 @@ function initialize() {
     "健康跌勢";
   $("secondaryState").value =
     "轉換中－偏跌";
+
+  syncEntryTFWorkingStructureHelp(
+    false
+  );
 
   setupTabs();
   setupEvents();
