@@ -1,115 +1,136 @@
-# Master Trade V3.4 PWA
+# Master Trade System V1.30.24
+## V1.3 Production｜Entry-TF Main Structure Shadow + T0-Balance / T0-Post-Break
 
-呢個版本唔需要 Apple Developer 簽署，冇 7 日到期限制。
+### 今版新增：Entry-TF Main Structure
 
-## 已包含
+新增一個同 `Entry-TF Working Structure` 完全平行嘅入場時研究欄位：
 
-- 入場觸發層自動配置
-- 五種市場狀態
-- 主判斷 × 次判斷市場關係
-- P1–P4
-- Sweep／Reclaim／Momentum／Retest Checklist
-- 自動 Q3／Q2／Q1
-- V3 注碼矩陣
-- 大局背景條件式 0.5 注封頂
-- 硬性否決
-- 本機紀錄、平均注碼、平均 R、勝率
-- CSV 匯出
-- 離線使用
-- 可加入 iPhone 主畫面
+`Entry-TF Main Structure`
 
-## 重要資料說明
+只判斷 **Entry TF喺真正入場嗰一刻** 嘅 Official Main Structure 狀態，相對於交易方向分三類：
 
-交易紀錄儲存在 Safari 網站資料（localStorage）。
+- `Opposing Intact`：入場TF原本反交易方向嘅 Official Main Structure 入場時仍未被有效破壞。
+- `Opposing Broken / Transition`：反向 Official Main Structure 已被有效破壞，但新嘅順交易方向 Main Structure / Trend 尚未正式建立。
+- `Aligned`：入場TF Official Main Structure 已經同交易方向一致。
 
-以下操作可能刪除紀錄：
+同 Working Structure 一樣：
 
-- 清除 Safari 網站資料
-- 使用無痕瀏覽
-- 刪除該網站資料
-- 系統清理工具清理 Safari 資料
+- Main Journal可直接記錄；
+- Record Library可事後補填／修改；
+- Record Detail會顯示；
+- CSV可以Export / Import；
+- 舊CSV冇呢欄時自動留空；
+- **Shadow only：唔改P、Q、Direction Permission、Size、Valid Candidate、Objective、Obstacle/RR或Management。**
 
-請定期匯出 CSV 備份。
+Shadow Research Version：`2025 H2 Shadow Overlay v13`。
 
-## 免費部署到 GitHub Pages
+### T0-Balance / T0-Post-Break
 
-### 1. 建立 Repository
+V1.30.23已落實嘅T0修正完整保留，今版冇再改數值或route邏輯。
 
-在 GitHub 建立一個公開 Repository，例如：
+核心原則仍然係：
 
-`master-trade-pwa`
+> **25% Rule屬於 Auction Balance Location Filter，唔屬於 Transition Neutral 本身。**
 
-### 2. 上載檔案
+同時：
 
-解壓縮後，將 `MasterTradePWA` 資料夾入面嘅內容上載到 Repository 根目錄：
+> **T0-Post-Break解除25% hard restriction，但唔解除Neutral size cap；Post-Break Direction唔係正式Direction Vote。**
 
-- index.html
-- styles.css
-- app.js
-- manifest.webmanifest
-- service-worker.js
-- icons 資料夾
+流程：
 
-唔好直接上載 ZIP。
+> Market State → T0 subtype → Direction Permission → Location eligibility → P → Q → Route cap → Size
 
-### 3. 開啟 GitHub Pages
+### T0-Balance
 
-Repository：
+真正Two-way Auction / Range。如果Entry仍然受該Balance Auction直接約束：
 
-`Settings → Pages`
+- True Boundary P1 + Q3 = 0.5
+- True Boundary P1 + Q2 = 0.25
+- P2 / P2-E + Q3 = 0.25
+- P2 / P2-E + Q2 = 0
+- P3 + Q3 = 0.25 / 0，只限Meaningful Boundary
+- P3 + Q2 = 0
+- Balance Middle = 0
 
-設定：
+只有呢類情況先套25% / true-boundary filter。
 
-- Source：Deploy from a branch
-- Branch：main
-- Folder：/(root)
+如果Entry已離開／唔再受該Auction直接約束，可設：
 
-儲存後等一至數分鐘，GitHub會提供網站網址。
+`T0-Balance Auction Constraint = Released`
 
-## 加入 iPhone 主畫面
+解除25% Filter，但Neutral route cap唔會提高。
 
-1. 用 iPhone Safari 打開 GitHub Pages 網址。
-2. 撳 Safari 分享按鈕。
-3. 選「加入主畫面」。
-4. 名稱可改做 `Trade Matrix`。
-5. 撳「加入」。
+### T0-Post-Break
 
-之後主畫面會有 App 圖示，以獨立視窗運行，亦冇 7 日簽署限制。
+代表：
 
-## Mac 本機測試
+- 舊Trend authority已失效；
+- Break方向有repricing / momentum；
+- 新Working Control未正式建立。
 
-唔好直接雙擊 `index.html` 測試 Service Worker。
+所以：
 
-Terminal 進入資料夾後執行：
+- 唔套25% hard restriction；
+- Break Direction唔係正式Direction Vote；
+- 唔會因Break + Hold + Extend直接當Healthy / Weak Trend；
+- Neutral Size Cap仍然保留。
 
-```bash
-python3 -m http.server 8080
-```
+Directional + T0-Post-Break沿用現有Directional + Neutral待遇：P1/P2/P2-E + Q3最高0.5、Q2最高0.25；P3 + Q3只限meaningful location。
 
-再打開：
+### T0-Post-Break × T0-Post-Break
 
-```text
-http://localhost:8080
-```
+兩層都未有正式Directional Control。如果兩層Post-Break Direction相同，而且Trade順共同Break方向：
 
-## 更新 PWA
+- P1 / P2 / P2-E + Q3 = 0.25
+- P3 + Q3 = 0.25 / 0，只限Meaningful Location
+- Q2 = 0
+- P4 = 0
 
-每次修改並重新部署，建議將 `service-worker.js` 入面：
+共同Break方向只係Momentum Context，唔係Trend confirmation。
 
-```text
-CACHE_NAME
-```
+### T0-Balance × T0-Post-Break
 
-由例如：
+未有正式Directional Control前：
 
-```text
-master-trade-v34-pwa-1
-```
+- Max 0.25
+- Q3 only
+- P1/P2/P2-E要有Meaningful Location
+- P3 + Q3只限Meaningful Location
+- Q2 = 0
 
-改成：
+Entry仍喺Balance Auction內就保留25% Filter；已離開該Auction就解除Filter，但Max仍然0.25。
 
-```text
-master-trade-v34-pwa-2
-```
+### Journal / CSV
 
-確保裝置取得新版本。
+T0既有保存欄位保持：
+
+- 主判T0 Subtype
+- 主判T0 Post-Break Direction
+- 次判T0 Subtype
+- 次判T0 Post-Break Direction
+- T0-Balance Auction Constraint
+
+今版再新增：
+
+- `Entry-TF Main Structure`
+
+CSV由171欄增加至 **172欄**。
+
+舊CSV：
+
+- 冇T0 subtype時，`轉換中－中性` 仍自動按 `T0-Balance` 處理；
+- Auction Constraint預設 `Inside / Active`；
+- 冇 `Entry-TF Main Structure` 欄時，該欄留空，唔會猜測歷史狀態。
+
+### 保持不變
+
+- V1.4未啟用
+- T0 Production size數值／route邏輯保持V1.30.23
+- Native Q規則不變
+- P / E規則不變
+- Obstacle / RR規則不變
+- Valid Candidate Auto不變
+- MFE > 3.9 → TP2 Yes不變
+- Skip → Profit R 0不變
+- localStorage / IndexedDB key不變
+- ZIP round-trip、圖片、紀錄庫、舊CSV兼容保持

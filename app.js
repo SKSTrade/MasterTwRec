@@ -68,9 +68,9 @@ const STATES = {
   "轉換中－中性": {
     type: "transition",
     bias: null,
-    note: "原趨勢主結已被有效實收穿，舊主導權失效；多空暫時冇清晰優勢，可能形成橫行／Range。",
-    priorityDeployment: "優先等清晰區間形成後做P1／P2邊界，或者等有效突破接受＋首次回測再跟新方向。",
-    secondaryDeployment: "若更高一級有明確方向，可做順更高級別嘅短程trade；中間位不做，目標以區間另一邊或重大障礙前為主。"
+    note: "原趨勢主結已被有效實收穿，舊主導權失效；T0本身只表示未有新Directional Control。必須再分T0-Balance同T0-Post-Break。",
+    priorityDeployment: "先判T0 subtype：Balance先用Auction boundary；Post-Break只解除25% filter，唔會當新Trend方向票。",
+    secondaryDeployment: "方向權限仍由另一層已確認／Directional state提供；如果兩層都只有T0，Size保持低Cap。"
   },
   "轉換中－偏跌": {
     type: "transition",
@@ -549,7 +549,7 @@ function transitionTypeInfo(
   ) {
     return {
       code: "Neutral",
-      label: "Neutral｜雙Transition且至少一層中性／Range",
+      label: "Neutral｜雙Transition且至少一層T0",
       aligned: false,
       mixed: false,
       neutral: true
@@ -1660,7 +1660,345 @@ function applyTimeframePreset(value) {
   suppressPresetChange = false;
 }
 
-function marketRelation(mainState, secondaryState) {
+function normalizeT0Subtype(
+  value
+) {
+  return value === "postBreak"
+    ? "postBreak"
+    : "balance";
+}
+
+function normalizeT0PostBreakDirection(
+  value
+) {
+  return ["up","down"].includes(value)
+    ? value
+    : "";
+}
+
+function t0SubtypeLabel(
+  subtype
+) {
+  return normalizeT0Subtype(subtype) === "postBreak"
+    ? "T0-Post-Break"
+    : "T0-Balance";
+}
+
+function t0PostBreakDirectionLabel(
+  directionCode
+) {
+  if (directionCode === "up") return "Up";
+  if (directionCode === "down") return "Down";
+  return "未記錄";
+}
+
+function normalizeT0BalanceConstraint(
+  value
+) {
+  return value === "released"
+    ? "released"
+    : "inside";
+}
+
+function recordT0ContextInfo(
+  record
+) {
+  return t0ContextInfo(
+    record?.mainState || "",
+    record?.secondaryState || "",
+    {
+      mainSubtype:
+        record?.mainT0Subtype,
+      mainPostBreakDirection:
+        record?.mainT0PostBreakDirection,
+      secondarySubtype:
+        record?.secondaryT0Subtype,
+      secondaryPostBreakDirection:
+        record?.secondaryT0PostBreakDirection,
+      balanceConstraint:
+        record?.t0BalanceConstraint
+    }
+  );
+}
+
+
+function recordT0StateDisplay(
+  record,
+  layer
+) {
+  const state =
+    layer === "main"
+      ? record?.mainState
+      : record?.secondaryState;
+
+  if (state !== "轉換中－中性") {
+    return state || "";
+  }
+
+  const info =
+    recordT0ContextInfo(
+      record
+    );
+
+  const subtype =
+    layer === "main"
+      ? info.mainSubtype
+      : info.secondarySubtype;
+
+  const directionCode =
+    layer === "main"
+      ? info.mainPostBreakDirection
+      : info.secondaryPostBreakDirection;
+
+  return `${state}｜${t0SubtypeLabel(subtype)}${
+    subtype === "postBreak"
+      ? ` ${t0PostBreakDirectionLabel(directionCode)}`
+      : ""
+  }`;
+}
+
+
+function currentT0ContextOptions() {
+  return {
+    mainSubtype:
+      normalizeT0Subtype(
+        $("mainT0Subtype").value
+      ),
+    mainPostBreakDirection:
+      normalizeT0PostBreakDirection(
+        $("mainT0PostBreakDirection").value
+      ),
+    secondarySubtype:
+      normalizeT0Subtype(
+        $("secondaryT0Subtype").value
+      ),
+    secondaryPostBreakDirection:
+      normalizeT0PostBreakDirection(
+        $("secondaryT0PostBreakDirection").value
+      ),
+    balanceConstraint:
+      normalizeT0BalanceConstraint(
+        $("t0BalanceConstraint").value
+      )
+  };
+}
+
+function t0ContextInfo(
+  mainState,
+  secondaryState,
+  options = {}
+) {
+  const t0State =
+    "轉換中－中性";
+
+  const mainIsT0 =
+    mainState === t0State;
+  const secondaryIsT0 =
+    secondaryState === t0State;
+
+  const mainSubtype =
+    mainIsT0
+      ? normalizeT0Subtype(
+          options.mainSubtype
+        )
+      : "";
+
+  const secondarySubtype =
+    secondaryIsT0
+      ? normalizeT0Subtype(
+          options.secondarySubtype
+        )
+      : "";
+
+  const mainPostBreakDirection =
+    mainIsT0 &&
+    mainSubtype === "postBreak"
+      ? normalizeT0PostBreakDirection(
+          options.mainPostBreakDirection
+        )
+      : "";
+
+  const secondaryPostBreakDirection =
+    secondaryIsT0 &&
+    secondarySubtype === "postBreak"
+      ? normalizeT0PostBreakDirection(
+          options.secondaryPostBreakDirection
+        )
+      : "";
+
+  const hasBalance =
+    (
+      mainIsT0 &&
+      mainSubtype === "balance"
+    ) ||
+    (
+      secondaryIsT0 &&
+      secondarySubtype === "balance"
+    );
+
+  const hasPostBreak =
+    (
+      mainIsT0 &&
+      mainSubtype === "postBreak"
+    ) ||
+    (
+      secondaryIsT0 &&
+      secondarySubtype === "postBreak"
+    );
+
+  const balanceConstraint =
+    hasBalance &&
+    options.balanceConstraint === "released"
+      ? "released"
+      : hasBalance
+        ? "inside"
+        : "notApplicable";
+
+  const balanceFilterActive =
+    hasBalance &&
+    balanceConstraint === "inside";
+
+  const bothT0 =
+    mainIsT0 &&
+    secondaryIsT0;
+
+  const bothBalance =
+    bothT0 &&
+    mainSubtype === "balance" &&
+    secondarySubtype === "balance";
+
+  const bothPostBreak =
+    bothT0 &&
+    mainSubtype === "postBreak" &&
+    secondarySubtype === "postBreak";
+
+  const hybrid =
+    bothT0 &&
+    (
+      (
+        mainSubtype === "balance" &&
+        secondarySubtype === "postBreak"
+      ) ||
+      (
+        mainSubtype === "postBreak" &&
+        secondarySubtype === "balance"
+      )
+    );
+
+  const postBreakDirectionsSame =
+    bothPostBreak &&
+    mainPostBreakDirection &&
+    secondaryPostBreakDirection &&
+    mainPostBreakDirection ===
+      secondaryPostBreakDirection;
+
+  const commonPostBreakDirection =
+    postBreakDirectionsSame
+      ? mainPostBreakDirection
+      : "";
+
+  const hybridPostBreakDirection =
+    hybrid
+      ? (
+          mainSubtype === "postBreak"
+            ? mainPostBreakDirection
+            : secondaryPostBreakDirection
+        )
+      : "";
+
+  return {
+    mainIsT0,
+    secondaryIsT0,
+    mainSubtype,
+    secondarySubtype,
+    mainPostBreakDirection,
+    secondaryPostBreakDirection,
+    hasBalance,
+    hasPostBreak,
+    balanceConstraint,
+    balanceFilterActive,
+    bothT0,
+    bothBalance,
+    bothPostBreak,
+    hybrid,
+    postBreakDirectionsSame,
+    commonPostBreakDirection,
+    hybridPostBreakDirection
+  };
+}
+
+function currentT0ContextInfo() {
+  return t0ContextInfo(
+    $("mainState").value,
+    $("secondaryState").value,
+    currentT0ContextOptions()
+  );
+}
+
+function t0ContextSummary(
+  info
+) {
+  const parts = [];
+
+  if (info.mainIsT0) {
+    parts.push(
+      `主判 ${t0SubtypeLabel(info.mainSubtype)}${
+        info.mainSubtype === "postBreak"
+          ? ` ${t0PostBreakDirectionLabel(info.mainPostBreakDirection)}`
+          : ""
+      }`
+    );
+  }
+
+  if (info.secondaryIsT0) {
+    parts.push(
+      `次判 ${t0SubtypeLabel(info.secondarySubtype)}${
+        info.secondarySubtype === "postBreak"
+          ? ` ${t0PostBreakDirectionLabel(info.secondaryPostBreakDirection)}`
+          : ""
+      }`
+    );
+  }
+
+  return parts.length
+    ? parts.join("｜")
+    : "N/A";
+}
+
+function t0StateDisplay(
+  state,
+  layer
+) {
+  if (state !== "轉換中－中性") {
+    return state;
+  }
+
+  const info =
+    currentT0ContextInfo();
+
+  const subtype =
+    layer === "main"
+      ? info.mainSubtype
+      : info.secondarySubtype;
+
+  const directionCode =
+    layer === "main"
+      ? info.mainPostBreakDirection
+      : info.secondaryPostBreakDirection;
+
+  return `${state}｜${t0SubtypeLabel(subtype)}${
+    subtype === "postBreak"
+      ? ` ${t0PostBreakDirectionLabel(directionCode)}`
+      : ""
+  }`;
+}
+
+
+function marketRelation(
+  mainState,
+  secondaryState,
+  t0Options = {}
+) {
   const transition =
     transitionTypeInfo(
       mainState,
@@ -1676,7 +2014,30 @@ function marketRelation(mainState, secondaryState) {
   }
 
   if (transition.code === "Neutral") {
-    return "Neutral／Range Transition";
+    const t0 =
+      t0ContextInfo(
+        mainState,
+        secondaryState,
+        t0Options
+      );
+
+    if (t0.bothBalance) {
+      return "Neutral Transition｜T0-Balance";
+    }
+
+    if (t0.bothPostBreak) {
+      return "Neutral Transition｜T0-Post-Break";
+    }
+
+    if (t0.hybrid) {
+      return "Neutral Transition｜Balance × Post-Break";
+    }
+
+    if (t0.hasPostBreak) {
+      return "Neutral Transition｜Directional × T0-Post-Break";
+    }
+
+    return "Neutral Transition｜T0-Balance";
   }
 
   if (transition.code === "Single") {
@@ -1714,42 +2075,75 @@ function marketRelation(mainState, secondaryState) {
 function computeMarketRoute(
   mainState,
   secondaryState,
-  tradeDirection
+  tradeDirection,
+  t0Options = {}
 ) {
+  const t0 =
+    t0ContextInfo(
+      mainState,
+      secondaryState,
+      t0Options
+    );
+
   const relation =
     marketRelation(
+      mainState,
+      secondaryState,
+      t0Options
+    );
+
+  const mainBias =
+    stateBias(mainState);
+  const secondaryBias =
+    stateBias(secondaryState);
+  const currentTradeBias =
+    tradeDirection === "Long"
+      ? "up"
+      : "down";
+  const mainTransition =
+    isTransition(mainState);
+  const secondaryTransition =
+    isTransition(secondaryState);
+  const transition =
+    transitionTypeInfo(
       mainState,
       secondaryState
     );
 
-  const mainBias = stateBias(mainState);
-  const secondaryBias = stateBias(secondaryState);
-  const currentTradeBias =
-    tradeDirection === "Long" ? "up" : "down";
-  const mainTransition = isTransition(mainState);
-  const secondaryTransition = isTransition(secondaryState);
-  const transition =
-    transitionTypeInfo(mainState, secondaryState);
+  const result =
+    (
+      code,
+      label,
+      cap,
+      reason
+    ) => ({
+      code,
+      label,
+      cap,
+      relation,
+      transitionType:
+        transition.code,
+      transitionTypeLabel:
+        transition.label,
+      t0Context: t0,
+      reason
+    });
 
-  const result = (code, label, cap, reason) => ({
-    code,
-    label,
-    cap,
-    relation,
-    transitionType: transition.code,
-    transitionTypeLabel: transition.label,
-    reason
-  });
+  if (
+    transition.code === "Aligned"
+  ) {
+    const commonBias =
+      mainBias;
 
-  if (transition.code === "Aligned") {
-    const commonBias = mainBias;
-
-    if (currentTradeBias === commonBias) {
+    if (
+      currentTradeBias ===
+      commonBias
+    ) {
       return result(
         "alignedTransition",
         `Aligned Transition｜順共同${biasDirectionLabel(commonBias)}`,
         0.5,
-        "雙Transition同方向偏向，視為Early Trend Initiation研究類別。Market Cap 0.5；正式Matrix P2＋Native Q3仍只0.25，0.5只做Shadow Test。"
+        "雙Transition同方向偏向；Market Cap 0.5。正式Matrix P2＋Native Q3仍只0.25。"
       );
     }
 
@@ -1761,48 +2155,157 @@ function computeMarketRoute(
     );
   }
 
-  if (transition.code === "Mixed") {
+  if (
+    transition.code === "Mixed"
+  ) {
     return result(
       "mixedTransition",
       "Mixed Transition｜Conflict環境",
       0.5,
-      "主判＋次判都係Transition但Bias相反；只按邊界P同Native Q部署，預設Trade Objective＝Reaction。"
+      "主判＋次判都係Directional Transition但Bias相反；沿用V1.3 Conflict Matrix。"
     );
   }
 
-  if (transition.code === "Neutral") {
+  if (
+    transition.code === "Neutral"
+  ) {
+    /*
+     * T0-Balance and T0-Post-Break are both Neutral.
+     * Post-Break direction is context / momentum only, never a confirmed trend vote.
+     */
+    if (t0.bothBalance) {
+      return result(
+        "neutralTransition",
+        "T0-Balance｜Strict Neutral / Range",
+        0.5,
+        "雙T0-Balance：沿用Strict Neutral／Range Matrix；25% Rule只喺仍受Balance Auction約束時生效。"
+      );
+    }
+
+    if (t0.bothPostBreak) {
+      if (
+        t0.postBreakDirectionsSame &&
+        currentTradeBias ===
+          t0.commonPostBreakDirection
+      ) {
+        return result(
+          "t0PostBreakPair",
+          `T0-Post-Break × T0-Post-Break｜共同${biasDirectionLabel(t0.commonPostBreakDirection)}`,
+          0.25,
+          "兩層都只係Post-Break，未建立正式Directional Working Control。共同Break方向只表示Momentum Context，唔係Trend vote；Q3＋meaningful P先最高0.25。"
+        );
+      }
+
+      return result(
+        "t0PostBreakNoRoute",
+        "T0-Post-Break × T0-Post-Break｜方向未形成可用路線",
+        0,
+        t0.postBreakDirectionsSame
+          ? "兩層Post-Break方向一致，但今次Trade逆共同Break方向；Post-Break本身唔提供反向方向票。"
+          : "兩層Post-Break方向未記錄完整或彼此不同；未有Directional Control，暫時0。"
+      );
+    }
+
+    if (t0.hybrid) {
+      if (
+        t0.hybridPostBreakDirection &&
+        currentTradeBias ===
+          t0.hybridPostBreakDirection
+      ) {
+        return result(
+          "t0BalancePostBreak",
+          "T0-Balance × T0-Post-Break｜低Cap Q3 route",
+          0.25,
+          "一層Balance、一層Post-Break而仍未建立正式Directional Control；只跟Post-Break momentum做meaningful P＋Q3，最高0.25。若Entry仍喺Balance Auction內，25% Rule照用；若已離開該Auction，只解除25% filter，唔提高Neutral cap。"
+        );
+      }
+
+      return result(
+        "t0BalancePostBreakNoRoute",
+        "T0-Balance × T0-Post-Break｜方向未形成可用路線",
+        0,
+        "Balance本身冇方向票；Post-Break亦唔係正式Trend。今次Trade未順Post-Break momentum／未記錄Break方向，暫時0。"
+      );
+    }
+
+    /*
+     * One T0 + one directional Transition.
+     * Direction permission comes only from the directional Transition layer.
+     */
+    const directionalBias =
+      t0.mainIsT0
+        ? secondaryBias
+        : mainBias;
+
+    if (
+      directionalBias !== null &&
+      currentTradeBias !==
+        directionalBias
+    ) {
+      return result(
+        "neutralTransitionReverse",
+        "Directional Transition × T0｜逆唯一Directional Bias",
+        0,
+        "T0無方向票；唯一Directional Transition偏向同今次Trade相反，正常0。"
+      );
+    }
+
+    if (t0.hasPostBreak) {
+      return result(
+        "neutralPostBreakDirectional",
+        `Directional Transition × T0-Post-Break｜順${biasDirectionLabel(directionalBias)}`,
+        0.5,
+        "方向權限只由Directional Transition提供；T0-Post-Break解除25% hard restriction，但唔會被當成Healthy／Weak Trend，仍沿用Neutral Matrix／Cap。"
+      );
+    }
+
     return result(
       "neutralTransition",
-      "Neutral／Range Transition｜只做邊界",
+      `Directional Transition × T0-Balance｜順${biasDirectionLabel(directionalBias)}`,
       0.5,
-      "雙層都係Transition，而且至少一層中性／大型Range；Long優先底25%、Short優先頂25%，真正Range中間固定0。"
+      "方向權限由Directional Transition提供；T0-Balance仍屬Auction Balance。若Entry仍受Balance約束，25% Rule生效。"
     );
   }
 
-  if (mainTransition || secondaryTransition) {
-    if (mainTransition && !secondaryTransition) {
-      // E / M：主判中性Transition，但次判已Confirmed，唔再歸入neutralTransition。
+  if (
+    mainTransition ||
+    secondaryTransition
+  ) {
+    if (
+      mainTransition &&
+      !secondaryTransition
+    ) {
       if (mainBias === null) {
-        if (currentTradeBias === secondaryBias) {
+        if (
+          currentTradeBias ===
+          secondaryBias
+        ) {
           return result(
             "neutralMainConfirmed",
-            `主判中性Transition｜跟次判${biasDirectionLabel(secondaryBias)}`,
+            `主判T0｜跟次判${biasDirectionLabel(secondaryBias)}`,
             0.5,
-            "主判中性Transition冇方向Authority，但次判已Confirmed；常規方向跟次判。Size按P1/P2 0.5/0.25 Matrix，但Trade Objective固定Reaction。"
+            t0.mainSubtype === "postBreak"
+              ? "主判T0-Post-Break冇方向Authority；常規方向跟次判Confirmed。Post-Break唔套25% Rule。"
+              : "主判T0-Balance冇方向Authority；常規方向跟次判Confirmed。若Entry仍喺Balance Auction內，25% Rule生效。"
           );
         }
 
         return result(
           "neutralMainReverse",
-          "主判中性Transition｜逆次判Confirmed",
+          "主判T0｜逆次判Confirmed",
           0.25,
-          "主判中性唔等於反方向有權；逆唯一Confirmed Control正常0，只限清晰HTF P1／主判Range Boundary＋Native Q3作0.25 Reaction Probe。"
+          "主判T0唔等於反方向有權；逆唯一Confirmed Control正常0，只限清晰HTF P1／主要Boundary＋Native Q3作0.25 Reaction Probe。"
         );
       }
 
-      // C：Directional Transition + Confirmed，同方向。
-      if (mainBias === secondaryBias) {
-        if (currentTradeBias === secondaryBias) {
+      if (
+        mainBias ===
+        secondaryBias
+      ) {
+        if (
+          currentTradeBias ===
+          secondaryBias
+        ) {
           return result(
             "transitionConfirmed",
             "主判Transition＋次判Trend同向｜順方向",
@@ -1810,6 +2313,7 @@ function computeMarketRoute(
             "主判Directional Transition與次判已確認Trend同向；P1／P2＋Q3最高0.5。"
           );
         }
+
         return result(
           "alignedReverse",
           "主判Transition＋次判Trend同向｜反共同方向",
@@ -1818,13 +2322,16 @@ function computeMarketRoute(
         );
       }
 
-      // J：主判Directional Transition與次判Confirmed反方向；兩個交易方向Size相同，Control tag不同。
       if (
-        currentTradeBias === secondaryBias ||
-        currentTradeBias === mainBias
+        currentTradeBias ===
+          secondaryBias ||
+        currentTradeBias ===
+          mainBias
       ) {
         const followsConfirmed =
-          currentTradeBias === secondaryBias;
+          currentTradeBias ===
+          secondaryBias;
+
         return result(
           "transitionVsConfirmedConflict",
           followsConfirmed
@@ -1838,27 +2345,41 @@ function computeMarketRoute(
       }
     }
 
-    if (!mainTransition && secondaryTransition) {
+    if (
+      !mainTransition &&
+      secondaryTransition
+    ) {
       if (secondaryBias === null) {
-        if (currentTradeBias === mainBias) {
+        if (
+          currentTradeBias ===
+          mainBias
+        ) {
           return result(
             "conflictMain",
-            "主判Trend＋次判中性Transition｜順主判",
+            "主判Trend＋次判T0｜順主判",
             0.5,
-            "順主判有方向權，但次判Immediate Control只屬Transitioning；唔自動當高質。"
+            t0.secondarySubtype === "postBreak"
+              ? "順主判有方向權；次判T0-Post-Break唔提供方向票，亦唔套25% Rule。"
+              : "順主判有方向權；次判T0-Balance仍屬Auction Neutral。若Entry仍受Balance約束，25% Rule生效。"
           );
         }
+
         return result(
           "alignedReverse",
-          "主判Trend＋次判中性Transition｜逆主判",
+          "主判Trend＋次判T0｜逆主判",
           0,
-          "逆主判而次判仍未確認反方向Trend，正常0；現行只保留窄義HTF P1反轉例外。"
+          "逆主判而次判仍未確認反方向Trend，正常0；Post-Break亦唔可以當成反方向Trend vote。"
         );
       }
 
-      // C：Confirmed + Directional Transition，同方向。
-      if (secondaryBias === mainBias) {
-        if (currentTradeBias === mainBias) {
+      if (
+        secondaryBias ===
+        mainBias
+      ) {
+        if (
+          currentTradeBias ===
+          mainBias
+        ) {
           return result(
             "weakAligned",
             "主判Trend＋次判Transition同向｜順共同方向",
@@ -1866,6 +2387,7 @@ function computeMarketRoute(
             "方向同向但含Transition；最高0.5。"
           );
         }
+
         return result(
           "alignedReverse",
           "主判Trend＋次判Transition同向｜反共同方向",
@@ -1874,8 +2396,10 @@ function computeMarketRoute(
         );
       }
 
-      // I：順主判、次判Transition Against，保留原規則。
-      if (currentTradeBias === mainBias) {
+      if (
+        currentTradeBias ===
+        mainBias
+      ) {
         return result(
           "conflictMain",
           "主判Trend｜順主判、次判Transition反向",
@@ -1884,8 +2408,10 @@ function computeMarketRoute(
         );
       }
 
-      // K / L：逆主判，按主判健康/弱勢拆開。
-      if (currentTradeBias === secondaryBias) {
+      if (
+        currentTradeBias ===
+        secondaryBias
+      ) {
         if (isWeak(mainState)) {
           return result(
             "reverseWeakMain",
@@ -1894,6 +2420,7 @@ function computeMarketRoute(
             "普通逆弱主判冇自動權限；只限Route A／Route B＋P1/P2/P2-E＋Native Q3，最高0.25。"
           );
         }
+
         return result(
           "reverseHealthyMain",
           "逆健康主判｜次判Transition偏向支持",
@@ -1904,10 +2431,17 @@ function computeMarketRoute(
     }
   }
 
-  if (relation === "雙健康同向" || relation === "同向有弱勢") {
-    const commonBias = mainBias;
+  if (
+    relation === "雙健康同向" ||
+    relation === "同向有弱勢"
+  ) {
+    const commonBias =
+      mainBias;
 
-    if (currentTradeBias !== commonBias) {
+    if (
+      currentTradeBias !==
+      commonBias
+    ) {
       return result(
         "alignedReverse",
         "雙同向｜反共同方向",
@@ -1916,7 +2450,9 @@ function computeMarketRoute(
       );
     }
 
-    if (relation === "雙健康同向") {
+    if (
+      relation === "雙健康同向"
+    ) {
       return result(
         "healthyAligned",
         `雙健康同向｜順共同${biasDirectionLabel(commonBias)}`,
@@ -1933,8 +2469,13 @@ function computeMarketRoute(
     );
   }
 
-  if (relation === "方向衝突") {
-    if (currentTradeBias === mainBias) {
+  if (
+    relation === "方向衝突"
+  ) {
+    if (
+      currentTradeBias ===
+      mainBias
+    ) {
       return result(
         "conflictMain",
         `方向衝突｜順主判${biasDirectionLabel(mainBias)}、逆次判`,
@@ -1972,7 +2513,8 @@ function marketRouteInfo() {
   return computeMarketRoute(
     $("mainState").value,
     $("secondaryState").value,
-    direction()
+    direction(),
+    currentT0ContextOptions()
   );
 }
 
@@ -2009,84 +2551,327 @@ function backgroundRelationInfo() {
 }
 
 function preferredDirectionInfo() {
-  const route = marketRouteInfo();
-  const mainBias = stateBias($("mainState").value);
-  const secondaryBias = stateBias($("secondaryState").value);
+  const route =
+    marketRouteInfo();
+  const mainBias =
+    stateBias(
+      $("mainState").value
+    );
+  const secondaryBias =
+    stateBias(
+      $("secondaryState").value
+    );
 
-  if (["healthyAligned", "weakAligned", "alignedTransition"].includes(route.code)) {
+  if (
+    [
+      "healthyAligned",
+      "weakAligned",
+      "alignedTransition"
+    ].includes(route.code)
+  ) {
     return {
-      label: `只做共同${biasDirectionLabel(mainBias ?? secondaryBias)}`,
+      label:
+        `只做共同${biasDirectionLabel(mainBias ?? secondaryBias)}`,
       note: route.reason
     };
   }
 
-  if (route.code === "alignedReverse") {
-    return { label: "共同方向優先｜反向只限窄義P1 Probe", note: route.reason };
+  if (
+    route.code ===
+      "alignedReverse"
+  ) {
+    return {
+      label:
+        "共同方向優先｜反向只限窄義P1 Probe",
+      note: route.reason
+    };
   }
 
-  if (route.code === "conflictMain") {
-    return { label: `順主判${biasDirectionLabel(mainBias)}優先`, note: route.reason };
+  if (
+    route.code ===
+      "conflictMain"
+  ) {
+    return {
+      label:
+        `順主判${biasDirectionLabel(mainBias)}優先`,
+      note: route.reason
+    };
   }
 
-  if (route.code === "reverseWeakMain") {
-    return { label: `主判${biasDirectionLabel(mainBias)}仍係Primary｜逆向只限Route A/B`, note: route.reason };
+  if (
+    route.code ===
+      "reverseWeakMain"
+  ) {
+    return {
+      label:
+        `主判${biasDirectionLabel(mainBias)}仍係Primary｜逆向只限Route A/B`,
+      note: route.reason
+    };
   }
 
-  if (route.code === "reverseHealthyMain") {
-    return { label: `健康主判${biasDirectionLabel(mainBias)}仍係Primary｜逆向只限Active P1 Probe`, note: route.reason };
+  if (
+    route.code ===
+      "reverseHealthyMain"
+  ) {
+    return {
+      label:
+        `健康主判${biasDirectionLabel(mainBias)}仍係Primary｜逆向只限Active P1 Probe`,
+      note: route.reason
+    };
   }
 
-  if (route.code === "neutralMainConfirmed") {
-    return { label: "主判中性｜常規跟次判Confirmed方向", note: route.reason };
+  if (
+    route.code ===
+      "neutralMainConfirmed"
+  ) {
+    return {
+      label:
+        "T0冇方向票｜常規跟另一層Confirmed方向",
+      note: route.reason
+    };
   }
 
-  if (route.code === "neutralMainReverse") {
-    return { label: "次判Confirmed方向優先｜逆向只限P1/Range Boundary Probe", note: route.reason };
+  if (
+    route.code ===
+      "neutralMainReverse"
+  ) {
+    return {
+      label:
+        "Confirmed方向優先｜逆向只限P1／Boundary Probe",
+      note: route.reason
+    };
   }
 
-  if (route.code === "transitionVsConfirmedConflict") {
-    return { label: "Directional Transition × Confirmed反向｜按Control Alignment研究", note: route.reason };
+  if (
+    route.code ===
+      "transitionVsConfirmedConflict"
+  ) {
+    return {
+      label:
+        "Directional Transition × Confirmed反向｜按Control Alignment研究",
+      note: route.reason
+    };
   }
 
-  if (route.code === "conflictSecondary") {
-    return { label: `舊版逆主判Route`, note: route.reason };
+  if (
+    route.code ===
+      "conflictSecondary"
+  ) {
+    return {
+      label:
+        "舊版逆主判Route",
+      note: route.reason
+    };
   }
 
-  if (route.code === "transitionConfirmed") {
-    return { label: "順已確認方向／Immediate Control優先", note: route.reason };
+  if (
+    route.code ===
+      "transitionConfirmed"
+  ) {
+    return {
+      label:
+        "順已確認方向／Immediate Control優先",
+      note: route.reason
+    };
   }
 
-  if (route.code === "transitionReverse") {
-    return { label: "已確認方向優先｜反向只作Reaction Probe", note: route.reason };
+  if (
+    route.code ===
+      "transitionReverse"
+  ) {
+    return {
+      label:
+        "已確認方向優先｜反向只作Reaction Probe",
+      note: route.reason
+    };
   }
 
-  if (["mixedTransition", "neutralTransition"].includes(route.code)) {
-    return { label: "只做有效邊界／Reaction劇本", note: route.reason };
+  if (
+    route.code ===
+      "neutralTransition"
+  ) {
+    return {
+      label:
+        "Directional bias如存在只由非T0層提供｜T0-Balance只做Auction Filter",
+      note: route.reason
+    };
   }
 
-  return { label: "等待方向權限", note: route.reason };
+  if (
+    route.code ===
+      "neutralPostBreakDirectional"
+  ) {
+    return {
+      label:
+        "只跟唯一Directional Transition方向｜Post-Break唔係方向票",
+      note: route.reason
+    };
+  }
+
+  if (
+    route.code ===
+      "t0PostBreakPair"
+  ) {
+    return {
+      label:
+        "共同Post-Break momentum only｜Q3低Cap",
+      note: route.reason
+    };
+  }
+
+  if (
+    route.code ===
+      "t0BalancePostBreak"
+  ) {
+    return {
+      label:
+        "Post-Break momentum only｜Balance約束視Auction Scope",
+      note: route.reason
+    };
+  }
+
+  if (
+    [
+      "mixedTransition"
+    ].includes(route.code)
+  ) {
+    return {
+      label:
+        "只做有效位置／Reaction劇本",
+      note: route.reason
+    };
+  }
+
+  return {
+    label:
+      "等待方向權限",
+    note: route.reason
+  };
 }
 
 function combinedDeploymentInfo() {
-  const route = marketRouteInfo();
+  const route =
+    marketRouteInfo();
+
   const map = {
-    healthyAligned: {priority:"雙健康同向：P1／P2＋Native Q3最高1注。",secondary:"P3低一級；反向正常0。"},
-    weakAligned: {priority:"同向含弱勢：P1／P2＋Q3最高0.5。",secondary:"Q2按Matrix降級；避免延伸段追價。"},
-    alignedTransition: {priority:"Aligned Transition：Early Trend Initiation；P1 Q3 0.5、P2 Q3正式0.25。",secondary:"P2 Q3→0.5只做Shadow Test，唔影響正式Size。"},
-    mixedTransition: {priority:"Mixed Transition：Conflict環境，只做邊界。",secondary:"P1 Q3 0.5、P2 Q3 0.25；Q2大幅收緊，Objective預設Reaction。"},
-    neutralTransition: {priority:"Neutral／Range Transition：只做Range邊界。",secondary:"Long底25%、Short頂25%；中間P4＝0。"},
-    alignedReverse: {priority:"反共同方向正常0。",secondary:"只有窄義HTF P1＋原生至少P2＋Native Q3＋等價右側確認＋新鮮反應先0.25 Probe。"},
-    conflictMain: {priority:"方向衝突順主判：P1／P2＋Q3最高0.5。",secondary:"Control若Opposing要特別記錄；Q2通常0.25／0。"},
-    conflictSecondary: {priority:"舊版逆主判Route；新紀錄會拆分Weak／Healthy。",secondary:"保留舊資料兼容。"},
-    reverseWeakMain: {priority:"逆弱主判：只有Route A／B＋P1/P2/P2-E＋Native Q3先有權。",secondary:"Route成立一律最高0.25；Q2＝0。"},
-    reverseHealthyMain: {priority:"逆健康主判：正常0。",secondary:"Active HTF P1第一反應＋P1/P2/P2-E＋Native Q3先可0.25 Reaction Probe。"},
-    neutralMainConfirmed: {priority:"主判中性Transition＋次判Confirmed：常規跟次判，最高0.5。",secondary:"Trade Objective固定Reaction；唔歸neutralTransition。"},
-    neutralMainReverse: {priority:"主判中性但逆次判Confirmed：正常0。",secondary:"只限HTF P1／Range Boundary＋Native Q3＝0.25 Reaction Probe。"},
-    transitionVsConfirmedConflict: {priority:"主判Directional Transition × 次判Confirmed反向：P1 Q3 0.5、P2 Q3 0.25。",secondary:"兩個交易方向Size相同；Control Alignment分Confirmed／Opposing研究。"},
-    transitionConfirmed: {priority:"包含單層Directional Transition但同Confirmed方向一致：最高0.5。",secondary:"Native Q3可Expansion；P2-E＋Q2全局最多0.25。"},
-    transitionReverse: {priority:"主判Transition反向部署：只作窄義Reaction Probe。",secondary:"真正P1 Q3或既有方向合格P1 Tailwind例外；最高0.25。"}
+    healthyAligned: {
+      priority:
+        "雙健康同向：P1／P2＋Native Q3最高1注。",
+      secondary:
+        "P3低一級；反向正常0。"
+    },
+    weakAligned: {
+      priority:
+        "同向含弱勢：P1／P2＋Q3最高0.5。",
+      secondary:
+        "Q2按Matrix降級；避免延伸段追價。"
+    },
+    alignedTransition: {
+      priority:
+        "Aligned Transition：P1 Q3 0.5、P2 Q3正式0.25。",
+      secondary:
+        "P2 Q3→0.5只做Shadow Test。"
+    },
+    mixedTransition: {
+      priority:
+        "Mixed Transition：Conflict環境，只做高質meaningful location。",
+      secondary:
+        "P1 Q3 0.5、P2 Q3 0.25；Q2收緊，Objective Reaction。"
+    },
+    neutralTransition: {
+      priority:
+        "T0-Balance / Directional×Balance：沿用Neutral Matrix；只有Active Balance Auction先套25%。",
+      secondary:
+        "25% Rule係Location Filter，唔係T0本身規則。"
+    },
+    neutralPostBreakDirectional: {
+      priority:
+        "Directional Transition × T0-Post-Break：沿用Neutral Matrix／Cap。",
+      secondary:
+        "方向只由Directional Transition提供；Post-Break解除25%但唔升Trend待遇。"
+    },
+    t0PostBreakPair: {
+      priority:
+        "T0-PB × T0-PB同向：P1/P2/P2-E＋Q3最高0.25。",
+      secondary:
+        "P3＋Q3只限meaningful location；Q2＝0。"
+    },
+    t0BalancePostBreak: {
+      priority:
+        "T0-Balance × T0-PB：meaningful P＋Q3最高0.25。",
+      secondary:
+        "仍喺Balance內就套25%；已離開只解除Filter，唔升Cap。"
+    },
+    alignedReverse: {
+      priority:
+        "反共同方向正常0。",
+      secondary:
+        "只有窄義HTF P1例外可0.25 Probe。"
+    },
+    conflictMain: {
+      priority:
+        "方向衝突／Trend × T0順主判：P1／P2＋Q3最高0.5。",
+      secondary:
+        "若T0係Balance且仍受Auction約束，25% Filter照用；Post-Break唔套25%。"
+    },
+    conflictSecondary: {
+      priority:
+        "舊版逆主判Route；新紀錄會拆分Weak／Healthy。",
+      secondary:
+        "保留舊資料兼容。"
+    },
+    reverseWeakMain: {
+      priority:
+        "逆弱主判：只有Route A／B＋P1/P2/P2-E＋Native Q3先有權。",
+      secondary:
+        "Route成立一律最高0.25；Q2＝0。"
+    },
+    reverseHealthyMain: {
+      priority:
+        "逆健康主判：正常0。",
+      secondary:
+        "Active HTF P1第一反應＋Q3先可0.25 Reaction Probe。"
+    },
+    neutralMainConfirmed: {
+      priority:
+        "主判T0＋次判Confirmed：常規跟次判，最高0.5。",
+      secondary:
+        "Balance subtype仍可受25% Filter；Post-Break唔提供方向票。"
+    },
+    neutralMainReverse: {
+      priority:
+        "主判T0但逆次判Confirmed：正常0。",
+      secondary:
+        "只限HTF P1／主要Boundary＋Native Q3＝0.25 Reaction Probe。"
+    },
+    transitionVsConfirmedConflict: {
+      priority:
+        "Directional Transition × Confirmed反向：P1 Q3 0.5、P2 Q3 0.25。",
+      secondary:
+        "兩個交易方向Size暫時相同；Control Alignment作研究。"
+    },
+    transitionConfirmed: {
+      priority:
+        "單層Directional Transition同Confirmed方向一致：最高0.5。",
+      secondary:
+        "P2-E＋Q2全局最多0.25。"
+    },
+    transitionReverse: {
+      priority:
+        "主判Transition反向部署：只作窄義Reaction Probe。",
+      secondary:
+        "真正P1 Q3或既有P1 Tailwind例外；最高0.25。"
+    }
   };
-  return map[route.code] || {priority:"方向權限未成立：不部署。",secondary:"等待Market State及方向關係清晰。"};
+
+  return (
+    map[route.code] || {
+      priority:
+        "方向權限未成立：不部署。",
+      secondary:
+        "等待Market State及方向關係清晰。"
+    }
+  );
 }
 
 function triggerModelLabel() {
@@ -3316,7 +4101,10 @@ function matrixCell(
   quality,
   options = {}
 ) {
-  if (quality === "Q1" || position === "P4") return 0;
+  if (
+    quality === "Q1" ||
+    position === "P4"
+  ) return 0;
 
   if (routeCode === "healthyAligned") {
     if (["P1","P2"].includes(position) && quality === "Q3") return 1;
@@ -3326,7 +4114,13 @@ function matrixCell(
     return 0;
   }
 
-  if (["weakAligned","transitionConfirmed","neutralMainConfirmed"].includes(routeCode)) {
+  if (
+    [
+      "weakAligned",
+      "transitionConfirmed",
+      "neutralMainConfirmed"
+    ].includes(routeCode)
+  ) {
     if (["P1","P2"].includes(position) && quality === "Q3") return 0.5;
     if (["P1","P2"].includes(position) && quality === "Q2") return 0.25;
     if (position === "P3" && quality === "Q3") return options.p3AlignedTestable === false ? 0 : 0.25;
@@ -3341,7 +4135,14 @@ function matrixCell(
     return 0;
   }
 
-  if (["mixedTransition","neutralTransition","bothTransition"].includes(routeCode)) {
+  if (
+    [
+      "mixedTransition",
+      "neutralTransition",
+      "neutralPostBreakDirectional",
+      "bothTransition"
+    ].includes(routeCode)
+  ) {
     if (position === "P1" && quality === "Q3") return 0.5;
     if (position === "P1" && quality === "Q2") return 0.25;
     if (position === "P2" && quality === "Q3") return 0.25;
@@ -3349,8 +4150,33 @@ function matrixCell(
     return 0;
   }
 
+  if (
+    [
+      "t0PostBreakPair",
+      "t0BalancePostBreak"
+    ].includes(routeCode)
+  ) {
+    if (["P1","P2"].includes(position) && quality === "Q3") return 0.25;
+    if (position === "P3" && quality === "Q3") return options.bothTransitionP3Testable ? 0.25 : 0;
+    return 0;
+  }
+
+  if (
+    [
+      "t0PostBreakNoRoute",
+      "t0BalancePostBreakNoRoute",
+      "neutralTransitionReverse"
+    ].includes(routeCode)
+  ) {
+    return 0;
+  }
+
   if (routeCode === "alignedReverse") {
-    if (options.htfP1ReversalEligible && ["P1","P2"].includes(options.basePosition) && quality === "Q3") return 0.25;
+    if (
+      options.htfP1ReversalEligible &&
+      ["P1","P2"].includes(options.basePosition) &&
+      quality === "Q3"
+    ) return 0.25;
     return 0;
   }
 
@@ -4631,7 +5457,7 @@ function evaluateMatrix(
     route.code === "neutralMainConfirmed"
   ) {
     cellExplanation =
-      `主判中性Transition＋次判Confirmed，順次判：P1/P2 Q3＝0.5、Q2＝0.25；P3 Q3＝0.25。Trade Objective固定Reaction。${p2EQualityReason ? ` ${p2EQualityReason}` : ""}`;
+      `主判T0＋次判Confirmed，順次判：P1/P2 Q3＝0.5、Q2＝0.25；P3 Q3＝0.25。T0 subtype只決定Auction Filter；Trade Objective固定Reaction。${p2EQualityReason ? ` ${p2EQualityReason}` : ""}`;
   } else if (
     route.code === "neutralMainReverse"
   ) {
@@ -4710,9 +5536,24 @@ function evaluateMatrix(
   ) {
     cellExplanation =
       `Aligned Transition正式Matrix：P1 Q3＝0.5、P1 Q2＝0.25、P2 Native Q3＝0.25；P2 Q3→0.5只做Shadow Test。${p2EQualityReason ? ` ${p2EQualityReason}` : ""}`;
-  } else if (["mixedTransition","neutralTransition","bothTransition"].includes(route.code)) {
+  } else if (
+    ["mixedTransition","neutralTransition","neutralPostBreakDirectional","bothTransition"]
+      .includes(route.code)
+  ) {
     cellExplanation =
-      `${route.label}：邊界P1 Q3＝0.5、P1 Q2＝0.25、P2 Q3＝0.25、P2 Q2＝0；P3 Q3只限明確可測試邊界。`;
+      route.code === "neutralPostBreakDirectional"
+        ? `${route.label}：沿用Neutral Matrix；P1 Q3＝0.5、P1 Q2＝0.25、P2／P2-E Q3＝0.25、P2 Q2＝0；P3 Q3只限meaningful location。Post-Break解除25% Filter，但唔升Neutral cap。`
+        : `${route.label}：P1 Q3＝0.5、P1 Q2＝0.25、P2／P2-E Q3＝0.25、P2 Q2＝0；P3 Q3只限meaningful location。`;
+  } else if (
+    ["t0PostBreakPair","t0BalancePostBreak"].includes(route.code)
+  ) {
+    cellExplanation =
+      `${route.label}：未有正式Directional Control；P1／P2／P2-E＋Q3最高0.25；P3＋Q3只限meaningful location；所有Q2＝0。`;
+  } else if (
+    ["t0PostBreakNoRoute","t0BalancePostBreakNoRoute","neutralTransitionReverse"].includes(route.code)
+  ) {
+    cellExplanation =
+      `${route.label}：方向權限未成立，0注。`;
   }
 
   return {
@@ -4753,16 +5594,29 @@ function insideObstacleCap(position, quality) {
   return 0;
 }
 
-function applyRangePosition(size) {
-  if (
-    $("secondaryState").value !==
-    "轉換中－中性"
-  ) {
+function applyRangePosition(
+  size
+) {
+  const t0 =
+    currentT0ContextInfo();
+
+  if (!t0.hasBalance) {
     return {
       state: "notApplicable",
       adjustedSize: size,
       explanation:
-        "次判唔係轉換中性，Range 25%修正不適用。"
+        t0.hasPostBreak
+          ? "T0-Post-Break：25% Rule不適用；Post-Break只改route／context，唔解除Neutral size cap。"
+          : "冇T0-Balance Auction，25% Rule不適用。"
+    };
+  }
+
+  if (!t0.balanceFilterActive) {
+    return {
+      state: "released",
+      adjustedSize: size,
+      explanation:
+        "存在T0-Balance，但Entry已離開／唔再受該Balance Auction直接約束；25% hard restriction解除，Neutral route cap保持不變。"
     };
   }
 
@@ -4770,25 +5624,21 @@ function applyRangePosition(size) {
     $("secondaryRangePosition")
       .value;
 
-  if (
-    state === "favorable"
-  ) {
+  if (state === "favorable") {
     return {
       state,
       adjustedSize: size,
       explanation:
-        "次判轉換中性：Entry位於相應25%（Long底25%／Short頂25%），維持原注碼。"
+        "T0-Balance Auction Filter：Entry位於相應25%／true boundary，維持原注碼。"
     };
   }
 
-  if (
-    state === "middle"
-  ) {
+  if (state === "middle") {
     return {
       state,
       adjustedSize: 0,
       explanation:
-        "次判轉換中性：Entry位於真正Range正中／冇邊界Edge，直接0注。"
+        "T0-Balance Auction Filter：Entry位於真正Balance middle／冇邊界Edge，直接0注。"
     };
   }
 
@@ -4799,7 +5649,7 @@ function applyRangePosition(size) {
     state,
     adjustedSize: adjusted,
     explanation:
-      `次判轉換中性：Entry唔喺相應頂／底25%，注碼降一級：${SIZE_LABELS[size]} → ${SIZE_LABELS[adjusted]}。`
+      `T0-Balance Auction Filter：Entry唔喺相應25%／true boundary，注碼降一級：${SIZE_LABELS[size]} → ${SIZE_LABELS[adjusted]}。`
   };
 }
 
@@ -5183,6 +6033,9 @@ function objectiveAtEntryCode({
       "transitionReverse",
       "mixedTransition",
       "neutralTransition",
+      "neutralPostBreakDirectional",
+      "t0PostBreakPair",
+      "t0BalancePostBreak",
       "bothTransition"
     ].includes(routeCode);
 
@@ -5367,6 +6220,9 @@ function tradeObjectiveInfo({
       "transitionReverse",
       "mixedTransition",
       "neutralTransition",
+      "neutralPostBreakDirectional",
+      "t0PostBreakPair",
+      "t0BalancePostBreak",
       "bothTransition"
     ].includes(
       matrixRouteCode
@@ -5751,6 +6607,115 @@ function normalizeInitiativeAt2R(
 }
 
 
+function entryTFMainStructureDescription(
+  code
+) {
+  const descriptions = {
+    opposingIntact:
+      "入場TF原本同交易方向相反嘅Official Main Structure，入場時仍未被有效破壞。",
+    opposingBrokenTransition:
+      "反向Official Main Structure已被有效破壞，但新嘅順交易方向Main Structure／Trend仲未正式建立。",
+    aligned:
+      "入場TF Official Main Structure已經同交易方向一致。"
+  };
+
+  return descriptions[code] || "";
+}
+
+function syncEntryTFMainStructureHelp(
+  editMode = false
+) {
+  const selectId =
+    editMode
+      ? "editEntryTFMainStructure"
+      : "entryTFMainStructure";
+
+  const helpId =
+    editMode
+      ? "editEntryTFMainStructureHelp"
+      : "entryTFMainStructureHelp";
+
+  const code =
+    normalizeEntryTFMainStructure(
+      $(selectId).value
+    );
+
+  const description =
+    entryTFMainStructureDescription(
+      code
+    );
+
+  const help =
+    $(helpId);
+
+  help.textContent =
+    description;
+
+  help.classList.toggle(
+    "hidden",
+    !description
+  );
+}
+
+function entryTFMainStructureLabel(
+  code
+) {
+  const labels = {
+    opposingIntact:
+      "Opposing Intact",
+    opposingBrokenTransition:
+      "Opposing Broken / Transition",
+    aligned:
+      "Aligned"
+  };
+
+  return labels[code] || "";
+}
+
+function normalizeEntryTFMainStructure(
+  value
+) {
+  const raw =
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_／/-]+/g, "");
+
+  const map = {
+    opposingintact:
+      "opposingIntact",
+    intact:
+      "opposingIntact",
+    未破:
+      "opposingIntact",
+    hold:
+      "opposingIntact",
+
+    opposingbrokentransition:
+      "opposingBrokenTransition",
+    broken:
+      "opposingBrokenTransition",
+    已破:
+      "opposingBrokenTransition",
+    break:
+      "opposingBrokenTransition",
+    transition:
+      "opposingBrokenTransition",
+
+    aligned:
+      "aligned",
+    與交易方向一致:
+      "aligned",
+    交易方向一致:
+      "aligned",
+    samedirection:
+      "aligned"
+  };
+
+  return map[raw] || "";
+}
+
+
 function entryTFWorkingStructureDescription(
   code
 ) {
@@ -5970,7 +6935,7 @@ function capReasonInfo({
     Number(matrixSize)
   ) {
     flags.push(
-      "Range 25% downgrade"
+      "Auction Balance 25% downgrade"
     );
   }
 
@@ -6028,15 +6993,28 @@ function capReasonInfo({
     primary =
       "HTF P1 Probe";
   } else if (
+    routeCode === "t0PostBreakPair"
+  ) {
+    primary =
+      "T0 Post-Break Pair";
+  } else if (
+    routeCode === "t0BalancePostBreak"
+  ) {
+    primary =
+      "T0 Balance × Post-Break";
+  } else if (
     [
       "mixedTransition",
       "neutralTransition",
+      "neutralPostBreakDirectional",
       "bothTransition",
       "transitionReverse"
     ].includes(routeCode)
   ) {
     primary =
-      "Mixed Transition";
+      routeCode === "neutralPostBreakDirectional"
+        ? "T0 Post-Break Neutral Cap"
+        : "Mixed / Neutral Transition";
   } else if (p2Effective) {
     primary =
       "Raw P3 → P2-E";
@@ -6432,6 +7410,7 @@ function evaluateDecision(
   const background = backgroundRelationInfo();
   const control = controlAlignmentInfo();
   const transitionType = transitionTypeInfo();
+  const t0Context = currentT0ContextInfo();
   const q2Subtype = q2SubtypeInfo(baseTrigger);
   const enhancement = enhancementEdgeInfo(setupResult);
 
@@ -6497,19 +7476,20 @@ function evaluateDecision(
   const reasons = [
     ...setupResult.reasons,
     `① 大局背景：${background.label}。${background.note}`,
-    `② 主判／次判 Market State：${$("mainState").value} × ${$("secondaryState").value}；Transition Type＝${transitionType.label}。`,
+    `② 主判／次判 Market State：${t0StateDisplay($("mainState").value, "main")} × ${t0StateDisplay($("secondaryState").value, "secondary")}；Transition Type＝${transitionType.label}。T0 Context＝${t0ContextSummary(t0Context)}。`,
     `③ Direction Permission：${matrix.routeLabel}；Market Cap ${SIZE_LABELS[matrix.marketCap]}。${matrix.routeReason}`,
-    `④ Control Alignment：${control.label}。${control.note}`,
-    `⑤ Raw P：${setupResult.basePosition}；${
+    `④ Auction Balance Filter：${range.explanation}`,
+    `⑤ Control Alignment：${control.label}。${control.note}`,
+    `⑥ Raw P：${setupResult.basePosition}；${
       setupResult.basePosition === "P3"
         ? `P3 Context＝${p3ContextLabel($("p3Context").value) || "未分類"}（Shadow only）；`
         : ""
     }Execution P：${setupResult.effectivePosition}。`,
-    `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／MID／EXT唔會改E升級權或Frozen Size。`,
-    `⑦ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
-    `⑧ Obstacle／RR：${obstacle.explanation}`,
-    `⑨ Final Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
-    `⑩ Objective at Entry：${simplifiedObjectiveAtEntry(objective.code, objective.shadowClass)}。${objective.reason}`
+    `⑦ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／MID／EXT唔會改E升級權或Frozen Size。`,
+    `⑧ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
+    `⑨ Obstacle／RR：${obstacle.explanation}`,
+    `⑩ Final Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
+    `⑪ Objective at Entry：${simplifiedObjectiveAtEntry(objective.code, objective.shadowClass)}。${objective.reason}`
   ];
 
   const warnings = [
@@ -6557,8 +7537,24 @@ function evaluateDecision(
     warnings.push("主判中性唔等於逆次判有權；只限清晰HTF P1／Range Boundary＋Native Q3 Reaction Probe。")
   }
 
-  if (["mixedTransition","neutralTransition"].includes(matrix.routeCode)) {
-    warnings.push("Mixed／Neutral Transition只按邊界部署；Neutral／大型Range中間固定0。")
+  if (matrix.routeCode === "neutralTransition") {
+    warnings.push(
+      t0Context.balanceFilterActive
+        ? "T0-Balance：25% Rule只因Active Auction Balance生效；真正Balance middle固定0。"
+        : "T0-Balance存在但已解除Auction約束：25% Filter不生效，Neutral cap仍保留。"
+    );
+  }
+
+  if (matrix.routeCode === "neutralPostBreakDirectional") {
+    warnings.push("T0-Post-Break唔係新Trend方向票；只解除25% Filter，唔會提高Neutral size cap。");
+  }
+
+  if (["t0PostBreakPair","t0BalancePostBreak"].includes(matrix.routeCode)) {
+    warnings.push("未有正式Directional Working Control：Q3＋meaningful location先可0.25；Q2固定0。");
+  }
+
+  if (matrix.routeCode === "mixedTransition") {
+    warnings.push("Mixed Transition仍屬Conflict環境；按meaningful P部署，Objective預設Reaction。");
   }
 
   if ($("backgroundDirectOverlap").value === "yes" && ["P2","P3"].includes(setupResult.basePosition)) {
@@ -6599,6 +7595,20 @@ function evaluateDecision(
     backgroundRelationNote: background.note,
     transitionType: transitionType.code,
     transitionTypeLabel: transitionType.label,
+    t0ContextSummary:
+      t0ContextSummary(t0Context),
+    mainT0Subtype:
+      t0Context.mainSubtype,
+    mainT0PostBreakDirection:
+      t0Context.mainPostBreakDirection,
+    secondaryT0Subtype:
+      t0Context.secondarySubtype,
+    secondaryT0PostBreakDirection:
+      t0Context.secondaryPostBreakDirection,
+    t0BalanceConstraint:
+      t0Context.balanceConstraint,
+    t0BalanceFilterActive:
+      t0Context.balanceFilterActive,
     controlAlignment: control.code,
     controlAlignmentLabel: control.label,
     controlAlignmentNote: control.note,
@@ -6845,9 +7855,15 @@ function renderDecision(decision) {
   $("resultBackground").textContent =
     `${timeframes.background}－${$("backgroundState").value}`;
   $("resultMain").textContent =
-    `${timeframes.main}－${$("mainState").value}`;
+    `${timeframes.main}－${t0StateDisplay(
+      $("mainState").value,
+      "main"
+    )}`;
   $("resultSecondary").textContent =
-    `${timeframes.secondary}－${$("secondaryState").value}`;
+    `${timeframes.secondary}－${t0StateDisplay(
+      $("secondaryState").value,
+      "secondary"
+    )}`;
   $("resultEntryTimeframe").textContent =
     timeframes.entry;
   $("resultRelation").textContent =
@@ -6888,6 +7904,15 @@ function renderDecision(decision) {
       decision.nativeQ;
   $("resultTransitionType").textContent =
     decision.transitionTypeLabel;
+  $("resultT0Context").textContent =
+    decision.t0ContextSummary ||
+    "N/A";
+  $("resultT0BalanceFilter").textContent =
+    decision.t0BalanceFilterActive
+      ? "Active｜25% Rule"
+      : decision.t0BalanceConstraint === "released"
+        ? "Released｜Neutral cap保留"
+        : "N/A";
   $("resultControlAlignment").textContent =
     decision.controlAlignmentLabel;
   $("resultEnhancement").textContent =
@@ -7323,6 +8348,80 @@ function updateInterface() {
   $("secondaryStateNote").textContent =
     STATES[secondaryState].note;
 
+  const mainT0Active =
+    mainState === "轉換中－中性";
+  const secondaryT0Active =
+    secondaryState === "轉換中－中性";
+
+  $("mainT0ContextPanel")
+    .classList.toggle(
+      "hidden",
+      !mainT0Active
+    );
+  $("secondaryT0ContextPanel")
+    .classList.toggle(
+      "hidden",
+      !secondaryT0Active
+    );
+
+  const mainPostBreak =
+    mainT0Active &&
+    normalizeT0Subtype(
+      $("mainT0Subtype").value
+    ) === "postBreak";
+
+  const secondaryPostBreak =
+    secondaryT0Active &&
+    normalizeT0Subtype(
+      $("secondaryT0Subtype").value
+    ) === "postBreak";
+
+  $("mainT0PostBreakDirectionRow")
+    .classList.toggle(
+      "hidden",
+      !mainPostBreak
+    );
+  $("secondaryT0PostBreakDirectionRow")
+    .classList.toggle(
+      "hidden",
+      !secondaryPostBreak
+    );
+
+  const t0Context =
+    currentT0ContextInfo();
+
+  $("t0BalanceConstraintPanel")
+    .classList.toggle(
+      "hidden",
+      !t0Context.hasBalance
+    );
+
+  $("t0ContextDisplay").textContent =
+    t0ContextSummary(
+      t0Context
+    );
+
+  $("t0BalanceFilterDisplay").textContent =
+    t0Context.balanceFilterActive
+      ? "Active｜25% Rule"
+      : t0Context.balanceConstraint === "released"
+        ? "Released｜Neutral cap保留"
+        : "N/A";
+
+  if (mainT0Active) {
+    $("mainStateNote").textContent =
+      t0Context.mainSubtype === "postBreak"
+        ? "T0-Post-Break：舊Trend authority已失效，但新Working Control未正式建立。Break方向只係repricing context，唔係新Trend方向票。"
+        : "T0-Balance：市場正進行Two-way Auction／Range；只有真正Balance boundary先享有位置優勢。";
+  }
+
+  if (secondaryT0Active) {
+    $("secondaryStateNote").textContent =
+      t0Context.secondarySubtype === "postBreak"
+        ? "T0-Post-Break：舊Trend authority已失效，但新Working Control未正式建立。Break方向只係repricing context，唔係新Trend方向票。"
+        : "T0-Balance：市場正進行Two-way Auction／Range；只有真正Balance boundary先享有位置優勢。";
+  }
+
   const transitionInfo =
     transitionTypeInfo(
       mainState,
@@ -7511,31 +8610,36 @@ function updateInterface() {
           : "Type A只限指定市場Session 2B。";
   }
 
-  const rangeActive =
-    secondaryState ===
-    "轉換中－中性";
+  const activeT0RangeFilter =
+    t0Context.balanceFilterActive;
 
   $("secondaryRangePanel")
     .classList.toggle(
       "hidden",
-      !rangeActive
+      !activeT0RangeFilter
     );
 
-  if (!rangeActive) {
+  if (!activeT0RangeFilter) {
     $("secondaryRangePosition")
       .value = "favorable";
+
     $("secondaryRangeNote")
       .textContent =
-        "次判唔係中性Transition／Range，25%修正不適用。";
+        t0Context.hasBalance &&
+        t0Context.balanceConstraint === "released"
+          ? "T0-Balance存在，但Entry已離開／唔再受該Auction直接約束；25% Filter解除，Neutral cap保持。"
+          : t0Context.hasPostBreak
+            ? "T0-Post-Break唔套25% Rule；Post-Break唔會被當成Directional Trend。"
+            : "冇Active T0-Balance Auction，25% Rule不適用。";
   } else {
     const side =
       direction() === "Long"
-        ? "底部25%"
-        : "頂部25%";
+        ? "底部25%／true lower boundary"
+        : "頂部25%／true upper boundary";
 
     $("secondaryRangeNote")
       .textContent =
-        `次判中性Transition／Range：${direction()}只優先${side}；未進入相關25%降一級，Range中間固定0。`;
+        `Active T0-Balance：${direction()}優先${side}；仍喺Balance內但唔喺相關25%降一級，真正Balance middle固定0。`;
   }
 
   const route =
@@ -7590,8 +8694,13 @@ function updateInterface() {
   }
 
   const showBothTransitionP1 =
-    route.code ===
-      "bothTransition" &&
+    [
+      "bothTransition",
+      "neutralTransition",
+      "neutralPostBreakDirectional",
+      "t0PostBreakPair",
+      "t0BalancePostBreak"
+    ].includes(route.code) &&
     position === "P1";
 
   $("bothTransitionMajorP1Row")
@@ -7606,8 +8715,13 @@ function updateInterface() {
   }
 
   const showBothTransitionP3 =
-    route.code ===
-      "bothTransition" &&
+    [
+      "bothTransition",
+      "neutralTransition",
+      "neutralPostBreakDirectional",
+      "t0PostBreakPair",
+      "t0BalancePostBreak"
+    ].includes(route.code) &&
     position === "P3";
 
   $("bothTransitionP3TestableRow")
@@ -7847,8 +8961,16 @@ function checklistSummary() {
     `品種：${$("symbol").value}`,
     `核心Setup：${currentAsia2B.setupTemplateLabel}`,
     `大局背景層：${timeframes.background}－${$("backgroundState").value}`,
-    `主判斷層：${timeframes.main}－${$("mainState").value}`,
-    `次判斷層：${timeframes.secondary}－${$("secondaryState").value}`,
+    `主判斷層：${timeframes.main}－${t0StateDisplay($("mainState").value, "main")}`,
+    `次判斷層：${timeframes.secondary}－${t0StateDisplay($("secondaryState").value, "secondary")}`,
+    `T0 Context：${currentDecision?.t0ContextSummary || t0ContextSummary(currentT0ContextInfo())}`,
+    `T0-Balance Auction Constraint：${
+      currentDecision?.t0BalanceConstraint === "released"
+        ? "Released｜25% Filter Off"
+        : currentDecision?.t0BalanceFilterActive
+          ? "Inside / Active｜25% Filter On"
+          : "N/A"
+    }`,
     `入場觸發層：${timeframes.entry}`,
     `交易方向：${direction()}`,
     `市場關係：${currentDecision.relation}`,
@@ -7898,7 +9020,7 @@ function checklistSummary() {
     `窄義HTF P1反轉例外：${yesNo(checked("htfP1ReversalException"))}`,
     `主判Transition反向P1：${yesNo(checked("transitionLayerP1"))}`,
     `衝突順主判P3可測試：${yesNo(checked("p3ConflictTestable"))}`,
-    `雙轉換P3可測試：${yesNo(checked("bothTransitionP3Testable"))}`,
+    `Transition / T0 P3 Meaningful Location：${yesNo(checked("bothTransitionP3Testable"))}`,
     "",
     `原始位置：${currentAsia2B.basePosition}`,
     `Setup後有效位置：${currentAsia2B.effectivePosition}`,
@@ -7910,8 +9032,8 @@ function checklistSummary() {
     "",
     ...triggerChecklistLines(),
     "",
-    `次判Range修正：${currentDecision.rangeState}`,
-    `Range修正後：${SIZE_LABELS[currentDecision.rangeSize]}`,
+    `Auction Balance Filter：${currentDecision.rangeState}`,
+    `Auction Filter修正後：${SIZE_LABELS[currentDecision.rangeSize]}`,
     `障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
     `P×Q／方向Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
     `障礙修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
@@ -8421,9 +9543,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.22",
+      "PracticeJournal-V1.30.24",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-09-r35-ConditionalEntryTFHelp",
+      "MasterTradeMatrix-V1.3-Amended-2026-09-r37-EntryTFMainStructure",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -8502,8 +9624,18 @@ async function saveDecision(event) {
       $("backgroundState").value,
     mainState:
       $("mainState").value,
+    mainT0Subtype:
+      currentDecision.mainT0Subtype,
+    mainT0PostBreakDirection:
+      currentDecision.mainT0PostBreakDirection,
     secondaryState:
       $("secondaryState").value,
+    secondaryT0Subtype:
+      currentDecision.secondaryT0Subtype,
+    secondaryT0PostBreakDirection:
+      currentDecision.secondaryT0PostBreakDirection,
+    t0BalanceConstraint:
+      currentDecision.t0BalanceConstraint,
     bothTransitionRange:
       "no",
 
@@ -8569,7 +9701,7 @@ async function saveDecision(event) {
         currentDecision
       ),
     shadowResearchVersion:
-      "2025 H2 Shadow Overlay v12",
+      "2025 H2 Shadow Overlay v13",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -8736,7 +9868,7 @@ async function saveDecision(event) {
       currentAsia2B.triggerPromoted,
 
     secondaryRangePosition:
-      $("secondaryState").value === "轉換中－中性"
+      currentDecision.t0BalanceFilterActive
         ? $("secondaryRangePosition").value
         : "notApplicable",
     rangeSize:
@@ -8863,6 +9995,10 @@ async function saveDecision(event) {
       normalizeInitiativeAt2R(
         $("initiativeAt2R").value
       ),
+    entryTFMainStructure:
+      normalizeEntryTFMainStructure(
+        $("entryTFMainStructure").value
+      ),
     entryTFWorkingStructure:
       normalizeEntryTFWorkingStructure(
         $("entryTFWorkingStructure").value
@@ -8945,6 +10081,10 @@ async function saveDecision(event) {
   $("openingContext").value = "";
   $("initiativeTriggerLevel").value = "";
   $("initiativeAt2R").value = "No";
+  $("entryTFMainStructure").value = "";
+  syncEntryTFMainStructureHelp(
+    false
+  );
   $("entryTFWorkingStructure").value = "";
   syncEntryTFWorkingStructureHelp(
     false
@@ -10492,14 +11632,20 @@ async function openRecord(recordId) {
     ${escapeHtml(
       record.mainTimeframe || ""
     )}－${escapeHtml(
-      record.mainState || ""
+      recordT0StateDisplay(
+        record,
+        "main"
+      )
     )}
     <br>
     <strong>次判斷：</strong>
     ${escapeHtml(
       record.secondaryTimeframe || ""
     )}－${escapeHtml(
-      record.secondaryState || ""
+      recordT0StateDisplay(
+        record,
+        "secondary"
+      )
     )}
     <br>
     <strong>入場觸發層：</strong>
@@ -10603,10 +11749,10 @@ async function openRecord(recordId) {
           ? "窄義HTF P1反轉例外"
           : "",
         record.bothTransitionMajorP1
-          ? "雙轉換P1主要邊界"
+          ? "Transition/T0 P1 Major Location"
           : "",
         record.bothTransitionP3Testable
-          ? "雙轉換P3可小注"
+          ? "Transition/T0 P3 Meaningful Location"
           : ""
       ].filter(Boolean).join("／") || "無"
     )}
@@ -10720,6 +11866,24 @@ async function openRecord(recordId) {
     <strong>Aligned Transition Shadow：</strong>
     ${Number.isFinite(record.shadowAlignedTransitionSize) ? escapeHtml(safeSizeLabel(record.shadowAlignedTransitionSize)) + "｜Research only" : "N/A"}
     <br>
+    <strong>T0 Context：</strong>
+    ${escapeHtml(
+      t0ContextSummary(
+        recordT0ContextInfo(
+          record
+        )
+      )
+    )}
+    <br>
+    <strong>T0-Balance Auction Constraint：</strong>
+    ${recordT0ContextInfo(record).hasBalance
+      ? escapeHtml(
+          recordT0ContextInfo(record).balanceConstraint === "released"
+            ? "Released｜25% Filter Off"
+            : "Inside / Active｜25% Filter On"
+        )
+      : "N/A"}
+    <br>
     <strong>Range位置：</strong>
     ${escapeHtml(record.secondaryRangePosition || "N/A")}
     <br>
@@ -10819,6 +11983,15 @@ async function openRecord(recordId) {
       initiativeAt2RLabel(
         normalizeInitiativeAt2R(
           record.initiativeAt2R
+        )
+      ) || "未記錄"
+    )}
+    <br>
+    <strong>Entry-TF Main Structure：</strong>
+    ${escapeHtml(
+      entryTFMainStructureLabel(
+        normalizeEntryTFMainStructure(
+          record.entryTFMainStructure
         )
       ) || "未記錄"
     )}
@@ -11011,6 +12184,15 @@ async function openRecord(recordId) {
     normalizeInitiativeAt2R(
       record.initiativeAt2R
     );
+
+  $("editEntryTFMainStructure").value =
+    normalizeEntryTFMainStructure(
+      record.entryTFMainStructure
+    );
+
+  syncEntryTFMainStructureHelp(
+    true
+  );
 
   $("editEntryTFWorkingStructure").value =
     normalizeEntryTFWorkingStructure(
@@ -11361,6 +12543,10 @@ async function saveRecordEdit() {
     normalizeInitiativeAt2R(
       $("editInitiativeAt2R").value
     );
+  records[index].entryTFMainStructure =
+    normalizeEntryTFMainStructure(
+      $("editEntryTFMainStructure").value
+    );
   records[index].entryTFWorkingStructure =
     normalizeEntryTFWorkingStructure(
       $("editEntryTFWorkingStructure").value
@@ -11544,8 +12730,13 @@ function buildCsv(records) {
     "大局背景狀態",
     "主判TF",
     "主判狀態",
+    "主判T0 Subtype",
+    "主判T0 Post-Break Direction",
     "次判TF",
     "次判狀態",
+    "次判T0 Subtype",
+    "次判T0 Post-Break Direction",
+    "T0-Balance Auction Constraint",
     "入場觸發TF",
     "交易方向",
     "主次關係",
@@ -11571,8 +12762,8 @@ function buildCsv(records) {
     "路徑B硬障礙R",
     "路徑B未到成熟腿尾",
     "路徑B未貼近主判主結",
-    "雙轉換P1主要邊界",
-    "雙轉換P3可小注",
+    "Transition/T0 P1 Major Location",
+    "Transition/T0 P3 Meaningful Location",
     "Setup Type選擇",
     "有效Setup Type",
     "No Sweep P1 Rejection",
@@ -11626,7 +12817,7 @@ function buildCsv(records) {
     "原生P2套用",
     "P待遇來源",
     "Type A Q升級",
-    "次判Range位置",
+    "T0-Balance Range位置",
     "Range修正後",
     "大局障礙",
     "市場關係上限",
@@ -11671,6 +12862,7 @@ function buildCsv(records) {
     "Opening Context",
     "Initiative Trigger Level",
     "Initiative @ 2R",
+    "Entry-TF Main Structure",
     "Entry-TF Working Structure",
     "Retest Internal Structure",
     "Retest vs Reclaim Structure",
@@ -11720,8 +12912,45 @@ function buildCsv(records) {
       record.backgroundState || "",
       record.mainTimeframe || "",
       record.mainState || "",
+      record.mainState === "轉換中－中性"
+        ? t0SubtypeLabel(
+            recordT0ContextInfo(record)
+              .mainSubtype
+          )
+        : "",
+      record.mainState === "轉換中－中性" &&
+      recordT0ContextInfo(record)
+        .mainSubtype === "postBreak"
+        ? t0PostBreakDirectionLabel(
+            recordT0ContextInfo(record)
+              .mainPostBreakDirection
+          )
+        : "",
       record.secondaryTimeframe || "",
       record.secondaryState || "",
+      record.secondaryState === "轉換中－中性"
+        ? t0SubtypeLabel(
+            recordT0ContextInfo(record)
+              .secondarySubtype
+          )
+        : "",
+      record.secondaryState === "轉換中－中性" &&
+      recordT0ContextInfo(record)
+        .secondarySubtype === "postBreak"
+        ? t0PostBreakDirectionLabel(
+            recordT0ContextInfo(record)
+              .secondaryPostBreakDirection
+          )
+        : "",
+      recordT0ContextInfo(record)
+        .hasBalance
+        ? (
+            recordT0ContextInfo(record)
+              .balanceConstraint === "released"
+              ? "Released"
+              : "Inside / Active"
+          )
+        : "N/A",
       record.entryTimeframe || "",
       record.direction || "",
       record.relation || "",
@@ -12047,6 +13276,11 @@ function buildCsv(records) {
       initiativeAt2RLabel(
         normalizeInitiativeAt2R(
           record.initiativeAt2R
+        )
+      ),
+      entryTFMainStructureLabel(
+        normalizeEntryTFMainStructure(
+          record.entryTFMainStructure
         )
       ),
       entryTFWorkingStructureLabel(
@@ -13304,6 +14538,31 @@ function recordFromCsvRow(row) {
         row,
         "主判狀態"
       ),
+    mainT0Subtype:
+      firstCsvValue(
+        row,
+        "主判狀態"
+      ) === "轉換中－中性"
+        ? (
+            String(
+              firstCsvValue(
+                row,
+                "主判T0 Subtype"
+              )
+            ).includes("Post-Break")
+              ? "postBreak"
+              : "balance"
+          )
+        : "",
+    mainT0PostBreakDirection:
+      normalizeT0PostBreakDirection(
+        String(
+          firstCsvValue(
+            row,
+            "主判T0 Post-Break Direction"
+          )
+        ).toLowerCase()
+      ),
     secondaryTimeframe:
       firstCsvValue(
         row,
@@ -13314,6 +14573,40 @@ function recordFromCsvRow(row) {
         row,
         "次判狀態"
       ),
+    secondaryT0Subtype:
+      firstCsvValue(
+        row,
+        "次判狀態"
+      ) === "轉換中－中性"
+        ? (
+            String(
+              firstCsvValue(
+                row,
+                "次判T0 Subtype"
+              )
+            ).includes("Post-Break")
+              ? "postBreak"
+              : "balance"
+          )
+        : "",
+    secondaryT0PostBreakDirection:
+      normalizeT0PostBreakDirection(
+        String(
+          firstCsvValue(
+            row,
+            "次判T0 Post-Break Direction"
+          )
+        ).toLowerCase()
+      ),
+    t0BalanceConstraint:
+      String(
+        firstCsvValue(
+          row,
+          "T0-Balance Auction Constraint"
+        )
+      ).toLowerCase().includes("released")
+        ? "released"
+        : "inside",
     entryTimeframe:
       firstCsvValue(
         row,
@@ -13532,6 +14825,7 @@ function recordFromCsvRow(row) {
       csvBoolean(
         firstCsvValue(
           row,
+          "Transition/T0 P1 Major Location",
           "雙轉換P1主要邊界"
         )
       ),
@@ -13539,6 +14833,7 @@ function recordFromCsvRow(row) {
       csvBoolean(
         firstCsvValue(
           row,
+          "Transition/T0 P3 Meaningful Location",
           "雙轉換P3可小注"
         )
       ),
@@ -14013,6 +15308,7 @@ function recordFromCsvRow(row) {
     secondaryRangePosition:
       firstCsvValue(
         row,
+        "T0-Balance Range位置",
         "次判Range位置"
       ) ||
       "notApplicable",
@@ -14358,6 +15654,15 @@ function recordFromCsvRow(row) {
         firstCsvValue(
           row,
           "Initiative @ 2R"
+        )
+      ),
+    entryTFMainStructure:
+      normalizeEntryTFMainStructure(
+        firstCsvValue(
+          row,
+          "Entry-TF Main Structure",
+          "Entry TF Main Structure",
+          "入場TF主結構"
         )
       ),
     entryTFWorkingStructure:
@@ -15687,29 +16992,54 @@ function scrollToRulebookSection(
 
 
 
-function liveRouteLabel(value) {
+function liveRouteLabel(
+  value
+) {
   const labels = {
-    healthyAligned: "雙健康同向｜順共同方向",
-    weakAligned: "同向有弱勢｜順共同方向",
-    alignedReverse: "反共同方向｜正常0／窄義P1例外",
-    conflictMain: "方向衝突｜順主判、逆次判",
-    conflictSecondary: "舊版｜順次判、逆主判",
-    reverseWeakMain: "逆弱主判｜Route A/B only",
-    reverseHealthyMain: "逆健康主判｜Active P1 Probe only",
-    neutralMainConfirmed: "主判中性Transition｜跟次判Confirmed",
-    neutralMainReverse: "主判中性Transition｜逆次判Confirmed",
-    transitionVsConfirmedConflict: "Directional Transition × Confirmed反向",
-    transitionConfirmed: "Single Directional Transition｜同Confirmed方向",
-    alignedTransition: "Aligned Transition｜Early Trend",
-    mixedTransition: "Mixed Transition｜Conflict",
-    neutralTransition: "Neutral／Range Transition｜邊界",
-    transitionReverse: "Transition反向Probe"
+    healthyAligned:
+      "雙健康同向｜順共同方向",
+    weakAligned:
+      "同向有弱勢｜順共同方向",
+    alignedReverse:
+      "反共同方向｜正常0／窄義P1例外",
+    conflictMain:
+      "方向衝突／Trend × T0｜順主判",
+    conflictSecondary:
+      "舊版｜順次判、逆主判",
+    reverseWeakMain:
+      "逆弱主判｜Route A/B only",
+    reverseHealthyMain:
+      "逆健康主判｜Active P1 Probe only",
+    neutralMainConfirmed:
+      "主判T0｜跟次判Confirmed",
+    neutralMainReverse:
+      "主判T0｜逆次判Confirmed",
+    transitionVsConfirmedConflict:
+      "Directional Transition × Confirmed反向",
+    transitionConfirmed:
+      "Single Directional Transition｜同Confirmed方向",
+    alignedTransition:
+      "Aligned Transition｜Early Trend",
+    mixedTransition:
+      "Mixed Transition｜Conflict",
+    neutralTransition:
+      "T0-Balance / Directional × Balance",
+    neutralPostBreakDirectional:
+      "Directional Transition × T0-Post-Break",
+    t0PostBreakPair:
+      "T0-PB × T0-PB同向｜0.25 Q3",
+    t0BalancePostBreak:
+      "T0-Balance × T0-PB｜0.25 Q3",
+    transitionReverse:
+      "Transition反向Probe"
   };
 
   return labels[value] || value;
 }
 
-function liveRouteCap(value) {
+function liveRouteCap(
+  value
+) {
   const caps = {
     healthyAligned: 1,
     weakAligned: 0.5,
@@ -15725,6 +17055,9 @@ function liveRouteCap(value) {
     alignedTransition: 0.5,
     mixedTransition: 0.5,
     neutralTransition: 0.5,
+    neutralPostBreakDirectional: 0.5,
+    t0PostBreakPair: 0.25,
+    t0BalancePostBreak: 0.25,
     transitionReverse: 0.25
   };
 
@@ -15777,6 +17110,38 @@ function syncLiveObstacleInputs() {
 function recalculateLiveDecision() {
   const routeCode =
     $("liveMarketRoute").value;
+
+  const fixedLiveT0Contexts = {
+    neutralTransition:
+      "balance",
+    neutralPostBreakDirectional:
+      "postBreak",
+    t0PostBreakPair:
+      "postBreakPair",
+    t0BalancePostBreak:
+      "hybrid"
+  };
+
+  if (
+    fixedLiveT0Contexts[
+      routeCode
+    ]
+  ) {
+    $("liveT0Context").value =
+      fixedLiveT0Contexts[
+        routeCode
+      ];
+  } else if (
+    routeCode ===
+      "neutralMainConfirmed" &&
+    $("liveT0Context").value ===
+      "notApplicable"
+  ) {
+    // Legacy-safe default: before subtype split, T0 was treated as Balance.
+    $("liveT0Context").value =
+      "balance";
+  }
+
   const definition =
     setupDefinition(true);
 
@@ -16070,7 +17435,10 @@ function recalculateLiveDecision() {
   const transitionBoundaryRoute = [
     "alignedTransition",
     "mixedTransition",
-    "neutralTransition"
+    "neutralTransition",
+    "neutralPostBreakDirectional",
+    "t0PostBreakPair",
+    "t0BalancePostBreak"
   ].includes(routeCode);
   const showTransitionMajorP1 =
     transitionBoundaryRoute &&
@@ -16143,8 +17511,58 @@ function recalculateLiveDecision() {
 
   let rangeSize =
     matrixSize;
+
+  const liveT0Context =
+    $("liveT0Context").value;
+
+  const routeHasBalanceByDefinition =
+    [
+      "neutralTransition",
+      "t0BalancePostBreak"
+    ].includes(routeCode);
+
+  const routeMayContainSingleT0 =
+    [
+      "neutralMainConfirmed",
+      "conflictMain"
+    ].includes(routeCode);
+
+  const liveHasBalance =
+    routeHasBalanceByDefinition ||
+    (
+      routeMayContainSingleT0 &&
+      liveT0Context === "balance"
+    ) ||
+    liveT0Context === "hybrid";
+
+  const liveBalanceFilterActive =
+    liveHasBalance &&
+    $("liveT0BalanceConstraint").value === "inside";
+
+  $("liveT0BalanceConstraint")
+    .disabled =
+      !liveHasBalance;
+
+  $("liveRangePosition")
+    .disabled =
+      !liveBalanceFilterActive;
+
+  if (!liveBalanceFilterActive) {
+    $("liveRangePosition").value =
+      "notApplicable";
+  } else if (
+    $("liveRangePosition").value ===
+      "notApplicable"
+  ) {
+    $("liveRangePosition").value =
+      "favorable";
+  }
+
   const rangeState =
-    $("liveRangePosition").value;
+    liveBalanceFilterActive
+      ? $("liveRangePosition").value
+      : "notApplicable";
+
   if (
     rangeState === "middle"
   ) {
@@ -16153,7 +17571,9 @@ function recalculateLiveDecision() {
     rangeState === "outside"
   ) {
     rangeSize =
-      downgradeOneLevel(rangeSize);
+      downgradeOneLevel(
+        rangeSize
+      );
   }
 
   const obstacleState =
@@ -16277,7 +17697,12 @@ function recalculateLiveDecision() {
   const liveTransitionTypeCode =
     routeCode === "mixedTransition"
       ? "Mixed"
-      : routeCode === "neutralTransition"
+      : [
+          "neutralTransition",
+          "neutralPostBreakDirectional",
+          "t0PostBreakPair",
+          "t0BalancePostBreak"
+        ].includes(routeCode)
         ? "Neutral"
         : "";
 
@@ -16417,13 +17842,16 @@ function recalculateLiveDecision() {
     conflictSecondary: "舊版逆主判Route。",
     reverseWeakMain: "逆弱主判：只限Route A／B＋P1/P2/P2-E＋Native Q3，最高0.25；Q2＝0。",
     reverseHealthyMain: "逆健康主判：正常0；Active P1第一反應＋P1/P2/P2-E＋Native Q3先0.25。",
-    neutralMainConfirmed: "主判中性Transition＋次判Confirmed：跟次判；P1/P2 Q3最高0.5，但Objective固定Reaction。",
+    neutralMainConfirmed: "主判T0＋次判Confirmed：方向只跟次判；P1/P2 Q3最高0.5。T0-Balance可有Auction Filter，T0-Post-Break唔套25%。",
     neutralMainReverse: "主判中性但逆次判Confirmed：正常0；清晰P1／Range Boundary＋Q3先0.25。",
     transitionVsConfirmedConflict: "Directional Transition × Confirmed反向：P1 Q3 0.5、P2 Q3 0.25；Objective Reaction。",
     transitionConfirmed: "Single Directional Transition同Confirmed方向：最高0.5。",
     alignedTransition: "Aligned Transition：P2＋Native Q3正式0.25；0.5只Shadow Test。",
     mixedTransition: "Mixed Transition：Conflict邊界；P2 Q3 0.25，Q2 0。",
-    neutralTransition: "Neutral／Range Transition：只做邊界；Range middle 0。",
+    neutralTransition: "T0-Balance：沿用Strict Neutral Matrix；只有Active Balance Auction先套25%。",
+    neutralPostBreakDirectional: "Directional Transition × T0-Post-Break：沿用Neutral Matrix／Cap；Post-Break唔套25%。",
+    t0PostBreakPair: "T0-PB × T0-PB同向：Q3＋meaningful P最高0.25；Q2＝0。",
+    t0BalancePostBreak: "T0-Balance × T0-PB：Q3＋meaningful P最高0.25；仍喺Balance內先套25%。",
     transitionReverse: "Transition反向Probe：Q3 only，最高0.25。"
   };
   $("liveRelationNote").textContent =
@@ -16467,6 +17895,13 @@ function recalculateLiveDecision() {
     ["UK100","GER40"].includes(marketCode(true))
       ? "EU V1.3：EU-A POR 2B／EU-B Asia Sweep＋Post-open Confirmation／EU-D POR Full Repair；同一Opening thesis唔Double E／Size。"
       : "",
+    liveBalanceFilterActive
+      ? `T0-Balance Auction Filter：${rangeState === "favorable" ? "相應25%／true boundary，Size維持" : rangeState === "outside" ? "仍喺Balance但唔喺相應25%，降一級" : rangeState === "middle" ? "真正Balance middle，0注" : "未指定位置"}。`
+      : liveHasBalance
+        ? "T0-Balance存在但Auction約束已Released；25% Filter唔生效，Neutral cap不變。"
+        : liveT0Context === "postBreak" || routeCode === "neutralPostBreakDirectional" || routeCode === "t0PostBreakPair"
+          ? "T0-Post-Break：25% Rule不適用；Break方向唔係正式Trend方向票。"
+          : "",
     obstacleNote,
     `Objective at Entry：${liveObjectiveAtEntry}。`
   ].filter(Boolean);
@@ -16994,6 +18429,24 @@ function setupEvents() {
       }
     );
   });
+
+  $("entryTFMainStructure")
+    .addEventListener(
+      "change",
+      () =>
+        syncEntryTFMainStructureHelp(
+          false
+        )
+    );
+
+  $("editEntryTFMainStructure")
+    .addEventListener(
+      "change",
+      () =>
+        syncEntryTFMainStructureHelp(
+          true
+        )
+    );
 
   $("entryTFWorkingStructure")
     .addEventListener(

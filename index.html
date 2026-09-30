@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Trade Journal">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
   <title>Master Trade Practice & Live Journal</title>
 </head>
@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.22</span>
+    <span class="version-badge">V1.30.24</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -148,9 +148,12 @@
               <option value="weakAligned">B｜同向但至少一層弱｜Max 0.5</option>
               <option value="transitionConfirmed">C｜Directional Transition＋Confirmed同向｜Max 0.5</option>
               <option value="alignedTransition">D｜Aligned Transition｜P2 Q3 0.25／Shadow 0.5</option>
-              <option value="neutralMainConfirmed">E｜主判中性Transition＋次判Confirmed｜Max 0.5 Reaction</option>
-              <option value="neutralTransition">F｜Neutral／Range Transition｜Boundary only｜Reaction</option>
-              <option value="mixedTransition">G｜Mixed Transition｜Conflict Boundary</option>
+              <option value="neutralMainConfirmed">E｜主判T0＋次判Confirmed｜Max 0.5 Reaction</option>
+              <option value="neutralTransition">F1｜T0-Balance / Strict Neutral｜Auction 25% Filter</option>
+              <option value="neutralPostBreakDirectional">F2｜Directional Transition × T0-Post-Break｜Neutral Cap</option>
+              <option value="t0PostBreakPair">F3｜T0-Post-Break × T0-Post-Break同向｜Max 0.25 Q3</option>
+              <option value="t0BalancePostBreak">F4｜T0-Balance × T0-Post-Break｜Max 0.25 Q3</option>
+              <option value="mixedTransition">G｜Mixed Transition｜Conflict</option>
               <option value="conflictMain">H / I｜順主判、次判Opposing／Transitioning Against｜Max 0.5</option>
               <option value="transitionVsConfirmedConflict">J｜Directional Transition × Confirmed反向</option>
               <option value="reverseWeakMain">K｜逆弱主判｜Route A/B only｜Max 0.25</option>
@@ -161,6 +164,19 @@
               <option value="transitionReverse">Legacy｜舊版Transition反向Probe</option>
             </select>
           </label>
+
+          <label>
+            Live T0 Context
+            <select id="liveT0Context">
+              <option value="notApplicable" selected>N/A｜今條Route冇T0</option>
+              <option value="balance">T0-Balance｜Auction Filter候選</option>
+              <option value="postBreak">T0-Post-Break｜No 25% Filter</option>
+              <option value="hybrid">Balance × Post-Break｜低Cap</option>
+              <option value="postBreakPair">Post-Break × Post-Break同向｜低Cap</option>
+            </select>
+            <small>Live Quick Decision只用嚟決定25% Filter有冇資格；Post-Break唔提供正式Trend方向票。</small>
+          </label>
+
           <label>Control Alignment｜研究欄位
             <select id="liveControlAlignment">
               <option value="Confirmed">Confirmed｜次判已同Trade方向Trend</option>
@@ -309,14 +325,14 @@
           <div id="liveBothTransitionMajorP1Row" class="conditional-panel hidden">
             <label class="toggle-row">
               <input id="liveBothTransitionMajorP1" type="checkbox">
-              <span><strong>雙轉換P1屬清晰主要Range邊界</strong></span>
+              <span><strong>Transition / T0 P1屬真正Major Location</strong></span>
             </label>
           </div>
 
           <div id="liveBothTransitionP3TestableRow" class="conditional-panel hidden">
             <label class="toggle-row">
               <input id="liveBothTransitionP3Testable" type="checkbox">
-              <span><strong>雙轉換P3係清晰可測試Range邊界</strong><small>只影響P3＋Q3嘅0.25／0。</small></span>
+              <span><strong>Transition / T0 P3係Meaningful Location</strong><small>只影響P3＋Q3嘅0.25／0。</small></span>
             </label>
           </div>
 
@@ -342,15 +358,23 @@
         </article>
 
         <article class="card live-step">
-          <div class="live-step-title"><span>STEP 5</span><h2>Range 25%＋大局障礙</h2></div>
+          <div class="live-step-title"><span>STEP 5</span><h2>T0-Balance 25% Filter＋大局障礙</h2></div>
 
           <label>
-            次判轉換中性／Range位置修正
+            T0-Balance Auction約束
+            <select id="liveT0BalanceConstraint">
+              <option value="inside" selected>仍受Balance約束｜25% Rule生效</option>
+              <option value="released">已離開／唔受Balance直接約束｜解除25% Filter</option>
+            </select>
+          </label>
+
+          <label>
+            Auction Balance位置修正
             <select id="liveRangePosition">
-              <option value="notApplicable" selected>不適用｜次判唔係轉換中性</option>
-              <option value="favorable">相應25%｜Long底25%／Short頂25%｜不降級</option>
-              <option value="outside">唔喺相應25%｜降一級</option>
-              <option value="middle">真正Range正中｜0注</option>
+              <option value="notApplicable" selected>不適用｜冇Active T0-Balance Filter</option>
+              <option value="favorable">相應25%／True Boundary｜不降級</option>
+              <option value="outside">Balance內但唔喺相應25%｜降一級</option>
+              <option value="middle">真正Balance Middle｜0注</option>
             </select>
           </label>
 
@@ -452,7 +476,7 @@
           <li>Setup係Type A、B定C？</li>
           <li>原始位置係P1、P2、P3定P4？Setup Type有冇有效待遇？</li>
           <li>Q3、Q2定Q1？</li>
-          <li>次判轉換中性有冇Range 25%降級？第一障礙係Entry Obstacle定Target Obstacle？</li>
+          <li>見到T0先分Balance / Post-Break；只有Active T0-Balance先問25% Filter。第一障礙係Entry Obstacle定Target Obstacle？</li>
           <li>所有限制取最低注碼。</li>
         </ol>
       </article>
@@ -494,7 +518,7 @@
         <button type="button" data-scroll-target="rbPosition">位置P</button>
         <button type="button" data-scroll-target="rbTriggerModel">Q Trigger</button>
         <button type="button" data-scroll-target="rbTradeSpace">交易空間</button>
-        <button type="button" data-scroll-target="rbRangePosition">Range 25%</button>
+        <button type="button" data-scroll-target="rbRangePosition">T0 / 25%</button>
         <button type="button" data-scroll-target="rbObstacle">大局障礙</button>
         <button type="button" data-scroll-target="rbDecisionResult">完整判斷</button>
         <button type="button" data-scroll-target="rbJournal">結果／儲存</button>
@@ -595,14 +619,69 @@
           </label>
           <p id="mainStateNote" class="state-note"></p>
 
+          <div id="mainT0ContextPanel" class="conditional-panel hidden">
+            <label>
+              主判 T0 Subtype
+              <select id="mainT0Subtype">
+                <option value="balance" selected>T0-Balance｜Two-way Auction / Range</option>
+                <option value="postBreak">T0-Post-Break｜舊Trend已失效，新Working Control未建立</option>
+              </select>
+            </label>
+            <div id="mainT0PostBreakDirectionRow" class="conditional-panel hidden">
+              <label>
+                主判 Post-Break Direction
+                <select id="mainT0PostBreakDirection">
+                  <option value="" selected>未記錄</option>
+                  <option value="up">Up｜向上Break舊Bear authority</option>
+                  <option value="down">Down｜向下Break舊Bull authority</option>
+                </select>
+                <small>只記Break／repricing方向；唔代表新Trend已成立，亦唔提供正式方向票。</small>
+              </label>
+            </div>
+          </div>
+
           <label>
             <span id="secondaryStateLabel">次判斷</span>
             <select id="secondaryState"></select>
           </label>
           <p id="secondaryStateNote" class="state-note"></p>
 
+          <div id="secondaryT0ContextPanel" class="conditional-panel hidden">
+            <label>
+              次判 T0 Subtype
+              <select id="secondaryT0Subtype">
+                <option value="balance" selected>T0-Balance｜Two-way Auction / Range</option>
+                <option value="postBreak">T0-Post-Break｜舊Trend已失效，新Working Control未建立</option>
+              </select>
+            </label>
+            <div id="secondaryT0PostBreakDirectionRow" class="conditional-panel hidden">
+              <label>
+                次判 Post-Break Direction
+                <select id="secondaryT0PostBreakDirection">
+                  <option value="" selected>未記錄</option>
+                  <option value="up">Up｜向上Break舊Bear authority</option>
+                  <option value="down">Down｜向下Break舊Bull authority</option>
+                </select>
+                <small>只記Break／repricing方向；唔代表新Trend已成立，亦唔提供正式方向票。</small>
+              </label>
+            </div>
+          </div>
+
+          <div id="t0BalanceConstraintPanel" class="conditional-panel hidden">
+            <label>
+              T0-Balance Auction 約束
+              <select id="t0BalanceConstraint">
+                <option value="inside" selected>Entry仍受該Balance Auction約束｜25% Rule生效</option>
+                <option value="released">Entry已離開／唔再受該Balance直接約束｜解除25% Filter</option>
+              </select>
+            </label>
+            <p class="state-note">25% Rule只屬Auction Balance Location Filter；解除Filter唔會提高Neutral route cap。</p>
+          </div>
+
           <div class="result-lines compact">
             <div><span>Transition Type</span><strong id="transitionTypeDisplay">N/A</strong></div>
+            <div><span>T0 Context</span><strong id="t0ContextDisplay">N/A</strong></div>
+            <div><span>Auction 25% Filter</span><strong id="t0BalanceFilterDisplay">N/A</strong></div>
             <div><span>Control Alignment</span><strong id="controlAlignmentDisplay">Transitioning</strong></div>
           </div>
           <p id="controlAlignmentNote" class="state-note">V1.3研究欄位；暫時唔直接改Size。</p>
@@ -656,7 +735,7 @@
 
           <div class="principle-box">
             <strong>方向規則直接包含喺市場關係。</strong>
-            <span>雙同向只做共同方向；衝突順主判優先；包含轉換可順已確認方向，反向要等P1；雙轉換只做邊界。</span>
+            <span>雙同向只做共同方向；衝突順主判優先；T0本身唔提供方向票。T0-Balance處理Auction location；T0-Post-Break只記舊Authority失效方向，唔等於新Trend成立。</span>
           </div>
 
           <p id="backgroundRelationNote" class="muted"></p>
@@ -987,12 +1066,12 @@
 
           <label id="bothTransitionMajorP1Row" class="toggle-row hidden">
             <input id="bothTransitionMajorP1" type="checkbox">
-            <span><strong>雙轉換P1屬清晰主要Range邊界</strong><small>P1 Q3按0.5；Q2按0.25。</small></span>
+            <span><strong>Transition / T0 P1屬真正Major Location</strong><small>只作位置確認；實際Size仍按Route × P × Q。</small></span>
           </label>
 
           <label id="bothTransitionP3TestableRow" class="toggle-row hidden">
             <input id="bothTransitionP3Testable" type="checkbox">
-            <span><strong>雙轉換P3係清晰可測試Range邊界</strong><small>P3 Q3可0.25；否則0。</small></span>
+            <span><strong>Transition / T0 P3係Meaningful Location</strong><small>P3＋Q3可0.25；否則0。唔要求一定係Range boundary。</small></span>
           </label>
         </article>
 
@@ -1075,18 +1154,22 @@
         </article>
 
         <article id="rbRangePosition" class="card rulebook-anchor">
-          <h2>次判轉換中性｜Range 25%修正</h2>
+          <h2>T0-Balance｜Auction 25% Location Filter</h2>
+          <div class="principle-box">
+            <strong>25% Rule屬於Auction Balance Location Filter，唔屬於Transition Neutral本身。</strong>
+            <span>T0-Post-Break解除25% hard restriction，但仍然係Neutral；唔會因Break方向而升格做Healthy／Weak Trend。</span>
+          </div>
           <div id="secondaryRangePanel" class="conditional-panel hidden">
             <label>
-              Entry喺次判Range邊個位置
+              Entry喺Active T0-Balance邊個位置
               <select id="secondaryRangePosition">
-                <option value="favorable" selected>相應25%｜Long底25%／Short頂25%｜不降級</option>
-                <option value="outside">唔喺相應頂／底25%｜降一級</option>
-                <option value="middle">真正Range正中／冇邊界Edge｜0注</option>
+                <option value="favorable" selected>相應25%／True Boundary｜不降級</option>
+                <option value="outside">仍喺Balance內但唔喺相應25%｜降一級</option>
+                <option value="middle">真正Balance Middle／冇Boundary Edge｜0注</option>
               </select>
             </label>
           </div>
-          <p id="secondaryRangeNote" class="state-note">只有次判＝轉換中性時啟用；修正只改Size，唔改P級。</p>
+          <p id="secondaryRangeNote" class="state-note">只有Active T0-Balance仍約束Entry時先啟用。</p>
         </article>
 
         <article id="rbObstacle" class="card obstacle-card rulebook-anchor">
@@ -1174,6 +1257,8 @@
             <div><span>入場觸發層</span><strong id="resultEntryTimeframe"></strong></div>
             <div><span>主次關係</span><strong id="resultRelation"></strong></div>
             <div><span>Transition Type</span><strong id="resultTransitionType"></strong></div>
+            <div><span>T0 Context</span><strong id="resultT0Context"></strong></div>
+            <div><span>Auction 25% Filter</span><strong id="resultT0BalanceFilter"></strong></div>
             <div><span>Control Alignment</span><strong id="resultControlAlignment"></strong></div>
             <div><span>交易優先方向</span><strong id="resultPreferredDirection"></strong></div>
             <div><span>交易路線</span><strong id="resultMarketRoute"></strong></div>
@@ -1338,7 +1423,7 @@
           <div class="shadow-research-panel">
             <div class="shadow-research-heading">
               <strong>2025 H2 Shadow Research｜Pruned</strong>
-              <span>只保留目前information value最高嘅欄位；Opening Context／Initiative Trigger Level／Initiative @ 2R／Entry-TF Working Structure同其他Shadow一樣唔改Frozen Decision。</span>
+              <span>只保留目前information value最高嘅欄位；Opening Context／Initiative Trigger Level／Initiative @ 2R／Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改Frozen Decision。</span>
             </div>
 
             <div class="summary-grid shadow-auto-grid">
@@ -1380,6 +1465,17 @@
                   <option value="Attempt">Attempt</option>
                   <option value="Confirmed">Confirmed</option>
                 </select>
+              </label>
+
+              <label>
+                Entry-TF Main Structure
+                <select id="entryTFMainStructure">
+                  <option value="" selected>未記錄</option>
+                  <option value="opposingIntact">Opposing Intact</option>
+                  <option value="opposingBrokenTransition">Opposing Broken / Transition</option>
+                  <option value="aligned">Aligned</option>
+                </select>
+                <small id="entryTFMainStructureHelp" class="hidden"></small>
               </label>
 
               <label>
@@ -1660,7 +1756,7 @@
         <ul>
           <li><strong>Aligned：</strong>兩層Transition同一偏向；視作Early Trend候選。P2＋Native Q3正式0.25，0.5只做Shadow Test。</li>
           <li><strong>Mixed：</strong>兩層Transition偏向相反；屬Conflict環境。</li>
-          <li><strong>Neutral：</strong>至少一層轉換中性／大型Range；只做邊界，真正Range中間0。</li>
+          <li><strong>Neutral / T0：</strong>見到轉換中性先分T0-Balance同T0-Post-Break。只有Active T0-Balance先套25%／boundary filter；T0-Post-Break唔提供方向票，亦唔升Neutral size cap。</li>
         </ul>
       </article>
 
@@ -1700,7 +1796,7 @@
           <li><strong>K｜逆弱主判 Route B：</strong>健康逆向次判＋P1/P2/P2-E＋Native Q3＋全新獨立Session Confirmation → 0.25。</li>
           <li><strong>K鎖死：</strong>冇Route A/B＝0；P1都唔例外。P1順風只作背景記錄，唔係第三條Permission。</li>
           <li><strong>L｜逆健康主判：</strong>正常0；Active HTF P1第一反應＋P1/P2/P2-E＋Native Q3右側反轉先0.25。</li>
-          <li><strong>雙轉換／Range：</strong>只做邊界；Range中間固定0。</li>
+          <li><strong>T0修正：</strong>T0-Balance仍受Auction boundary規則；T0-Post-Break解除25% hard restriction但唔解除Neutral cap。兩層T0-Post-Break同方向亦只係Momentum context，Q3＋meaningful location最高0.25。</li>
         </ul>
       </article>
 
@@ -1718,10 +1814,10 @@
         <h2>V1.28.3｜C / E / J / M Route修正</h2>
         <ul>
           <li><strong>C：</strong>一層Directional Transition＋另一層Confirmed同方向：P1/P2 Q3＝0.5、Q2＝0.25；P2-E＋Q2全局最多0.25。</li>
-          <li><strong>E：</strong>主判中性Transition＋次判Confirmed，順次判：唔再歸Neutral Transition；Size同C，但Objective固定Reaction。</li>
+          <li><strong>E：</strong>主判T0＋次判Confirmed，順次判：方向票只由Confirmed次判提供；Size同C，Objective固定Reaction。主判T0-Balance可受Auction Filter，T0-Post-Break唔套25%。</li>
           <li><strong>J：</strong>主判Directional Transition＋次判Confirmed反方向：做任何一邊Size暫時一樣；P1 Q3＝0.5、Q2＝0.25；P2 Q3＝0.25、Q2＝0；P3＝0。Control Alignment分研究Tag。</li>
-          <li><strong>M：</strong>主判中性Transition但逆次判Confirmed：正常0；清晰HTF P1／主要Range Boundary＋Native Q3先0.25 Reaction Probe。</li>
-          <li><strong>F：</strong>Neutral／Range Transition保留原規則，而且永遠排除Expansion。</li>
+          <li><strong>M：</strong>主判T0但逆次判Confirmed：T0冇方向票，正常0；清晰HTF P1／主要Boundary＋Native Q3先0.25 Reaction Probe。</li>
+          <li><strong>F / T0：</strong>T0-Balance保留Strict Neutral／Range規則；T0-Post-Break解除25% hard restriction但仍係Neutral。Balance × Post-Break或雙Post-Break未有正式Directional Control時最高0.25、Q3 only。</li>
         </ul>
       </article>
 
@@ -1732,11 +1828,13 @@
       </article>
 
       <article class="card">
-        <h2>Range 25%</h2>
+        <h2>T0-Balance / T0-Post-Break</h2>
         <ul>
-          <li>次判中性轉換／Range：Long只考慮底25%；Short只考慮頂25%。</li>
-          <li>未進入相關25%：注碼降一級，1 → 0.5 → 0.25 → 0。</li>
-          <li>Range中間固定0；內部工作線突破唔代表整個Range失效。</li>
+          <li><strong>T0-Balance：</strong>真正Two-way Auction／Range；如果Entry仍喺該Balance內，Long只優先底25%／true lower boundary，Short只優先頂25%／true upper boundary。</li>
+          <li><strong>T0-Post-Break：</strong>舊Trend authority已失效，但新Working Control未建立；Break方向只係repricing context，唔係新Trend方向票。</li>
+          <li><strong>25% Rule：</strong>只屬Auction Balance Location Filter。Post-Break本身唔套25%；但解除25%唔代表可以升Neutral size cap。</li>
+          <li><strong>Balance × Post-Break：</strong>仍喺Balance Auction內就保留boundary filter；已離開該Auction就解除25%，但最高仍0.25直到有一層正式建立Directional Control。</li>
+          <li><strong>Post-Break × Post-Break：</strong>兩層同Break方向只係共同Momentum；P1/P2/P2-E＋Q3最高0.25，P3＋Q3只限meaningful location，Q2＝0。</li>
         </ul>
       </article>
 
@@ -2097,6 +2195,17 @@
               <option value="Attempt">Attempt</option>
               <option value="Confirmed">Confirmed</option>
             </select>
+          </label>
+
+          <label>
+            Entry-TF Main Structure
+            <select id="editEntryTFMainStructure">
+              <option value="">未記錄</option>
+              <option value="opposingIntact">Opposing Intact</option>
+              <option value="opposingBrokenTransition">Opposing Broken / Transition</option>
+              <option value="aligned">Aligned</option>
+            </select>
+            <small id="editEntryTFMainStructureHelp" class="hidden"></small>
           </label>
 
           <label>

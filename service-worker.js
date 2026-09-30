@@ -1,12 +1,12 @@
-const CACHE_NAME = "master-trade-system-v1-30-22-conditional-entry-tf-help";
+const CACHE_NAME = "master-trade-system-v1-30-24-entry-tf-main-structure";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
