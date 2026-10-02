@@ -1236,8 +1236,9 @@ function xauSetupEligibilityInfo(
     const eligible =
       previousInfo.eligible &&
       (
-        edge.source === "pdhPdl" ||
-        edge.source === "pwhPwl"
+        edge.source === "pwhPwl" ||
+        edge.source === "monHL" ||
+        edge.source === "pdhPdl"
       ) &&
       (
         edge.session === "asia" ||
@@ -1250,7 +1251,7 @@ function xauSetupEligibilityInfo(
       reason:
         eligible
           ? `XAU-B成立：${previousInfo.sourceLabel}｜${previousInfo.sessionLabel} Sweep＝E+候選。Raw ${basePosition}仍照原生P記錄；高質Sweep可P3→P2-effective；Native Q永久保持原級。`
-          : "XAU-B必須揀PDH／PDL或PWH／PWL，並記錄係Asia定Europe／London Sweep。"
+          : "XAU-B必須揀PWH／PWL、Mon H／L或PDH／PDL，並記錄係Asia定Europe／London Sweep。"
     };
   }
 
@@ -9543,9 +9544,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.24",
+      "PracticeJournal-V1.30.26",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-09-r37-EntryTFMainStructure",
+      "MasterTradeMatrix-V1.3-Amended-2026-09-r39-FXB-PreviousHL-WarningParity",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -17642,14 +17643,6 @@ function recalculateLiveDecision() {
     ...obstacleVetoes
   ];
 
-  if (
-    livePreviousHLInfo.applicable &&
-    !livePreviousHLInfo.eligible
-  ) {
-    vetoes.push(
-      livePreviousHLInfo.reason
-    );
-  }
   if (effectivePosition === "P4") {
     vetoes.push(
       "P4／Range middle／Chase位置＝0。"
@@ -17872,6 +17865,10 @@ function recalculateLiveDecision() {
             ? " FX Mon H/L＝E+；Raw P3可獲P2-effective，Native Q不變。"
             : ""
         }`
+      : "",
+    livePreviousHLInfo.applicable &&
+    !livePreviousHLInfo.eligible
+      ? `Warning｜${livePreviousHLInfo.reason} 此項只作Setup資料完整性警告，唔會Hard Veto／唔會將Size打0。`
       : "",
     `Direction Permission：${liveRouteLabel(routeCode)}｜Cap ${SIZE_LABELS[marketCap]}。`,
     `Control Alignment：${controlAlignment}｜研究欄位，V1.3唔直接改Size。`,

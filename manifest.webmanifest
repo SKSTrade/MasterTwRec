@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.24",
+  "name": "Master Trade System V1.30.26",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 with T0-Balance / T0-Post-Break routing preserved and Entry-TF Main Structure added as Shadow research data.",
+  "description": "Master Trade Matrix V1.3. FX-B Previous H/L source/session incompleteness is Warning-only in Main and Live. FX-C behavior unchanged.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
