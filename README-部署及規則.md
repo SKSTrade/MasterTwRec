@@ -1,63 +1,104 @@
-# Master Trade System V1.30.27
-## T0 Neutral Direction Permission Fix
+# Master Trade System V1.30.28
+## Structural Gap｜Secondary Judge Source Switch
 
-### 修正內容
+### 主判
 
-今版修正一個中央 Market Route bug：
+主判永遠使用：
 
-> `T0-Balance × Directional Transition`
->
-> 舊版錯誤：將Directional Transition bias當成唯一方向票，逆bias直接0注。
->
-> 新版：兩層都仍然係Transition，Directional Transition bias只作context，唔係Hard Direction Veto。
+> Main-TF Official Market State
 
-因此：
+Main不存在Structural Gap Mode。
 
-- `T0-Balance × T↑ / T↓` → Strict Neutral / Range route
-- 兩邊方向都可以按Neutral Matrix計
-- 只有Active T0-Balance Auction先套25% / true-boundary filter
-- P1 Q3 = 0.5
-- P1 Q2 = 0.25
-- P2 / P2-E Q3 = 0.25
-- P2 / P2-E Q2 = 0
-- P3 Q3 = 0.25 / 0，只限meaningful location
-- P3 Q2 = 0
-- Balance middle = 0
+Main Working只係形成Main-TF Official Market State嘅內部結構資訊，唔會取代Main成為另一個獨立Judge。
 
-### T0-Post-Break × Directional Transition
+### 次判
 
-同樣修正：
+正常狀態：
 
-- Directional Transition bias只作context
-- 唔再因逆bias自動打0
-- 沿用Neutral Matrix / Cap
-- T0-Post-Break唔套25% hard restriction
-- 但唔會升格成Healthy / Weak Trend待遇
+> Structural Gap = Off  
+> Secondary Judge Source = Official
+
+Matrix使用：
+
+> Secondary-TF Official Market State
+
+Structural Gap只有以下兩個Trigger：
+
+#### Trigger 1
+一腳大升／跌：
+
+> Main同Working幾乎重疊  
+> 冇獨立Secondary structure反映current control
+
+#### Trigger 2
+原Secondary被B+H破壞：
+
+> Working已確認反方向Trend
+
+當：
+
+> Structural Gap = On
+
+次判Source正式切換：
+
+> Official → Working
+
+Matrix實際輸入嘅Secondary Judge State改用：
+
+> Secondary-TF Working Market State
+
+### Matrix
+
+Matrix本身完全不改。
+
+流程：
+
+> Main Official Market State  
+> × Secondary Judge State  
+> → 原V1.3 Direction Permission / Route  
+> → P  
+> → Q  
+> → Route Cap  
+> → Size
+
+Structural Gap唔會創造新Size表、唔會直接升／降P、Q或Size。
+
+### T0
+
+T0 Subtype亦跟Active Secondary Judge Source：
+
+- Gap Off → Secondary Official State
+- Gap On → Secondary Working State
+
+T0-Balance / T0-Post-Break數值及25% Auction Filter規則完全保留V1.30.27。
+
+### Journal / CSV
+
+新增保存：
+
+- Structural Gap
+- Structural Gap Trigger
+- Secondary Working Market State
+- Secondary Judge Source
+- Secondary Judge State
+
+CSV由172欄增加至177欄。
+
+舊CSV／舊紀錄冇Structural Gap欄時：
+
+> Structural Gap = Off  
+> Secondary Judge Source = Official  
+> Secondary Judge State = 原本次判狀態
+
+所以舊資料唔會被retroactive改判。
 
 ### 保持不變
 
-- Confirmed Healthy / Weak Trend × T0：方向權限規則不放寬
-- T0-Post-Break × T0-Post-Break：同方向Q3低Cap，最高0.25
-- T0-Balance × T0-Post-Break：低Cap Q3 route，最高0.25
-- Matrix數值本身冇改
-- P / E / Native Q冇改
-- Obstacle / RR冇改
-- FX-B Previous H/L Warning parity保留
-- FX-C Native P2行為唔改
+- V1.3 Matrix數值不變
+- T0-Balance / T0-Post-Break不變
+- P / E / Native Q不變
+- Obstacle / RR不變
+- XAU-B Mon H/L fix保留
+- FX-B Warning parity保留
+- FX-C行為不改
 - V1.4未啟用
-
-### 跨市場檢查
-
-中央route engine係所有市場共用。已用代表性合法Setup檢查：
-
-- HSI-A
-- UK100 EU-B
-- GER40 EU-B
-- FX-B
-- XAU-B
-- Trend Pullback
-
-同一個 `T0-Balance × Directional Transition + P1 Q3 + favorable boundary`
-全部正確保留0.5，不再被方向bias錯誤打0。
-
-HSI-C仍有自己獨立嘅「主判＋次判雙同向」前提；如果唔符合而0注，屬Setup規則，唔係今次bug。

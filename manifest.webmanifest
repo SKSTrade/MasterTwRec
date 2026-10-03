@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.27",
+  "name": "Master Trade System V1.30.28",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3. Fixes T0-Balance / T0-Post-Break paired with a directional Transition so the Transition bias is context, not a hard direction veto.",
+  "description": "Master Trade Matrix V1.3 with Secondary Structural Gap source switch: Main always uses Official Market State; Secondary normally uses Official and switches to Working only when Structural Gap is On.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -10,13 +10,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "./icons/icon-192.png",
+      "src": "./icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icons/icon-512.png",
+      "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

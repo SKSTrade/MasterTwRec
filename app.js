@@ -514,9 +514,138 @@ function tradeBias() {
   return direction() === "Long" ? "up" : "down";
 }
 
+function normalizeStructuralGapMode(
+  value
+) {
+  return value === "on"
+    ? "on"
+    : "off";
+}
+
+function normalizeStructuralGapTrigger(
+  value
+) {
+  return ["gap1","gap2"].includes(value)
+    ? value
+    : "gap1";
+}
+
+function structuralGapTriggerLabel(
+  value
+) {
+  const labels = {
+    gap1:
+      "Trigger 1｜一腳大升／跌；Main同Working幾乎重疊，冇獨立Secondary structure反映current control",
+    gap2:
+      "Trigger 2｜原Secondary被B+H破壞；Working已確認反方向Trend"
+  };
+
+  return labels[
+    normalizeStructuralGapTrigger(
+      value
+    )
+  ];
+}
+
+function secondaryJudgeInfo() {
+  const officialState =
+    $("secondaryState").value;
+
+  const gapMode =
+    normalizeStructuralGapMode(
+      $("structuralGapMode").value
+    );
+
+  const workingState =
+    $("secondaryWorkingState").value ||
+    officialState;
+
+  const gapOn =
+    gapMode === "on";
+
+  const trigger =
+    normalizeStructuralGapTrigger(
+      $("structuralGapTrigger").value
+    );
+
+  return {
+    gapMode,
+    gapOn,
+    trigger,
+    triggerLabel:
+      gapOn
+        ? structuralGapTriggerLabel(
+            trigger
+          )
+        : "N/A",
+    officialState,
+    workingState,
+    source:
+      gapOn
+        ? "Working"
+        : "Official",
+    effectiveState:
+      gapOn
+        ? workingState
+        : officialState
+  };
+}
+
+function secondaryJudgeState() {
+  return secondaryJudgeInfo()
+    .effectiveState;
+}
+
+function recordSecondaryJudgeInfo(
+  record
+) {
+  const officialState =
+    record?.secondaryState || "";
+
+  const gapMode =
+    normalizeStructuralGapMode(
+      record?.structuralGapMode
+    );
+
+  const workingState =
+    record?.secondaryWorkingState ||
+    officialState;
+
+  const gapOn =
+    gapMode === "on";
+
+  const trigger =
+    normalizeStructuralGapTrigger(
+      record?.structuralGapTrigger
+    );
+
+  return {
+    gapMode,
+    gapOn,
+    trigger,
+    triggerLabel:
+      gapOn
+        ? structuralGapTriggerLabel(
+            trigger
+          )
+        : "N/A",
+    officialState,
+    workingState,
+    source:
+      gapOn
+        ? "Working"
+        : "Official",
+    effectiveState:
+      gapOn
+        ? workingState
+        : officialState
+  };
+}
+
+
 function transitionTypeInfo(
   mainState = $("mainState").value,
-  secondaryState = $("secondaryState").value
+  secondaryState = secondaryJudgeState()
 ) {
   const mainTransition =
     isTransition(mainState);
@@ -586,7 +715,7 @@ function transitionTypeInfo(
 }
 
 function controlAlignmentInfo(
-  secondaryState = $("secondaryState").value,
+  secondaryState = secondaryJudgeState(),
   tradeDirection = direction()
 ) {
   const tradeDirectionBias =
@@ -1706,7 +1835,9 @@ function recordT0ContextInfo(
 ) {
   return t0ContextInfo(
     record?.mainState || "",
-    record?.secondaryState || "",
+    recordSecondaryJudgeInfo(
+      record
+    ).effectiveState,
     {
       mainSubtype:
         record?.mainT0Subtype,
@@ -1730,7 +1861,9 @@ function recordT0StateDisplay(
   const state =
     layer === "main"
       ? record?.mainState
-      : record?.secondaryState;
+      : recordSecondaryJudgeInfo(
+          record
+        ).effectiveState;
 
   if (state !== "轉換中－中性") {
     return state || "";
@@ -1931,7 +2064,7 @@ function t0ContextInfo(
 function currentT0ContextInfo() {
   return t0ContextInfo(
     $("mainState").value,
-    $("secondaryState").value,
+    secondaryJudgeState(),
     currentT0ContextOptions()
   );
 }
@@ -2504,7 +2637,7 @@ function computeMarketRoute(
 function marketRouteInfo() {
   return computeMarketRoute(
     $("mainState").value,
-    $("secondaryState").value,
+    secondaryJudgeState(),
     direction(),
     currentT0ContextOptions()
   );
@@ -2551,7 +2684,7 @@ function preferredDirectionInfo() {
     );
   const secondaryBias =
     stateBias(
-      $("secondaryState").value
+      secondaryJudgeState()
     );
 
   if (
@@ -4410,7 +4543,7 @@ function weakCounterRouteConfirmationInfo(
     $("mainState").value;
 
   const secondaryState =
-    $("secondaryState").value;
+    secondaryJudgeState();
 
   const position =
     positionOverride ||
@@ -7402,6 +7535,8 @@ function evaluateDecision(
   const background = backgroundRelationInfo();
   const control = controlAlignmentInfo();
   const transitionType = transitionTypeInfo();
+  const secondaryJudge =
+    secondaryJudgeInfo();
   const t0Context = currentT0ContextInfo();
   const q2Subtype = q2SubtypeInfo(baseTrigger);
   const enhancement = enhancementEdgeInfo(setupResult);
@@ -7468,7 +7603,7 @@ function evaluateDecision(
   const reasons = [
     ...setupResult.reasons,
     `① 大局背景：${background.label}。${background.note}`,
-    `② 主判／次判 Market State：${t0StateDisplay($("mainState").value, "main")} × ${t0StateDisplay($("secondaryState").value, "secondary")}；Transition Type＝${transitionType.label}。T0 Context＝${t0ContextSummary(t0Context)}。`,
+    `② 主判／次判 Market State：${t0StateDisplay($("mainState").value, "main")} × ${t0StateDisplay(secondaryJudge.effectiveState, "secondary")}；Secondary Judge Source＝${secondaryJudge.source}${secondaryJudge.gapOn ? `（Structural Gap ON｜${secondaryJudge.triggerLabel}；Official＝${secondaryJudge.officialState}；Working＝${secondaryJudge.workingState}）` : "（Structural Gap OFF）"}；Transition Type＝${transitionType.label}。T0 Context＝${t0ContextSummary(t0Context)}。`,
     `③ Direction Permission：${matrix.routeLabel}；Market Cap ${SIZE_LABELS[matrix.marketCap]}。${matrix.routeReason}`,
     `④ Auction Balance Filter：${range.explanation}`,
     `⑤ Control Alignment：${control.label}。${control.note}`,
@@ -7488,6 +7623,12 @@ function evaluateDecision(
     ...setupResult.warnings,
     preferred.note
   ];
+
+  if (secondaryJudge.gapOn) {
+    warnings.push(
+      `Structural Gap ON：次判Judge Source由Official切換到Working。${secondaryJudge.triggerLabel}。Matrix本身冇改；只係次判輸入來源改為${secondaryJudge.workingState}。`
+    );
+  }
 
   if (shadowAlignedTransitionSize !== null) {
     warnings.push("Research Shadow：Aligned Transition P2＋Native Q3另記0.5 Shadow Size，但正式Size仍按0.25。")
@@ -7587,6 +7728,24 @@ function evaluateDecision(
     backgroundRelationNote: background.note,
     transitionType: transitionType.code,
     transitionTypeLabel: transitionType.label,
+    structuralGapMode:
+      secondaryJudge.gapMode,
+    structuralGapTrigger:
+      secondaryJudge.gapOn
+        ? secondaryJudge.trigger
+        : "",
+    structuralGapTriggerLabel:
+      secondaryJudge.gapOn
+        ? secondaryJudge.triggerLabel
+        : "N/A",
+    secondaryOfficialState:
+      secondaryJudge.officialState,
+    secondaryWorkingState:
+      secondaryJudge.workingState,
+    secondaryJudgeSource:
+      secondaryJudge.source,
+    secondaryJudgeState:
+      secondaryJudge.effectiveState,
     t0ContextSummary:
       t0ContextSummary(t0Context),
     mainT0Subtype:
@@ -7851,9 +8010,20 @@ function renderDecision(decision) {
       $("mainState").value,
       "main"
     )}`;
+  const secondaryJudge =
+    secondaryJudgeInfo();
+
+  $("resultSecondaryOfficial").textContent =
+    `${timeframes.secondary}－${secondaryJudge.officialState}`;
+  $("resultStructuralGap").textContent =
+    secondaryJudge.gapOn
+      ? `On｜${secondaryJudge.triggerLabel}`
+      : "Off";
+  $("resultSecondaryJudgeSource").textContent =
+    secondaryJudge.source;
   $("resultSecondary").textContent =
     `${timeframes.secondary}－${t0StateDisplay(
-      $("secondaryState").value,
+      secondaryJudge.effectiveState,
       "secondary"
     )}`;
   $("resultEntryTimeframe").textContent =
@@ -8315,8 +8485,12 @@ function updateInterface() {
     $("backgroundState").value;
   const mainState =
     $("mainState").value;
-  const secondaryState =
+  const secondaryOfficialState =
     $("secondaryState").value;
+  const secondaryJudge =
+    secondaryJudgeInfo();
+  const secondaryState =
+    secondaryJudge.effectiveState;
   const position =
     $("positionLevel").value;
   const selectedSetupType =
@@ -8331,14 +8505,35 @@ function updateInterface() {
   $("mainStateLabel").textContent =
     `主判斷（${timeframes.main}）`;
   $("secondaryStateLabel").textContent =
-    `次判斷（${timeframes.secondary}）`;
+    `次判 Official（${timeframes.secondary}）`;
+  $("secondaryWorkingStateLabel").textContent =
+    `次判 Working（${timeframes.secondary}）`;
 
   $("backgroundStateNote").textContent =
     STATES[backgroundState].note;
   $("mainStateNote").textContent =
     STATES[mainState].note;
   $("secondaryStateNote").textContent =
-    STATES[secondaryState].note;
+    STATES[secondaryOfficialState].note;
+  $("secondaryWorkingStateNote").textContent =
+    STATES[secondaryJudge.workingState].note;
+
+  $("structuralGapPanel")
+    .classList.toggle(
+      "hidden",
+      !secondaryJudge.gapOn
+    );
+
+  $("structuralGapDisplay").textContent =
+    secondaryJudge.gapOn
+      ? `On｜${secondaryJudge.triggerLabel}`
+      : "Off";
+
+  $("secondaryJudgeSourceDisplay").textContent =
+    secondaryJudge.source;
+
+  $("secondaryJudgeStateDisplay").textContent =
+    secondaryJudge.effectiveState;
 
   const mainT0Active =
     mainState === "轉換中－中性";
@@ -8408,10 +8603,18 @@ function updateInterface() {
   }
 
   if (secondaryT0Active) {
-    $("secondaryStateNote").textContent =
+    const note =
       t0Context.secondarySubtype === "postBreak"
         ? "T0-Post-Break：舊Trend authority已失效，但新Working Control未正式建立。Break方向只係repricing context，唔係新Trend方向票。"
         : "T0-Balance：市場正進行Two-way Auction／Range；只有真正Balance boundary先享有位置優勢。";
+
+    if (secondaryJudge.gapOn) {
+      $("secondaryWorkingStateNote").textContent =
+        note;
+    } else {
+      $("secondaryStateNote").textContent =
+        note;
+    }
   }
 
   const transitionInfo =
@@ -8953,8 +9156,11 @@ function checklistSummary() {
     `品種：${$("symbol").value}`,
     `核心Setup：${currentAsia2B.setupTemplateLabel}`,
     `大局背景層：${timeframes.background}－${$("backgroundState").value}`,
-    `主判斷層：${timeframes.main}－${t0StateDisplay($("mainState").value, "main")}`,
-    `次判斷層：${timeframes.secondary}－${t0StateDisplay($("secondaryState").value, "secondary")}`,
+    `主判斷層：${timeframes.main}－${t0StateDisplay($("mainState").value, "main")}｜Source Official only`,
+    `次判 Official：${timeframes.secondary}－${$("secondaryState").value}`,
+    `Structural Gap：${secondaryJudgeInfo().gapOn ? `On｜${secondaryJudgeInfo().triggerLabel}` : "Off"}`,
+    `次判 Judge Source：${secondaryJudgeInfo().source}`,
+    `次判 Judge State：${timeframes.secondary}－${t0StateDisplay(secondaryJudgeState(), "secondary")}`,
     `T0 Context：${currentDecision?.t0ContextSummary || t0ContextSummary(currentT0ContextInfo())}`,
     `T0-Balance Auction Constraint：${
       currentDecision?.t0BalanceConstraint === "released"
@@ -9535,9 +9741,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.27",
+      "PracticeJournal-V1.30.28",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-10-r40-T0NeutralDirectionFix",
+      "MasterTradeMatrix-V1.3-Amended-2026-10-r41-StructuralGapSourceSwitch",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -9622,6 +9828,18 @@ async function saveDecision(event) {
       currentDecision.mainT0PostBreakDirection,
     secondaryState:
       $("secondaryState").value,
+    structuralGapMode:
+      currentDecision.structuralGapMode,
+    structuralGapTrigger:
+      currentDecision.structuralGapTrigger,
+    structuralGapTriggerLabel:
+      currentDecision.structuralGapTriggerLabel,
+    secondaryWorkingState:
+      currentDecision.secondaryWorkingState,
+    secondaryJudgeSource:
+      currentDecision.secondaryJudgeSource,
+    secondaryJudgeState:
+      currentDecision.secondaryJudgeState,
     secondaryT0Subtype:
       currentDecision.secondaryT0Subtype,
     secondaryT0PostBreakDirection:
@@ -11630,7 +11848,35 @@ async function openRecord(recordId) {
       )
     )}
     <br>
-    <strong>次判斷：</strong>
+    <strong>次判 Official：</strong>
+    ${escapeHtml(
+      record.secondaryTimeframe || ""
+    )}－${escapeHtml(
+      record.secondaryState || ""
+    )}
+    <br>
+    <strong>Structural Gap：</strong>
+    ${escapeHtml(
+      recordSecondaryJudgeInfo(record).gapOn
+        ? `On｜${recordSecondaryJudgeInfo(record).triggerLabel}`
+        : "Off"
+    )}
+    <br>
+    ${
+      recordSecondaryJudgeInfo(record).gapOn
+        ? `<strong>次判 Working：</strong>${escapeHtml(
+            record.secondaryTimeframe || ""
+          )}－${escapeHtml(
+            recordSecondaryJudgeInfo(record).workingState
+          )}<br>`
+        : ""
+    }
+    <strong>次判 Judge Source：</strong>
+    ${escapeHtml(
+      recordSecondaryJudgeInfo(record).source
+    )}
+    <br>
+    <strong>次判 Judge State：</strong>
     ${escapeHtml(
       record.secondaryTimeframe || ""
     )}－${escapeHtml(
@@ -12726,6 +12972,11 @@ function buildCsv(records) {
     "主判T0 Post-Break Direction",
     "次判TF",
     "次判狀態",
+    "Structural Gap",
+    "Structural Gap Trigger",
+    "Secondary Working Market State",
+    "Secondary Judge Source",
+    "Secondary Judge State",
     "次判T0 Subtype",
     "次判T0 Post-Break Direction",
     "T0-Balance Auction Constraint",
@@ -12920,13 +13171,24 @@ function buildCsv(records) {
         : "",
       record.secondaryTimeframe || "",
       record.secondaryState || "",
-      record.secondaryState === "轉換中－中性"
+      recordSecondaryJudgeInfo(record).gapOn
+        ? "On"
+        : "Off",
+      recordSecondaryJudgeInfo(record).gapOn
+        ? recordSecondaryJudgeInfo(record).triggerLabel
+        : "",
+      recordSecondaryJudgeInfo(record).gapOn
+        ? recordSecondaryJudgeInfo(record).workingState
+        : "",
+      recordSecondaryJudgeInfo(record).source,
+      recordSecondaryJudgeInfo(record).effectiveState,
+      recordSecondaryJudgeInfo(record).effectiveState === "轉換中－中性"
         ? t0SubtypeLabel(
             recordT0ContextInfo(record)
               .secondarySubtype
           )
         : "",
-      record.secondaryState === "轉換中－中性" &&
+      recordSecondaryJudgeInfo(record).effectiveState === "轉換中－中性" &&
       recordT0ContextInfo(record)
         .secondarySubtype === "postBreak"
         ? t0PostBreakDirectionLabel(
@@ -14565,10 +14827,79 @@ function recordFromCsvRow(row) {
         row,
         "次判狀態"
       ),
-    secondaryT0Subtype:
+    structuralGapMode:
+      String(
+        firstCsvValue(
+          row,
+          "Structural Gap"
+        )
+      ).toLowerCase() === "on"
+        ? "on"
+        : "off",
+    structuralGapTrigger:
+      String(
+        firstCsvValue(
+          row,
+          "Structural Gap Trigger"
+        )
+      ).includes("Trigger 2")
+        ? "gap2"
+        : "gap1",
+    structuralGapTriggerLabel:
+      String(
+        firstCsvValue(
+          row,
+          "Structural Gap"
+        )
+      ).toLowerCase() === "on"
+        ? (
+            String(
+              firstCsvValue(
+                row,
+                "Structural Gap Trigger"
+              )
+            ).includes("Trigger 2")
+              ? structuralGapTriggerLabel("gap2")
+              : structuralGapTriggerLabel("gap1")
+          )
+        : "N/A",
+    secondaryWorkingState:
+      firstCsvValue(
+        row,
+        "Secondary Working Market State"
+      ) ||
       firstCsvValue(
         row,
         "次判狀態"
+      ),
+    secondaryJudgeSource:
+      String(
+        firstCsvValue(
+          row,
+          "Structural Gap"
+        )
+      ).toLowerCase() === "on"
+        ? "Working"
+        : "Official",
+    secondaryJudgeState:
+      firstCsvValue(
+        row,
+        "Secondary Judge State"
+      ) ||
+      firstCsvValue(
+        row,
+        "次判狀態"
+      ),
+    secondaryT0Subtype:
+      (
+        firstCsvValue(
+          row,
+          "Secondary Judge State"
+        ) ||
+        firstCsvValue(
+          row,
+          "次判狀態"
+        )
       ) === "轉換中－中性"
         ? (
             String(
@@ -18001,7 +18332,8 @@ function populateSelects() {
   [
     "backgroundState",
     "mainState",
-    "secondaryState"
+    "secondaryState",
+    "secondaryWorkingState"
   ].forEach((id) => {
     Object.keys(STATES)
       .forEach((state) => {
@@ -18148,6 +18480,12 @@ function resetAllToDefaultsExceptDate() {
     "健康跌勢";
   $("secondaryState").value =
     "轉換中－偏跌";
+  $("secondaryWorkingState").value =
+    "轉換中－偏跌";
+  $("structuralGapMode").value =
+    "off";
+  $("structuralGapTrigger").value =
+    "gap1";
 
   $("marketTimeRuleNote")
     .textContent =
@@ -18417,6 +18755,34 @@ function setupEvents() {
       }
     );
   });
+
+  $("structuralGapMode")
+    .addEventListener(
+      "change",
+      () => {
+        if (
+          $("structuralGapMode").value ===
+            "on" &&
+          !$("secondaryWorkingState").value
+        ) {
+          $("secondaryWorkingState").value =
+            $("secondaryState").value;
+        }
+        recalculate();
+      }
+    );
+
+  $("structuralGapTrigger")
+    .addEventListener(
+      "change",
+      recalculate
+    );
+
+  $("secondaryWorkingState")
+    .addEventListener(
+      "change",
+      recalculate
+    );
 
   $("entryTFMainStructure")
     .addEventListener(
@@ -18928,6 +19294,12 @@ function initialize() {
     "健康跌勢";
   $("secondaryState").value =
     "轉換中－偏跌";
+  $("secondaryWorkingState").value =
+    "轉換中－偏跌";
+  $("structuralGapMode").value =
+    "off";
+  $("structuralGapTrigger").value =
+    "gap1";
 
   syncEntryTFWorkingStructureHelp(
     false

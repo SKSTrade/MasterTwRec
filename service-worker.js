@@ -1,12 +1,12 @@
-const CACHE_NAME = "master-trade-system-v1-30-27-t0-neutral-direction-fix";
+const CACHE_NAME = "master-trade-system-v1-30-28-structural-gap-source-switch";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
