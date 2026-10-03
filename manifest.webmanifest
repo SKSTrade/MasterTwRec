@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.26",
+  "name": "Master Trade System V1.30.27",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3. FX-B Previous H/L source/session incompleteness is Warning-only in Main and Live. FX-C behavior unchanged.",
+  "description": "Master Trade Matrix V1.3. Fixes T0-Balance / T0-Post-Break paired with a directional Transition so the Transition bias is context, not a hard direction veto.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

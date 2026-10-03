@@ -2231,40 +2231,31 @@ function computeMarketRoute(
 
     /*
      * One T0 + one directional Transition.
-     * Direction permission comes only from the directional Transition layer.
+     * Both layers are still Transition states. The directional Transition bias
+     * is context only here; it is NOT a hard direction veto.
+     *
+     * T0-Balance => Strict Neutral / Range route + Auction 25% filter.
+     * T0-Post-Break => same Neutral Matrix / cap, but no 25% hard filter.
      */
     const directionalBias =
       t0.mainIsT0
         ? secondaryBias
         : mainBias;
 
-    if (
-      directionalBias !== null &&
-      currentTradeBias !==
-        directionalBias
-    ) {
-      return result(
-        "neutralTransitionReverse",
-        "Directional Transition × T0｜逆唯一Directional Bias",
-        0,
-        "T0無方向票；唯一Directional Transition偏向同今次Trade相反，正常0。"
-      );
-    }
-
     if (t0.hasPostBreak) {
       return result(
         "neutralPostBreakDirectional",
-        `Directional Transition × T0-Post-Break｜順${biasDirectionLabel(directionalBias)}`,
+        `Directional Transition × T0-Post-Break｜Neutral Route`,
         0.5,
-        "方向權限只由Directional Transition提供；T0-Post-Break解除25% hard restriction，但唔會被當成Healthy／Weak Trend，仍沿用Neutral Matrix／Cap。"
+        `兩層都仍係Transition；${biasDirectionLabel(directionalBias)}只係Directional Transition context，唔係Hard Direction Vote。T0-Post-Break解除25% hard restriction，但仍沿用Neutral Matrix／Cap。`
       );
     }
 
     return result(
       "neutralTransition",
-      `Directional Transition × T0-Balance｜順${biasDirectionLabel(directionalBias)}`,
+      `Directional Transition × T0-Balance｜Strict Neutral / Range`,
       0.5,
-      "方向權限由Directional Transition提供；T0-Balance仍屬Auction Balance。若Entry仍受Balance約束，25% Rule生效。"
+      `兩層都仍係Transition；${biasDirectionLabel(directionalBias)}只係context，唔可以單獨將反方向Trade打0。T0-Balance沿用Strict Neutral／Range Matrix；只有Active Balance Auction先套25%／true-boundary filter。`
     );
   }
 
@@ -2693,7 +2684,7 @@ function preferredDirectionInfo() {
   ) {
     return {
       label:
-        "Directional bias如存在只由非T0層提供｜T0-Balance只做Auction Filter",
+        "Strict Neutral / Range｜兩邊可做，但要符合T0-Balance Location",
       note: route.reason
     };
   }
@@ -2704,7 +2695,7 @@ function preferredDirectionInfo() {
   ) {
     return {
       label:
-        "只跟唯一Directional Transition方向｜Post-Break唔係方向票",
+        "Neutral Route｜Directional Transition bias只作Context",
       note: route.reason
     };
   }
@@ -2781,15 +2772,15 @@ function combinedDeploymentInfo() {
     },
     neutralTransition: {
       priority:
-        "T0-Balance / Directional×Balance：沿用Neutral Matrix；只有Active Balance Auction先套25%。",
+        "Directional Transition × T0-Balance：Strict Neutral / Range；兩邊方向都可按Neutral Matrix處理。",
       secondary:
-        "25% Rule係Location Filter，唔係T0本身規則。"
+        "25% Rule只係Active T0-Balance Location Filter；Directional Transition bias唔係Hard Veto。"
     },
     neutralPostBreakDirectional: {
       priority:
-        "Directional Transition × T0-Post-Break：沿用Neutral Matrix／Cap。",
+        "Directional Transition × T0-Post-Break：沿用Neutral Matrix／Cap，兩邊方向都唔會因Transition bias被自動打0。",
       secondary:
-        "方向只由Directional Transition提供；Post-Break解除25%但唔升Trend待遇。"
+        "Post-Break解除25% Filter但唔升Trend待遇；Directional Transition bias只作Context。"
     },
     t0PostBreakPair: {
       priority:
@@ -5543,8 +5534,8 @@ function evaluateMatrix(
   ) {
     cellExplanation =
       route.code === "neutralPostBreakDirectional"
-        ? `${route.label}：沿用Neutral Matrix；P1 Q3＝0.5、P1 Q2＝0.25、P2／P2-E Q3＝0.25、P2 Q2＝0；P3 Q3只限meaningful location。Post-Break解除25% Filter，但唔升Neutral cap。`
-        : `${route.label}：P1 Q3＝0.5、P1 Q2＝0.25、P2／P2-E Q3＝0.25、P2 Q2＝0；P3 Q3只限meaningful location。`;
+        ? `${route.label}：沿用Neutral Matrix；P1 Q3＝0.5、P1 Q2＝0.25、P2／P2-E Q3＝0.25、P2 Q2＝0；P3 Q3只限meaningful location。Directional Transition bias唔係Hard Veto；Post-Break解除25% Filter，但唔升Neutral cap。`
+        : `${route.label}：Strict Neutral / Range；P1 Q3＝0.5、P1 Q2＝0.25、P2／P2-E Q3＝0.25、P2 Q2＝0；P3 Q3只限meaningful location。Directional Transition bias唔係Hard Veto；Active T0-Balance先套25% Filter。`;
   } else if (
     ["t0PostBreakPair","t0BalancePostBreak"].includes(route.code)
   ) {
@@ -7541,13 +7532,13 @@ function evaluateDecision(
   if (matrix.routeCode === "neutralTransition") {
     warnings.push(
       t0Context.balanceFilterActive
-        ? "T0-Balance：25% Rule只因Active Auction Balance生效；真正Balance middle固定0。"
-        : "T0-Balance存在但已解除Auction約束：25% Filter不生效，Neutral cap仍保留。"
+        ? "T0-Balance：Directional Transition bias只作Context，唔係Hard Veto；25% Rule只因Active Auction Balance生效，真正Balance middle固定0。"
+        : "T0-Balance存在但已解除Auction約束：Directional Transition bias只作Context；25% Filter不生效，Neutral cap仍保留。"
     );
   }
 
   if (matrix.routeCode === "neutralPostBreakDirectional") {
-    warnings.push("T0-Post-Break唔係新Trend方向票；只解除25% Filter，唔會提高Neutral size cap。");
+    warnings.push("T0-Post-Break：Directional Transition bias只作Context，唔係Hard Veto；25% Rule不適用，Neutral size cap保持。");
   }
 
   if (["t0PostBreakPair","t0BalancePostBreak"].includes(matrix.routeCode)) {
@@ -9544,9 +9535,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.26",
+      "PracticeJournal-V1.30.27",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-09-r39-FXB-PreviousHL-WarningParity",
+      "MasterTradeMatrix-V1.3-Amended-2026-10-r40-T0NeutralDirectionFix",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -17024,9 +17015,9 @@ function liveRouteLabel(
     mixedTransition:
       "Mixed Transition｜Conflict",
     neutralTransition:
-      "T0-Balance / Directional × Balance",
+      "Directional Transition × T0-Balance｜Strict Neutral",
     neutralPostBreakDirectional:
-      "Directional Transition × T0-Post-Break",
+      "Directional Transition × T0-Post-Break｜Neutral Route",
     t0PostBreakPair:
       "T0-PB × T0-PB同向｜0.25 Q3",
     t0BalancePostBreak:
@@ -17841,8 +17832,8 @@ function recalculateLiveDecision() {
     transitionConfirmed: "Single Directional Transition同Confirmed方向：最高0.5。",
     alignedTransition: "Aligned Transition：P2＋Native Q3正式0.25；0.5只Shadow Test。",
     mixedTransition: "Mixed Transition：Conflict邊界；P2 Q3 0.25，Q2 0。",
-    neutralTransition: "T0-Balance：沿用Strict Neutral Matrix；只有Active Balance Auction先套25%。",
-    neutralPostBreakDirectional: "Directional Transition × T0-Post-Break：沿用Neutral Matrix／Cap；Post-Break唔套25%。",
+    neutralTransition: "Directional Transition × T0-Balance：沿用Strict Neutral Matrix；Transition bias唔係Hard Veto，只有Active Balance Auction先套25%。",
+    neutralPostBreakDirectional: "Directional Transition × T0-Post-Break：沿用Neutral Matrix／Cap；Transition bias只作Context，Post-Break唔套25%。",
     t0PostBreakPair: "T0-PB × T0-PB同向：Q3＋meaningful P最高0.25；Q2＝0。",
     t0BalancePostBreak: "T0-Balance × T0-PB：Q3＋meaningful P最高0.25；仍喺Balance內先套25%。",
     transitionReverse: "Transition反向Probe：Q3 only，最高0.25。"

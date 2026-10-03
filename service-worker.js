@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-26-fxb-warning-parity";
+const CACHE_NAME = "master-trade-system-v1-30-27-t0-neutral-direction-fix";
 const ASSETS = [
   "./",
   "./index.html",
