@@ -292,7 +292,7 @@ const SETUP_DEFINITIONS = {
     classificationLabel: "HSI-C｜OPR Continuation & Retest",
     variant: "oprContinuation",
     provisional: true,
-    note: "V1.3 Research／Provisional：主判＋次判必須雙同向，而且Trade方向順主／次判；09:15–09:30 OPR完成；09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。OPR Direction Context只分順向順勢／反向順勢。Raw P3仍然P3，暫時冇E。"
+    note: "V1.3 Research／Provisional：主判＋次判Judge必須雙同向（Gap Off＝次判Main；Gap On＝次判Working），而且Trade方向順主／次判Judge；09:15–09:30 OPR完成；09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。OPR Direction Context只分順向順勢／反向順勢。Raw P3仍然P3，暫時冇E。"
   },
   hsi_breakout_retest: {
     marketGroup: "HSI_LEGACY",
@@ -583,7 +583,7 @@ function secondaryJudgeInfo() {
     source:
       gapOn
         ? "Working"
-        : "Official",
+        : "Main",
     effectiveState:
       gapOn
         ? workingState
@@ -634,7 +634,7 @@ function recordSecondaryJudgeInfo(
     source:
       gapOn
         ? "Working"
-        : "Official",
+        : "Main",
     effectiveState:
       gapOn
         ? workingState
@@ -3345,9 +3345,9 @@ function evaluateBaseTrigger() {
       addPositive("HSI-C：09:30後先Break OPR。");
     }
     if (!checked("hsiOprTrendAligned")) {
-      addCoreFailure("HSI-C：主判＋次判未雙同向，或者Trade方向未順主／次判。");
+      addCoreFailure("HSI-C：主判＋次判Judge未雙同向，或者Trade方向未順主／次判Judge。");
     } else {
-      addPositive("HSI-C：主判＋次判雙同向，而且Trade方向順主／次判。");
+      addPositive("HSI-C：主判＋次判Judge雙同向，而且Trade方向順主／次判Judge。");
 
       const oprDirectionContext =
         $("hsiOprDirectionContext").value;
@@ -7603,7 +7603,7 @@ function evaluateDecision(
   const reasons = [
     ...setupResult.reasons,
     `① 大局背景：${background.label}。${background.note}`,
-    `② 主判／次判 Market State：${t0StateDisplay($("mainState").value, "main")} × ${t0StateDisplay(secondaryJudge.effectiveState, "secondary")}；Secondary Judge Source＝${secondaryJudge.source}${secondaryJudge.gapOn ? `（Structural Gap ON｜${secondaryJudge.triggerLabel}；Official＝${secondaryJudge.officialState}；Working＝${secondaryJudge.workingState}）` : "（Structural Gap OFF）"}；Transition Type＝${transitionType.label}。T0 Context＝${t0ContextSummary(t0Context)}。`,
+    `② 主判／次判 Market State：${t0StateDisplay($("mainState").value, "main")} × ${t0StateDisplay(secondaryJudge.effectiveState, "secondary")}；Secondary Judge Source＝${secondaryJudge.source}${secondaryJudge.gapOn ? `（Structural Gap ON｜${secondaryJudge.triggerLabel}；Secondary Main＝${secondaryJudge.officialState}；Working＝${secondaryJudge.workingState}）` : "（Structural Gap OFF｜Secondary Main）"}；Transition Type＝${transitionType.label}。T0 Context＝${t0ContextSummary(t0Context)}。`,
     `③ Direction Permission：${matrix.routeLabel}；Market Cap ${SIZE_LABELS[matrix.marketCap]}。${matrix.routeReason}`,
     `④ Auction Balance Filter：${range.explanation}`,
     `⑤ Control Alignment：${control.label}。${control.note}`,
@@ -7626,7 +7626,7 @@ function evaluateDecision(
 
   if (secondaryJudge.gapOn) {
     warnings.push(
-      `Structural Gap ON：次判Judge Source由Official切換到Working。${secondaryJudge.triggerLabel}。Matrix本身冇改；只係次判輸入來源改為${secondaryJudge.workingState}。`
+      `Structural Gap ON：次判Judge Source由Main切換到Working。${secondaryJudge.triggerLabel}。Matrix本身冇改；只係次判輸入來源改為${secondaryJudge.workingState}。`
     );
   }
 
@@ -8505,7 +8505,7 @@ function updateInterface() {
   $("mainStateLabel").textContent =
     `主判斷（${timeframes.main}）`;
   $("secondaryStateLabel").textContent =
-    `次判 Official（${timeframes.secondary}）`;
+    `次判 Main（${timeframes.secondary}）`;
   $("secondaryWorkingStateLabel").textContent =
     `次判 Working（${timeframes.secondary}）`;
 
@@ -9156,8 +9156,8 @@ function checklistSummary() {
     `品種：${$("symbol").value}`,
     `核心Setup：${currentAsia2B.setupTemplateLabel}`,
     `大局背景層：${timeframes.background}－${$("backgroundState").value}`,
-    `主判斷層：${timeframes.main}－${t0StateDisplay($("mainState").value, "main")}｜Source Official only`,
-    `次判 Official：${timeframes.secondary}－${$("secondaryState").value}`,
+    `主判斷層：${timeframes.main}－${t0StateDisplay($("mainState").value, "main")}｜Source Main only`,
+    `次判 Main：${timeframes.secondary}－${$("secondaryState").value}`,
     `Structural Gap：${secondaryJudgeInfo().gapOn ? `On｜${secondaryJudgeInfo().triggerLabel}` : "Off"}`,
     `次判 Judge Source：${secondaryJudgeInfo().source}`,
     `次判 Judge State：${timeframes.secondary}－${t0StateDisplay(secondaryJudgeState(), "secondary")}`,
@@ -9741,9 +9741,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.28",
+      "PracticeJournal-V1.30.29",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-10-r41-StructuralGapSourceSwitch",
+      "MasterTradeMatrix-V1.3-Amended-2026-10-r42-StructuralGapAudit",
     matrixVersion:
       "Master Trade Matrix V1.3｜2026/08 Frozen",
 
@@ -11430,8 +11430,15 @@ function renderHistory() {
       const mainState =
         record.mainState ||
         "未記錄";
+      const secondaryJudge =
+        recordSecondaryJudgeInfo(
+          record
+        );
       const secondaryState =
-        record.secondaryState ||
+        recordT0StateDisplay(
+          record,
+          "secondary"
+        ) ||
         "未記錄";
       const tradeDate =
         recordTradeDate(record) ||
@@ -11504,6 +11511,7 @@ function renderHistory() {
               record.secondaryTimeframe || ""
             )}
             ${escapeHtml(secondaryState)}
+            <span class="history-inline-source">[${escapeHtml(secondaryJudge.source)}]</span>
             <br>
             ${escapeHtml(
               record.direction || ""
@@ -11848,7 +11856,7 @@ async function openRecord(recordId) {
       )
     )}
     <br>
-    <strong>次判 Official：</strong>
+    <strong>次判 Main：</strong>
     ${escapeHtml(
       record.secondaryTimeframe || ""
     )}－${escapeHtml(
@@ -14880,7 +14888,7 @@ function recordFromCsvRow(row) {
         )
       ).toLowerCase() === "on"
         ? "Working"
-        : "Official",
+        : "Main",
     secondaryJudgeState:
       firstCsvValue(
         row,

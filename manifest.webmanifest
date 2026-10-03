@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.28",
+  "name": "Master Trade System V1.30.29",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.3 with Secondary Structural Gap source switch: Main always uses Official Market State; Secondary normally uses Official and switches to Working only when Structural Gap is On.",
+  "description": "Master Trade Matrix V1.3 Structural Gap audited: Gap Off uses Main-TF Main + Secondary-TF Main; Gap On uses Main-TF Main + Secondary-TF Working. Matrix unchanged.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

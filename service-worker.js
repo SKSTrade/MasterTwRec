@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-28-structural-gap-source-switch";
+const CACHE_NAME = "master-trade-system-v1-30-29-structural-gap-audit";
 const ASSETS = [
   "./",
   "./index.html",

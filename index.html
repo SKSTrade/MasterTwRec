@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.28</span>
+    <span class="version-badge">V1.30.29</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -641,21 +641,21 @@
           </div>
 
           <label>
-            <span id="secondaryStateLabel">次判 Official Market State</span>
+            <span id="secondaryStateLabel">次判 Main Market State</span>
             <select id="secondaryState"></select>
           </label>
           <p id="secondaryStateNote" class="state-note"></p>
 
           <div class="principle-box">
-            <strong>Main Judge永遠使用 Main-TF Official Market State。</strong>
-            <span>Main冇Structural Gap Mode；Main Working只參與形成Main-TF Official Market State，唔會取代Main成為另一個Judge。</span>
+            <strong>Main Judge永遠使用 Main-TF Main Market State。</strong>
+            <span>Main冇Structural Gap Mode；Main Working只參與形成Main-TF Main Market State，唔會取代Main成為另一個Judge。</span>
           </div>
 
           <label>
             Structural Gap
             <select id="structuralGapMode">
-              <option value="off" selected>Off｜次判使用Official Market State</option>
-              <option value="on">On｜次判Source切換到Working Market State</option>
+              <option value="off" selected>Off｜次判使用Main Market State</option>
+              <option value="on">On｜次判Source由Main切換到Working Market State</option>
             </select>
           </label>
 
@@ -677,12 +677,12 @@
 
           <div class="result-lines compact">
             <div><span>Structural Gap</span><strong id="structuralGapDisplay">Off</strong></div>
-            <div><span>Secondary Judge Source</span><strong id="secondaryJudgeSourceDisplay">Official</strong></div>
+            <div><span>Secondary Judge Source</span><strong id="secondaryJudgeSourceDisplay">Main</strong></div>
             <div><span>Secondary Judge State</span><strong id="secondaryJudgeStateDisplay">N/A</strong></div>
           </div>
 
           <div id="secondaryT0ContextPanel" class="conditional-panel hidden">
-            <p class="state-note">以下T0資料永遠跟目前Active Secondary Judge Source：Gap Off＝Official；Gap On＝Working。</p>
+            <p class="state-note">以下T0資料永遠跟目前Active Secondary Judge Source：Gap Off＝Main；Gap On＝Working。</p>
             <label>
               次判 Judge T0 Subtype
               <select id="secondaryT0Subtype">
@@ -752,7 +752,7 @@
 
           <div class="principle-box">
             <strong>Structural Gap只存在於次判Source Switch。</strong>
-            <span>正常用Secondary-TF Official Market State；只有Trigger 1或Trigger 2成立先Gap ON，次判Source由Official切去Working。Matrix本身完全不變。</span>
+            <span>正常用Secondary-TF Main Market State；只有Trigger 1或Trigger 2成立先Gap ON，次判Source由Main切去Working。Matrix本身完全不變。</span>
           </div>
         </article>
 
@@ -943,10 +943,10 @@
             </div>
 
             <div id="hsiOprContinuationPanel" class="conditional-panel hidden">
-              <div class="principle-box"><strong>HSI-C｜OPR Continuation & Retest</strong><span>主判＋次判必須雙同向，Trade亦必須順主／次判；OPR Direction Context只作Subtype Research，唔改Frozen Size。</span></div>
+              <div class="principle-box"><strong>HSI-C｜OPR Continuation & Retest</strong><span>主判＋次判Judge必須雙同向；Gap Off次判Judge＝Main，Gap On＝Working。Trade亦必須順主／次判Judge；OPR Direction Context只作Subtype Research，唔改Frozen Size。</span></div>
               <label class="toggle-row"><input id="hsiOprWindowComplete" type="checkbox"><span>09:15–09:30 OPR已完成</span></label>
               <label class="toggle-row"><input id="hsiOprAfter0930" type="checkbox"><span>Full Reclaim／Break發生喺09:30後</span></label>
-              <label class="toggle-row"><input id="hsiOprTrendAligned" type="checkbox"><span>主判＋次判方向一致，而且Trade方向順主判／次判</span></label>
+              <label class="toggle-row"><input id="hsiOprTrendAligned" type="checkbox"><span>主判＋次判Judge方向一致，而且Trade方向順主判／次判Judge</span></label>
 
               <label>
                 OPR Direction Context
@@ -1293,8 +1293,8 @@
             <div><span>市場</span><strong id="resultMarket"></strong></div>
             <div><span>核心Setup</span><strong id="resultSetupTemplate"></strong></div>
             <div><span>大局背景</span><strong id="resultBackground"></strong></div>
-            <div><span>主判斷｜Official</span><strong id="resultMain"></strong></div>
-            <div><span>次判 Official</span><strong id="resultSecondaryOfficial"></strong></div>
+            <div><span>主判 Main</span><strong id="resultMain"></strong></div>
+            <div><span>次判 Main</span><strong id="resultSecondaryOfficial"></strong></div>
             <div><span>Structural Gap</span><strong id="resultStructuralGap"></strong></div>
             <div><span>次判 Judge Source</span><strong id="resultSecondaryJudgeSource"></strong></div>
             <div><span>次判 Judge State</span><strong id="resultSecondary"></strong></div>
@@ -1936,7 +1936,7 @@
         <ul>
           <li><strong>HSI-A：</strong>OPR H/L 2B｜高質P3可P2-E。</li>
           <li><strong>HSI-B：</strong>普通結構Sweep｜無自動升級。</li>
-          <li><strong>HSI-C｜OPR Continuation & Retest：</strong>Research／Provisional；主判＋次判必須雙同向，Trade方向順主／次判；09:15–09:30 OPR完成，09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。<strong>OPR Direction Context</strong>只分「順向順勢」／「反向順勢」；兩者都唔係逆勢Trade。暫時冇E，Raw P3仍P3。</li>
+          <li><strong>HSI-C｜OPR Continuation & Retest：</strong>Research／Provisional；主判＋次判Judge必須雙同向（Gap Off＝次判Main；Gap On＝次判Working），Trade方向順主／次判Judge；09:15–09:30 OPR完成，09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。<strong>OPR Direction Context</strong>只分「順向順勢」／「反向順勢」；兩者都唔係逆勢Trade。暫時冇E，Raw P3仍P3。</li>
           <li><strong>順向順勢：</strong>OPR方向＝主判／次判方向＝Trade方向；例如HTF ↑＋OPR ↑＋Trade ↑。</li>
           <li><strong>反向順勢：</strong>OPR方向逆主判／次判，但Trade仍順主／次判；例如HTF ↑＋OPR ↓＋Trade ↑。「反向」只指OPR逆HTF。</li>
           <li><strong>時間：</strong>10:30後唔開新Setup。</li>
