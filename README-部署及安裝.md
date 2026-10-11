@@ -1,63 +1,58 @@
-# Master Trade System V1.30.27
-## T0 Neutral Direction Permission Fix
+# Master Trade System V1.30.31
+## Master Trade Matrix V1.4｜V1.3 Production Base + V1.4 Overlay
 
-### 修正內容
+### V1.3 Production Base
 
-今版修正一個中央 Market Route bug：
+V1.3 Direction Permission、Market State、P/Q、E、RR、Hard Veto、P4全部保留。
 
-> `T0-Balance × Directional Transition`
->
-> 舊版錯誤：將Directional Transition bias當成唯一方向票，逆bias直接0注。
->
-> 新版：兩層都仍然係Transition，Directional Transition bias只作context，唔係Hard Direction Veto。
+`V1.3 Production Size`仍然係Base Size同Valid Candidate來源。V1.4唔救Hard 0。
 
-因此：
+### V1.4 Rule 1｜正式
 
-- `T0-Balance × T↑ / T↓` → Strict Neutral / Range route
-- 兩邊方向都可以按Neutral Matrix計
-- 只有Active T0-Balance Auction先套25% / true-boundary filter
-- P1 Q3 = 0.5
-- P1 Q2 = 0.25
-- P2 / P2-E Q3 = 0.25
-- P2 / P2-E Q2 = 0
-- P3 Q3 = 0.25 / 0，只限meaningful location
-- P3 Q2 = 0
-- Balance middle = 0
+`P2-E + Q2同時含F+S` → 降一級。
 
-### T0-Post-Break × Directional Transition
+### V1.4 Rule 2｜Shadow
 
-同樣修正：
+`P2-E + Aligned With Weakness` → 降一級。
 
-- Directional Transition bias只作context
-- 唔再因逆bias自動打0
-- 沿用Neutral Matrix / Cap
-- T0-Post-Break唔套25% hard restriction
-- 但唔會升格成Healthy / Weak Trend待遇
+只限Healthy / Weak同向、至少一層Weak；唔包括Single Transition。
 
-### 保持不變
+### V1.4 Rule 3｜正式
 
-- Confirmed Healthy / Weak Trend × T0：方向權限規則不放寬
-- T0-Post-Break × T0-Post-Break：同方向Q3低Cap，最高0.25
-- T0-Balance × T0-Post-Break：低Cap Q3 route，最高0.25
-- Matrix數值本身冇改
-- P / E / Native Q冇改
-- Obstacle / RR冇改
-- FX-B Previous H/L Warning parity保留
-- FX-C Native P2行為唔改
-- V1.4未啟用
+`P2-E + Raw P3-PB + Q3 + 明確方向Conflict + 順Main逆Secondary` → 升一級，Max 1.0。
 
-### 跨市場檢查
+Directional State包括H↑/W↑/T↑及H↓/W↓/T↓；任何一邊T0均排除。
 
-中央route engine係所有市場共用。已用代表性合法Setup檢查：
+Structural Gap Off用Secondary Main；Gap On用Secondary Working，即Effective Secondary Judge。
 
-- HSI-A
-- UK100 EU-B
-- GER40 EU-B
-- FX-B
-- XAU-B
-- Trend Pullback
+### V1.4 Rule 4｜Runner Shadow
 
-同一個 `T0-Balance × Directional Transition + P1 Q3 + favorable boundary`
-全部正確保留0.5，不再被方向bias錯誤打0。
+`Raw P3-PB + Q3 + 明確方向Conflict + 順Main逆Secondary` → `50%@2R + 50% Runner→4R`。
 
-HSI-C仍有自己獨立嘅「主判＋次判雙同向」前提；如果唔符合而0注，屬Setup規則，唔係今次bug。
+唔要求P2-E，亦唔需要Initiative @2R gate。
+
+### Interaction
+
+- Multiple upgrades：最多+1 step
+- Multiple downgrades：最多-1 step
+- Upgrade + Downgrade：互相抵消，回到V1.3 Base
+- Hard 0：V1.4永遠唔救返
+
+### Pruned fields
+
+已由操作UI／Record Detail／新CSV Export移除：
+- Initiative Trigger Level
+- Initiative @2R
+- Control Alignment
+- Auction Move維持刪除
+- ATR / Body-ATR研究欄維持不再記錄
+
+舊CSV仍可Import；Legacy欄位只作向後兼容，唔再係新紀錄欄位。
+
+### Report split
+
+新CSV保留足夠欄位分拆：
+- V1.3 Base
+- V1.4 Size-only
+- V1.4 Runner-only
+- V1.4 Full

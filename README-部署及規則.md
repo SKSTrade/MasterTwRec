@@ -1,39 +1,58 @@
-# Master Trade System V1.30.29
-## Structural Gap Full Audit
+# Master Trade System V1.30.31
+## Master Trade Matrix V1.4｜V1.3 Production Base + V1.4 Overlay
 
-### Confirmed calculation model
+### V1.3 Production Base
 
-Structural Gap **Off**:
+V1.3 Direction Permission、Market State、P/Q、E、RR、Hard Veto、P4全部保留。
 
-> Main Judge = Main-TF Main Market State  
-> Secondary Judge = Secondary-TF Main Market State
+`V1.3 Production Size`仍然係Base Size同Valid Candidate來源。V1.4唔救Hard 0。
 
-Structural Gap **On**:
+### V1.4 Rule 1｜正式
 
-> Main Judge = Main-TF Main Market State  
-> Secondary Judge = Secondary-TF Working Market State
+`P2-E + Q2同時含F+S` → 降一級。
 
-Main never switches to Working. Structural Gap exists only on the Secondary Judge source.
+### V1.4 Rule 2｜Shadow
 
-### Audit result
+`P2-E + Aligned With Weakness` → 降一級。
 
-- Gap Off exhaustively matched V1.30.27 legacy calculation across 3,528 state / direction / T0 combinations.
-- Gap On matched direct `Main + Secondary Working` routing across 2,744 combinations.
-- Matrix tables, P/Q sizing, T0 rules, Obstacle/RR and setup constraints remain byte-identical.
-- Fixed a display-only issue: history cards previously showed Secondary Main even when Gap On; they now show the actual Secondary Judge State and `[Main]` / `[Working]` source.
-- UI wording standardized to `Main / Working` instead of `Official / Working` to match the structural model.
+只限Healthy / Weak同向、至少一層Weak，而且Trade必須順共同方向；唔包括Single Transition或反共同方向。
 
-### CSV / compatibility
+### V1.4 Rule 3｜正式
 
-CSV remains 177 columns. Old V1.30.28 records/CSV remain compatible. Gap Off records use Secondary Main; Gap On records use Secondary Working.
+`P2-E + Raw P3-PB + Q3 + 明確方向Conflict + 順Main逆Secondary` → 升一級，Max 1.0。
 
-### Unchanged
+Directional State包括H↑/W↑/T↑及H↓/W↓/T↓；任何一邊T0均排除。
 
-- V1.3 Matrix values
-- T0-Balance / T0-Post-Break
-- P / E / Native Q
-- Obstacle / RR
-- XAU-B Mon H/L fix
-- FX-B Warning parity
-- FX-C behavior
-- V1.4 remains disabled
+Structural Gap Off用Secondary Main；Gap On用Secondary Working，即Effective Secondary Judge。
+
+### V1.4 Rule 4｜Runner Shadow
+
+`Raw P3-PB + Q3 + 明確方向Conflict + 順Main逆Secondary` → `50%@2R + 50% Runner→4R`。
+
+唔要求P2-E，亦唔需要Initiative @2R gate。
+
+### Interaction
+
+- Multiple upgrades：最多+1 step
+- Multiple downgrades：最多-1 step
+- Upgrade + Downgrade：互相抵消，回到V1.3 Base
+- Hard 0：V1.4永遠唔救返
+
+### Pruned fields
+
+已由操作UI／Record Detail／新CSV Export移除：
+- Initiative Trigger Level
+- Initiative @2R
+- Control Alignment
+- Auction Move維持刪除
+- ATR / Body-ATR研究欄維持不再記錄
+
+舊CSV仍可Import；Legacy欄位只作向後兼容，唔再係新紀錄欄位。
+
+### Report split
+
+新CSV保留足夠欄位分拆：
+- V1.3 Base
+- V1.4 Size-only
+- V1.4 Runner-only
+- V1.4 Full

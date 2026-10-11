@@ -2529,7 +2529,7 @@ function computeMarketRoute(
           "conflictMain",
           "主判Trend｜順主判、次判Transition反向",
           0.5,
-          "順主判有方向權，但Immediate Control處Transitioning／可能反對；Control Alignment只記錄研究，暫時唔直接改Size。"
+          "順主判有方向權，但Immediate Control仍處Transitioning／可能反對；Size按原V1.3 conflict route。"
         );
       }
 
@@ -2773,7 +2773,7 @@ function preferredDirectionInfo() {
   ) {
     return {
       label:
-        "Directional Transition × Confirmed反向｜按Control Alignment研究",
+        "Directional Transition × Confirmed反向｜Conflict研究",
       note: route.reason
     };
   }
@@ -2973,7 +2973,7 @@ function combinedDeploymentInfo() {
       priority:
         "Directional Transition × Confirmed反向：P1 Q3 0.5、P2 Q3 0.25。",
       secondary:
-        "兩個交易方向Size暫時相同；Control Alignment作研究。"
+        "兩個交易方向Size暫時相同；以Main／Effective Secondary Judge狀態分組研究。"
     },
     transitionConfirmed: {
       priority:
@@ -5594,7 +5594,7 @@ function evaluateMatrix(
     route.code === "transitionVsConfirmedConflict"
   ) {
     cellExplanation =
-      `主判Directional Transition × 次判Confirmed反方向：兩個交易方向Size暫時相同；P1 Q3＝0.5、P1 Q2＝0.25、P2 Q3＝0.25、P2 Q2＝0、P3＝0。Control Alignment用嚟分Confirmed／Opposing研究Tag。`;
+      `主判Directional Transition × 次判Confirmed反方向：兩個交易方向Size暫時相同；P1 Q3＝0.5、P1 Q2＝0.25、P2 Q3＝0.25、P2 Q2＝0、P3＝0。研究分組改用Main／Effective Secondary Judge狀態。`;
   } else if (
     route.code ===
       "conflictSecondary" &&
@@ -5711,6 +5711,356 @@ function downgradeOneLevel(size) {
   if (size >= 0.5) return 0.25;
   if (size >= 0.25) return 0;
   return 0;
+}
+
+function upgradeOneLevel(
+  size
+) {
+  if (size >= 1) return 1;
+  if (size >= 0.5) return 1;
+  if (size >= 0.25) return 0.5;
+  return 0;
+}
+
+function executionPDisplayLabel(
+  position,
+  treatment = ""
+) {
+  if (
+    position === "P2" &&
+    treatment === "p2Effective"
+  ) {
+    return "P2-E";
+  }
+
+  return position || "N/A";
+}
+
+function isV14ExplicitDirectionalState(
+  state
+) {
+  if (!state || stateBias(state) === null) {
+    return false;
+  }
+
+  return (
+    isHealthy(state) ||
+    isWeak(state) ||
+    isTransition(state)
+  );
+}
+
+function v14ConflictInfo(
+  mainState,
+  secondaryState,
+  tradeDirection
+) {
+  const mainExplicit =
+    isV14ExplicitDirectionalState(
+      mainState
+    );
+  const secondaryExplicit =
+    isV14ExplicitDirectionalState(
+      secondaryState
+    );
+  const mainBias =
+    stateBias(mainState);
+  const secondaryBias =
+    stateBias(secondaryState);
+  const currentTradeBias =
+    tradeDirection === "Long"
+      ? "up"
+      : "down";
+
+  const explicitConflict =
+    mainExplicit &&
+    secondaryExplicit &&
+    mainBias !== secondaryBias;
+
+  const followsMainOpposesSecondary =
+    explicitConflict &&
+    currentTradeBias === mainBias &&
+    currentTradeBias !== secondaryBias;
+
+  return {
+    mainState,
+    secondaryState,
+    mainBias,
+    secondaryBias,
+    explicitConflict,
+    followsMainOpposesSecondary
+  };
+}
+
+function v14AlignedWithWeaknessInfo(
+  mainState,
+  secondaryState,
+  tradeDirection
+) {
+  const mainConfirmed =
+    isHealthy(mainState) ||
+    isWeak(mainState);
+  const secondaryConfirmed =
+    isHealthy(secondaryState) ||
+    isWeak(secondaryState);
+  const commonBias =
+    stateBias(mainState);
+  const sameDirection =
+    mainConfirmed &&
+    secondaryConfirmed &&
+    commonBias !== null &&
+    commonBias ===
+      stateBias(secondaryState);
+  const hasWeakness =
+    isWeak(mainState) ||
+    isWeak(secondaryState);
+  const currentTradeBias =
+    tradeDirection === "Long"
+      ? "up"
+      : "down";
+  const followsAlignedDirection =
+    sameDirection &&
+    currentTradeBias ===
+      commonBias;
+
+  return {
+    eligible:
+      sameDirection &&
+      hasWeakness &&
+      followsAlignedDirection,
+    sameDirection,
+    hasWeakness,
+    followsAlignedDirection
+  };
+}
+
+function v14RuleSummary(
+  overlay
+) {
+  const hits = [];
+
+  if (overlay.rule1Triggered) {
+    hits.push("R1 -1｜P2-E + Q2-F+S");
+  }
+  if (overlay.rule2Triggered) {
+    hits.push("R2 -1 Shadow｜P2-E + Aligned With Weakness");
+  }
+  if (overlay.rule3Triggered) {
+    hits.push("R3 +1｜P2-E + P3-PB + Q3 + 順Main逆次");
+  }
+
+  if (hits.length === 0) {
+    return "No size adjustment";
+  }
+
+  if (
+    overlay.hasUpgrade &&
+    overlay.hasDowngrade
+  ) {
+    return `${hits.join("｜")}｜Upgrade + Downgrade抵消`;
+  }
+
+  return hits.join("｜");
+}
+
+function resolveV14CandidateSize(
+  baseSize,
+  hasUpgrade,
+  hasDowngrade
+) {
+  const size =
+    Number(baseSize) || 0;
+
+  if (size <= 0) {
+    return {
+      candidateSize: 0,
+      adjustment:
+        "Hard 0 locked｜V1.4唔救返"
+    };
+  }
+
+  if (
+    hasUpgrade &&
+    hasDowngrade
+  ) {
+    return {
+      candidateSize: size,
+      adjustment:
+        "Upgrade + Downgrade抵消｜回到V1.3 Base"
+    };
+  }
+
+  if (hasUpgrade) {
+    return {
+      candidateSize:
+        upgradeOneLevel(size),
+      adjustment:
+        "+1 step｜Max 1.0"
+    };
+  }
+
+  if (hasDowngrade) {
+    return {
+      candidateSize:
+        downgradeOneLevel(size),
+      adjustment:
+        "-1 step｜Non-stacking"
+    };
+  }
+
+  return {
+    candidateSize: size,
+    adjustment: "None"
+  };
+}
+
+function evaluateV14Overlay({
+  v13BaseSize,
+  rawPosition,
+  executionPosition,
+  positionTreatment,
+  p3Context,
+  nativeQ,
+  q2SubtypeCodes = [],
+  mainState,
+  secondaryState,
+  tradeDirection
+}) {
+  const baseSize =
+    Number(v13BaseSize) || 0;
+
+  const p2Effective =
+    executionPosition === "P2" &&
+    positionTreatment ===
+      "p2Effective";
+
+  const q2Codes =
+    Array.isArray(q2SubtypeCodes)
+      ? q2SubtypeCodes
+      : [];
+
+  const hasFastStrong =
+    nativeQ === "Q2" &&
+    q2Codes.includes("F") &&
+    q2Codes.includes("S");
+
+  const weakness =
+    v14AlignedWithWeaknessInfo(
+      mainState,
+      secondaryState,
+      tradeDirection
+    );
+
+  const conflict =
+    v14ConflictInfo(
+      mainState,
+      secondaryState,
+      tradeDirection
+    );
+
+  const p3Pb =
+    rawPosition === "P3" &&
+    p3Context === "PB";
+
+  const rule1Triggered =
+    p2Effective &&
+    hasFastStrong;
+
+  const rule2Triggered =
+    p2Effective &&
+    weakness.eligible;
+
+  const rule3Triggered =
+    p2Effective &&
+    p3Pb &&
+    nativeQ === "Q3" &&
+    conflict.followsMainOpposesSecondary;
+
+  const runnerConditionMet =
+    p3Pb &&
+    nativeQ === "Q3" &&
+    conflict.followsMainOpposesSecondary;
+
+  const hasUpgrade =
+    rule3Triggered;
+  const hasDowngrade =
+    rule1Triggered ||
+    rule2Triggered;
+
+  const resolvedSize =
+    resolveV14CandidateSize(
+      baseSize,
+      hasUpgrade,
+      hasDowngrade
+    );
+
+  const candidateSize =
+    resolvedSize.candidateSize;
+  const adjustment =
+    resolvedSize.adjustment;
+
+  const runnerEligible =
+    baseSize > 0 &&
+    runnerConditionMet;
+
+  const overlay = {
+    version:
+      "Master Trade Matrix V1.4 Overlay｜2026-10",
+    v13BaseSize:
+      baseSize,
+    candidateSize,
+    adjustment,
+    p2Effective,
+    conflict,
+    weakness,
+    rule1Triggered,
+    rule2Triggered,
+    rule3Triggered,
+    runnerConditionMet,
+    rule4RunnerEligible:
+      runnerEligible,
+    rule4RunnerPlan:
+      runnerEligible
+        ? "50% @ 2R + 50% Runner → 4R｜Shadow"
+        : "N/A",
+    hasUpgrade,
+    hasDowngrade,
+    hardZeroLocked:
+      baseSize <= 0
+  };
+
+  overlay.ruleSummary =
+    v14RuleSummary(
+      overlay
+    );
+
+  return overlay;
+}
+
+function liveControlAlignmentFromRoute(
+  routeCode
+) {
+  if (
+    [
+      "healthyAligned",
+      "neutralMainConfirmed",
+      "reverseWeakMain",
+      "reverseHealthyMain"
+    ].includes(routeCode)
+  ) {
+    return "Confirmed";
+  }
+
+  if (
+    [
+      "alignedReverse",
+      "neutralMainReverse"
+    ].includes(routeCode)
+  ) {
+    return "Opposing";
+  }
+
+  return "Transitioning";
 }
 
 function insideObstacleCap(position, quality) {
@@ -6649,87 +6999,11 @@ function normalizeOpeningContext(
   return map[raw] || "";
 }
 
-function auctionMoveLabel(
-  code
-) {
-  if (code === "responsive") {
-    return "Responsive";
-  }
-
-  if (code === "initiative") {
-    return "Initiative";
-  }
-
-  return "";
-}
-
-function normalizeAuctionMove(
-  value
-) {
-  const raw =
-    String(value || "")
-      .trim()
-      .toLowerCase();
-
-  if (raw === "responsive") {
-    return "responsive";
-  }
-
-  if (raw === "initiative") {
-    return "initiative";
-  }
-
-  return "";
-}
 
 
-function initiativeTriggerLevelValue(
-  value
-) {
-  return String(value || "")
-    .trim();
-}
 
-function initiativeAt2RLabel(
-  code
-) {
-  if (code === "No") {
-    return "No";
-  }
 
-  if (code === "Attempt") {
-    return "Attempt";
-  }
 
-  if (code === "Confirmed") {
-    return "Confirmed";
-  }
-
-  return "";
-}
-
-function normalizeInitiativeAt2R(
-  value
-) {
-  const raw =
-    String(value || "")
-      .trim()
-      .toLowerCase();
-
-  if (raw === "no") {
-    return "No";
-  }
-
-  if (raw === "attempt") {
-    return "Attempt";
-  }
-
-  if (raw === "confirmed") {
-    return "Confirmed";
-  }
-
-  return "";
-}
 
 
 function entryTFMainStructureDescription(
@@ -7505,6 +7779,17 @@ function updateShadowResearchPreview() {
     .textContent =
       objectiveAtEntry;
 
+  $("shadowV13BaseSize").textContent =
+    SIZE_LABELS[decision.finalSize];
+  $("shadowV14CandidateSize").textContent =
+    `${SIZE_LABELS[decision.v14CandidateSize]}｜Candidate`;
+  $("shadowV14SizeRules").textContent =
+    `${decision.v14RuleSummary}｜${decision.v14Adjustment}`;
+  $("shadowV14Runner").textContent =
+    decision.v14Rule4RunnerEligible
+      ? decision.v14RunnerPlan
+      : "N/A";
+
   $("shadowNormalizedR")
     .textContent =
       formatResearchR(
@@ -7557,6 +7842,31 @@ function evaluateDecision(
 
   const finalSize = hardVetoes.length > 0 ? 0 : obstacle.adjustedSize;
 
+  const v14 = evaluateV14Overlay({
+    v13BaseSize:
+      finalSize,
+    rawPosition:
+      setupResult.basePosition,
+    executionPosition:
+      setupResult.effectivePosition,
+    positionTreatment:
+      setupResult.positionTreatment,
+    p3Context:
+      setupResult.basePosition === "P3"
+        ? $("p3Context").value
+        : "",
+    nativeQ:
+      baseTrigger.quality,
+    q2SubtypeCodes:
+      q2Subtype.codes,
+    mainState:
+      $("mainState").value,
+    secondaryState:
+      secondaryJudge.effectiveState,
+    tradeDirection:
+      direction()
+  });
+
   const objective = tradeObjectiveInfo({
     finalSize,
     matrixRouteCode: matrix.routeCode,
@@ -7606,17 +7916,18 @@ function evaluateDecision(
     `② 主判／次判 Market State：${t0StateDisplay($("mainState").value, "main")} × ${t0StateDisplay(secondaryJudge.effectiveState, "secondary")}；Secondary Judge Source＝${secondaryJudge.source}${secondaryJudge.gapOn ? `（Structural Gap ON｜${secondaryJudge.triggerLabel}；Secondary Main＝${secondaryJudge.officialState}；Working＝${secondaryJudge.workingState}）` : "（Structural Gap OFF｜Secondary Main）"}；Transition Type＝${transitionType.label}。T0 Context＝${t0ContextSummary(t0Context)}。`,
     `③ Direction Permission：${matrix.routeLabel}；Market Cap ${SIZE_LABELS[matrix.marketCap]}。${matrix.routeReason}`,
     `④ Auction Balance Filter：${range.explanation}`,
-    `⑤ Control Alignment：${control.label}。${control.note}`,
-    `⑥ Raw P：${setupResult.basePosition}；${
+    `⑤ Raw P：${setupResult.basePosition}；${
       setupResult.basePosition === "P3"
         ? `P3 Context＝${p3ContextLabel($("p3Context").value) || "未分類"}（Shadow only）；`
         : ""
     }Execution P：${setupResult.effectivePosition}。`,
-    `⑦ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／MID／EXT唔會改E升級權或Frozen Size。`,
-    `⑧ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
-    `⑨ Obstacle／RR：${obstacle.explanation}`,
-    `⑩ Final Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
-    `⑪ Objective at Entry：${simplifiedObjectiveAtEntry(objective.code, objective.shadowClass)}。${objective.reason}`
+    `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／MID／EXT唔會改E升級權或Frozen Size。`,
+    `⑦ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
+    `⑧ Obstacle／RR：${obstacle.explanation}`,
+    `⑨ V1.3 Production / Base Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
+    `⑩ V1.4 Candidate Size：${SIZE_LABELS[v14.candidateSize]}。${v14.ruleSummary}；${v14.adjustment}。Rule 2＝Shadow only；Structural Gap判Conflict／Weakness時使用Effective Secondary Judge＝${secondaryJudge.effectiveState}。`,
+    `⑪ V1.4 Runner：${v14.rule4RunnerEligible ? v14.rule4RunnerPlan : "N/A"}。Rule 4同Size分開，唔需要Initiative @ 2R gate。`,
+    `⑫ Objective at Entry：${simplifiedObjectiveAtEntry(objective.code, objective.shadowClass)}。${objective.reason}`
   ];
 
   const warnings = [
@@ -7760,9 +8071,6 @@ function evaluateDecision(
       t0Context.balanceConstraint,
     t0BalanceFilterActive:
       t0Context.balanceFilterActive,
-    controlAlignment: control.code,
-    controlAlignmentLabel: control.label,
-    controlAlignmentNote: control.note,
     setupType: setupResult.effectiveSetupType,
     setupTypeLabel: setupResult.effectiveSetupTypeLabel,
     setupTemplate: setupResult.setupTemplate,
@@ -7804,6 +8112,30 @@ function evaluateDecision(
       capReason.primary,
     additionalCapFlags:
       capReason.flags,
+    v14Version:
+      v14.version,
+    v14CandidateSize:
+      v14.candidateSize,
+    v14Adjustment:
+      v14.adjustment,
+    v14RuleSummary:
+      v14.ruleSummary,
+    v14Rule1Triggered:
+      v14.rule1Triggered,
+    v14Rule2Triggered:
+      v14.rule2Triggered,
+    v14Rule3Triggered:
+      v14.rule3Triggered,
+    v14Rule4RunnerEligible:
+      v14.rule4RunnerEligible,
+    v14RunnerPlan:
+      v14.rule4RunnerPlan,
+    v14ConflictExplicit:
+      v14.conflict.explicitConflict,
+    v14FollowMainOpposeSecondary:
+      v14.conflict.followsMainOpposesSecondary,
+    v14AlignedWithWeakness:
+      v14.weakness.eligible,
     finalSize,
     reasons,
     warnings,
@@ -8046,8 +8378,10 @@ function renderDecision(decision) {
       : "N/A";
   $("resultEffectivePosition")
     .textContent =
-      currentAsia2B
-        .effectivePosition;
+      executionPDisplayLabel(
+        currentAsia2B.effectivePosition,
+        currentAsia2B.positionTreatment
+      );
   $("resultP1Background").textContent =
     $("p1BackgroundTailwind").value ===
       "valid"
@@ -8075,8 +8409,6 @@ function renderDecision(decision) {
       : decision.t0BalanceConstraint === "released"
         ? "Released｜Neutral cap保留"
         : "N/A";
-  $("resultControlAlignment").textContent =
-    decision.controlAlignmentLabel;
   $("resultEnhancement").textContent =
     decision.enhancementLabel;
   $("resultQ2Subtype").textContent =
@@ -8154,6 +8486,16 @@ function renderDecision(decision) {
     )} → ${SIZE_LABELS[
       decision.obstacleSize
     ]}`;
+  $("resultV13BaseSize").textContent =
+    SIZE_LABELS[decision.finalSize];
+  $("resultV14CandidateSize").textContent =
+    `${SIZE_LABELS[decision.v14CandidateSize]}｜Candidate`;
+  $("resultV14SizeRules").textContent =
+    `${decision.v14RuleSummary}｜${decision.v14Adjustment}`;
+  $("resultV14Runner").textContent =
+    decision.v14Rule4RunnerEligible
+      ? decision.v14RunnerPlan
+      : "N/A";
   $("finalSize").textContent =
     SIZE_LABELS[
       decision.finalSize
@@ -8622,18 +8964,9 @@ function updateInterface() {
       mainState,
       secondaryState
     );
-  const controlInfo =
-    controlAlignmentInfo(
-      secondaryState,
-      direction()
-    );
 
   $("transitionTypeDisplay").textContent =
     transitionInfo.label;
-  $("controlAlignmentDisplay").textContent =
-    controlInfo.label;
-  $("controlAlignmentNote").textContent =
-    controlInfo.note;
 
   const combinedDeployment =
     combinedDeploymentInfo();
@@ -9190,15 +9523,17 @@ function checklistSummary() {
     "",
     `大局實際結構重疊：${$("backgroundDirectOverlap").value === "yes" ? "有" : "冇"}`,
     `P1順風：${tailwind === "valid" ? "有｜仍有效" : tailwind === "expired" ? "曾有｜已失效" : "冇"}`,
-    `Matrix Version：Master Trade Matrix V1.3｜2026/08 Frozen`,
+    `Matrix Version：Master Trade Matrix V1.4｜V1.3 Production Base + V1.4 Overlay`,
     `Transition Type：${currentDecision?.transitionTypeLabel || transitionTypeInfo().label}`,
-    `Control Alignment：${currentDecision?.controlAlignmentLabel || controlAlignmentInfo().label}`,
     `Raw P → P3 Context → E → Execution P：${currentAsia2B.basePosition} → ${
       currentAsia2B.basePosition === "P3"
         ? (p3ContextLabel($("p3Context").value) || "未分類")
         : "N/A"
     } → ${currentDecision?.enhancementLabel || "None"} → ${currentAsia2B.effectivePosition}`,
     `Native Q：${currentBaseTrigger.quality}${currentBaseTrigger.quality === "Q2" ? `｜${q2SubtypeInfo(currentBaseTrigger).label}` : ""}`,
+    `V1.3 Production / Base Size：${SIZE_LABELS[currentDecision.finalSize]}`,
+    `V1.4 Candidate Size：${SIZE_LABELS[currentDecision.v14CandidateSize]}｜${currentDecision.v14RuleSummary}｜${currentDecision.v14Adjustment}`,
+    `V1.4 Runner Shadow：${currentDecision.v14Rule4RunnerEligible ? currentDecision.v14RunnerPlan : "N/A"}`,
     `Objective at Entry：${decisionObjectiveAtEntry(currentDecision)}`,
     `Transition主判P1順風P2資格：${transitionP1TailwindEligibilityInfo(
       currentAsia2B.effectivePosition,
@@ -9235,7 +9570,7 @@ function checklistSummary() {
     `障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
     `P×Q／方向Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
     `障礙修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
-    `最終注碼：${SIZE_LABELS[currentDecision.finalSize]}`,
+    `V1.3 Production Size：${SIZE_LABELS[currentDecision.finalSize]}`,
     "",
     `追價：${yesNo(checked("chasedBreakout"))}`,
     `違反交易時間：${yesNo(checked("violatesTradingTime"))}`,
@@ -9741,11 +10076,11 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.29",
+      "PracticeJournal-V1.30.31",
     engineVersion:
-      "MasterTradeMatrix-V1.3-Amended-2026-10-r42-StructuralGapAudit",
+      "MasterTradeMatrix-V1.4-Overlay-2026-10-r43",
     matrixVersion:
-      "Master Trade Matrix V1.3｜2026/08 Frozen",
+      "Master Trade Matrix V1.4｜V1.3 Production Base + V1.4 Overlay",
 
     recordMode:
       recordMode(),
@@ -9869,10 +10204,6 @@ async function saveDecision(event) {
       currentDecision.transitionType,
     transitionTypeLabel:
       currentDecision.transitionTypeLabel,
-    controlAlignment:
-      currentDecision.controlAlignment,
-    controlAlignmentLabel:
-      currentDecision.controlAlignmentLabel,
 
     backgroundDirectOverlap:
       $("backgroundDirectOverlap").value,
@@ -9911,7 +10242,7 @@ async function saveDecision(event) {
         currentDecision
       ),
     shadowResearchVersion:
-      "2025 H2 Shadow Overlay v13",
+      "V1.4 Research Overlay v1",
     primaryCapReason:
       currentDecision.primaryCapReason ||
       "N/A",
@@ -10123,6 +10454,32 @@ async function saveDecision(event) {
       currentDecision.obstacleSize,
     finalSize:
       currentDecision.finalSize,
+    v13ProductionSize:
+      currentDecision.finalSize,
+    v14Version:
+      currentDecision.v14Version,
+    v14CandidateSize:
+      currentDecision.v14CandidateSize,
+    v14Adjustment:
+      currentDecision.v14Adjustment,
+    v14RuleSummary:
+      currentDecision.v14RuleSummary,
+    v14Rule1Triggered:
+      currentDecision.v14Rule1Triggered,
+    v14Rule2Triggered:
+      currentDecision.v14Rule2Triggered,
+    v14Rule3Triggered:
+      currentDecision.v14Rule3Triggered,
+    v14Rule4RunnerEligible:
+      currentDecision.v14Rule4RunnerEligible,
+    v14RunnerPlan:
+      currentDecision.v14RunnerPlan,
+    v14ConflictExplicit:
+      currentDecision.v14ConflictExplicit,
+    v14FollowMainOpposeSecondary:
+      currentDecision.v14FollowMainOpposeSecondary,
+    v14AlignedWithWeakness:
+      currentDecision.v14AlignedWithWeakness,
 
     chasedBreakout:
       checked("chasedBreakout"),
@@ -10196,14 +10553,6 @@ async function saveDecision(event) {
     openingContext:
       normalizeOpeningContext(
         $("openingContext").value
-      ),
-    initiativeTriggerLevel:
-      initiativeTriggerLevelValue(
-        $("initiativeTriggerLevel").value
-      ),
-    initiativeAt2R:
-      normalizeInitiativeAt2R(
-        $("initiativeAt2R").value
       ),
     entryTFMainStructure:
       normalizeEntryTFMainStructure(
@@ -10289,8 +10638,6 @@ async function saveDecision(event) {
   $("validCandidate").value = "No";
   $("postEntryObjectiveUpgrade").value = "No";
   $("openingContext").value = "";
-  $("initiativeTriggerLevel").value = "";
-  $("initiativeAt2R").value = "No";
   $("entryTFMainStructure").value = "";
   syncEntryTFMainStructureHelp(
     false
@@ -11805,9 +12152,6 @@ async function openRecord(recordId) {
     <strong>Transition Type：</strong>
     ${escapeHtml(record.transitionTypeLabel || record.transitionType || "N/A")}
     <br>
-    <strong>Control Alignment：</strong>
-    ${escapeHtml(record.controlAlignmentLabel || record.controlAlignment || "N/A")}
-    <br>
     <strong>市場：</strong>
     ${escapeHtml(
       record.marketLabel ||
@@ -12184,11 +12528,33 @@ async function openRecord(recordId) {
       record.obstacleOutcome || "N/A"
     )}
     <br>
-    <strong>最終注碼：</strong>
+    <strong>V1.3 Production / Base Size：</strong>
     ${escapeHtml(
       safeSizeLabel(
         record.finalSize
       )
+    )}
+    <br>
+    <strong>V1.4 Candidate Size：</strong>
+    ${escapeHtml(
+      safeSizeLabel(
+        Number.isFinite(record.v14CandidateSize)
+          ? record.v14CandidateSize
+          : record.finalSize
+      )
+    )}
+    <br>
+    <strong>V1.4 Size Rules：</strong>
+    ${escapeHtml(
+      record.v14RuleSummary ||
+      "Legacy / No V1.4 snapshot"
+    )}
+    <br>
+    <strong>V1.4 Runner Shadow：</strong>
+    ${escapeHtml(
+      record.v14Rule4RunnerEligible
+        ? (record.v14RunnerPlan || "50% @ 2R + 50% Runner → 4R｜Shadow")
+        : "N/A"
     )}
     <br>
     <strong>第一真實障礙：</strong>
@@ -12213,22 +12579,6 @@ async function openRecord(recordId) {
       openingContextLabel(
         normalizeOpeningContext(
           record.openingContext
-        )
-      ) || "未記錄"
-    )}
-    <br>
-    <strong>Initiative Trigger Level：</strong>
-    ${escapeHtml(
-      initiativeTriggerLevelValue(
-        record.initiativeTriggerLevel
-      ) || "未記錄"
-    )}
-    <br>
-    <strong>Initiative @ 2R：</strong>
-    ${escapeHtml(
-      initiativeAt2RLabel(
-        normalizeInitiativeAt2R(
-          record.initiativeAt2R
         )
       ) || "未記錄"
     )}
@@ -12421,15 +12771,6 @@ async function openRecord(recordId) {
       record.openingContext
     );
 
-  $("editInitiativeTriggerLevel").value =
-    initiativeTriggerLevelValue(
-      record.initiativeTriggerLevel
-    );
-
-  $("editInitiativeAt2R").value =
-    normalizeInitiativeAt2R(
-      record.initiativeAt2R
-    );
 
   $("editEntryTFMainStructure").value =
     normalizeEntryTFMainStructure(
@@ -12781,14 +13122,6 @@ async function saveRecordEdit() {
     normalizeOpeningContext(
       $("editOpeningContext").value
     );
-  records[index].initiativeTriggerLevel =
-    initiativeTriggerLevelValue(
-      $("editInitiativeTriggerLevel").value
-    );
-  records[index].initiativeAt2R =
-    normalizeInitiativeAt2R(
-      $("editInitiativeAt2R").value
-    );
   records[index].entryTFMainStructure =
     normalizeEntryTFMainStructure(
       $("editEntryTFMainStructure").value
@@ -13075,6 +13408,19 @@ function buildCsv(records) {
     "P×Q／方向Matrix",
     "大局修正",
     "最終注碼",
+    "V1.3 Production Size",
+    "V1.4 Overlay Version",
+    "V1.4 Candidate Size",
+    "V1.4 Adjustment",
+    "V1.4 Size Rules",
+    "V1.4 Rule 1 P2-E + Q2-F+S",
+    "V1.4 Rule 2 Aligned With Weakness Shadow",
+    "V1.4 Rule 3 PB Q3 Conflict Upgrade",
+    "V1.4 Rule 4 Runner Shadow",
+    "V1.4 Runner Plan",
+    "V1.4 Explicit Conflict",
+    "V1.4 Follow Main Oppose Secondary",
+    "V1.4 Aligned With Weakness",
     "入市結果",
     "Entry-time Q",
     "Post-entry Q",
@@ -13089,7 +13435,6 @@ function buildCsv(records) {
     "情緒加注標籤",
     "Frozen Matrix Version",
     "Transition Type V1.3",
-    "Control Alignment V1.3",
     "Raw P V1.3",
     "P3 Context",
     "Enhancement E V1.3",
@@ -13111,8 +13456,6 @@ function buildCsv(records) {
     "Objective at Entry",
     "Post-entry Objective Upgrade",
     "Opening Context",
-    "Initiative Trigger Level",
-    "Initiative @ 2R",
     "Entry-TF Main Structure",
     "Entry-TF Working Structure",
     "Retest Internal Structure",
@@ -13432,6 +13775,37 @@ function buildCsv(records) {
         record.finalSize ??
         "",
       record.finalSize ?? "",
+      record.v13ProductionSize ??
+        record.finalSize ??
+        "",
+      record.v14Version || "",
+      record.v14CandidateSize ??
+        record.finalSize ??
+        "",
+      record.v14Adjustment || "",
+      record.v14RuleSummary || "",
+      record.v14Rule1Triggered
+        ? "Yes"
+        : "No",
+      record.v14Rule2Triggered
+        ? "Yes"
+        : "No",
+      record.v14Rule3Triggered
+        ? "Yes"
+        : "No",
+      record.v14Rule4RunnerEligible
+        ? "Yes"
+        : "No",
+      record.v14RunnerPlan || "",
+      record.v14ConflictExplicit
+        ? "Yes"
+        : "No",
+      record.v14FollowMainOpposeSecondary
+        ? "Yes"
+        : "No",
+      record.v14AlignedWithWeakness
+        ? "Yes"
+        : "No",
       record.entryStatus || "",
       record.entryTimeQ || "",
       record.postEntryQ || "",
@@ -13468,7 +13842,6 @@ function buildCsv(records) {
         : "No",
       record.matrixVersion || "",
       record.transitionTypeLabel || record.transitionType || "",
-      record.controlAlignmentLabel || record.controlAlignment || "",
       record.rawP || record.basePosition || "",
       recordRawP(record) === "P3"
         ? recordP3Context(record)
@@ -13530,14 +13903,6 @@ function buildCsv(records) {
       openingContextLabel(
         normalizeOpeningContext(
           record.openingContext
-        )
-      ),
-      initiativeTriggerLevelValue(
-        record.initiativeTriggerLevel
-      ),
-      initiativeAt2RLabel(
-        normalizeInitiativeAt2R(
-          record.initiativeAt2R
         )
       ),
       entryTFMainStructureLabel(
@@ -15781,16 +16146,6 @@ function recordFromCsvRow(row) {
         row,
         "Transition Type V1.3"
       ),
-    controlAlignmentLabel:
-      firstCsvValue(
-        row,
-        "Control Alignment V1.3"
-      ),
-    controlAlignment:
-      firstCsvValue(
-        row,
-        "Control Alignment V1.3"
-      ),
     rawP:
       firstCsvValue(
         row,
@@ -15886,9 +16241,96 @@ function recordFromCsvRow(row) {
         csvNumber(
           firstCsvValue(
             row,
+            "V1.3 Production Size",
             "最終注碼"
           )
         ) ?? 0
+      ),
+    v13ProductionSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "V1.3 Production Size",
+          "最終注碼"
+        )
+      ),
+    v14Version:
+      firstCsvValue(
+        row,
+        "V1.4 Overlay Version"
+      ) || "",
+    v14CandidateSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "V1.4 Candidate Size",
+          "V1.3 Production Size",
+          "最終注碼"
+        )
+      ),
+    v14Adjustment:
+      firstCsvValue(
+        row,
+        "V1.4 Adjustment"
+      ) || "",
+    v14RuleSummary:
+      firstCsvValue(
+        row,
+        "V1.4 Size Rules"
+      ) || "",
+    v14Rule1Triggered:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "V1.4 Rule 1 P2-E + Q2-F+S"
+        )
+      ),
+    v14Rule2Triggered:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "V1.4 Rule 2 Aligned With Weakness Shadow"
+        )
+      ),
+    v14Rule3Triggered:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "V1.4 Rule 3 PB Q3 Conflict Upgrade"
+        )
+      ),
+    v14Rule4RunnerEligible:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "V1.4 Rule 4 Runner Shadow"
+        )
+      ),
+    v14RunnerPlan:
+      firstCsvValue(
+        row,
+        "V1.4 Runner Plan"
+      ) || "",
+    v14ConflictExplicit:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "V1.4 Explicit Conflict"
+        )
+      ),
+    v14FollowMainOpposeSecondary:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "V1.4 Follow Main Oppose Secondary"
+        )
+      ),
+    v14AlignedWithWeakness:
+      csvBoolean(
+        firstCsvValue(
+          row,
+          "V1.4 Aligned With Weakness"
+        )
       ),
     postEntryPricePattern:
       firstCsvValue(
@@ -15959,32 +16401,11 @@ function recordFromCsvRow(row) {
           "Post-entry Objective Upgrade"
         )
       ),
-    auctionMove:
-      normalizeAuctionMove(
-        firstCsvValue(
-          row,
-          "Auction Move"
-        )
-      ),
     openingContext:
       normalizeOpeningContext(
         firstCsvValue(
           row,
           "Opening Context"
-        )
-      ),
-    initiativeTriggerLevel:
-      initiativeTriggerLevelValue(
-        firstCsvValue(
-          row,
-          "Initiative Trigger Level"
-        )
-      ),
-    initiativeAt2R:
-      normalizeInitiativeAt2R(
-        firstCsvValue(
-          row,
-          "Initiative @ 2R"
         )
       ),
     entryTFMainStructure:
@@ -16003,21 +16424,6 @@ function recordFromCsvRow(row) {
           "Entry-TF Working Structure",
           "Entry TF Working Structure",
           "入場TF工作結構"
-        )
-      ),
-    reclaimStrongBarAtrRatio:
-      csvNumber(
-        firstCsvValue(
-          row,
-          "Reclaim Strong Bar ATR Ratio"
-        )
-      ),
-    retestStrongBarAtrRatio:
-      csvNumber(
-        firstCsvValue(
-          row,
-          "Retest Strong Bar ATR Ratio",
-          "Strong Retest Shadow Metric"
         )
       ),
     reclaimInternalStructure:
@@ -16064,15 +16470,6 @@ function recordFromCsvRow(row) {
         firstCsvValue(
           row,
           "Retest Acceptance"
-        )
-      ),
-    // Legacy V1.30.1 alias retained only for compatibility.
-    strongRetestShadowMetric:
-      csvNumber(
-        firstCsvValue(
-          row,
-          "Retest Strong Bar ATR Ratio",
-          "Strong Retest Shadow Metric"
         )
       ),
     deepRFTriggered:
@@ -17488,7 +17885,9 @@ function recalculateLiveDecision() {
   const nativeQuality =
     $("liveTriggerQuality").value;
   const controlAlignment =
-    $("liveControlAlignment").value;
+    liveControlAlignmentFromRoute(
+      routeCode
+    );
 
   const typeAQualified =
     selectedSetupType === "A" &&
@@ -18181,7 +18580,7 @@ function recalculateLiveDecision() {
     relationNotes[routeCode] || "";
 
   const notes = [
-    `Matrix V1.3 Frozen｜市場：${MARKET_CONFIG[marketCode(true)].label}。`,
+    `Live Quick：V1.3 Production Base｜市場：${MARKET_CONFIG[marketCode(true)].label}。V1.4 Candidate需完整Main＋Effective Secondary Judge State，請以完整判斷頁為準。`,
     `Setup：${definition.label}。`,
     showCounterContext
       ? effectivePosition === "P1"
@@ -18201,7 +18600,6 @@ function recalculateLiveDecision() {
       ? `Warning｜${livePreviousHLInfo.reason} 此項只作Setup資料完整性警告，唔會Hard Veto／唔會將Size打0。`
       : "",
     `Direction Permission：${liveRouteLabel(routeCode)}｜Cap ${SIZE_LABELS[marketCap]}。`,
-    `Control Alignment：${controlAlignment}｜研究欄位，V1.3唔直接改Size。`,
     `Raw P ${basePosition} → Execution P ${effectivePosition}${livePositionTreatment === "p2Effective" ? "-E" : ""}。`,
     marketCode(true) === "XAU"
       ? `XAU Edge：${xauLiquidityEdgeInfo(true, basePosition).positionLabel}；Native Q唔升級。`

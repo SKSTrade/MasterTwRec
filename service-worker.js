@@ -1,12 +1,12 @@
-const CACHE_NAME = "master-trade-system-v1-30-29-structural-gap-audit";
+const CACHE_NAME = "master-trade-system-v1-30-31-matrix-v14-overlay-rule2-fix";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {

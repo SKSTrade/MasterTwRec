@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Trade Journal">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
   <title>Master Trade Practice & Live Journal</title>
 </head>
@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.29</span>
+    <span class="version-badge">V1.30.31</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -177,13 +177,6 @@
             <small>Live Quick Decision只用嚟決定25% Filter有冇資格；Post-Break唔提供正式Trend方向票。</small>
           </label>
 
-          <label>Control Alignment｜研究欄位
-            <select id="liveControlAlignment">
-              <option value="Confirmed">Confirmed｜次判已同Trade方向Trend</option>
-              <option value="Transitioning" selected>Transitioning｜次判正在轉</option>
-              <option value="Opposing">Opposing｜次判仍係反方向Trend</option>
-            </select>
-          </label>
           <div class="result-lines compact">
             <div><span>市場關係上限</span><strong id="liveMarketCap">1注</strong></div>
           </div>
@@ -497,7 +490,7 @@
         <ul>
           <li><strong>Research 1：</strong>0.25 P2Q3 Under-sizing｜Primary Cap Reason＋Additional Flags自動記。</li>
           <li><strong>Research 2：</strong>Reaction-first → Expansion｜記Post-entry Objective Upgrade。</li>
-          <li><strong>Research 3：</strong>P2-E + Q2 × Market State × Control Alignment｜沿用Native Q2 Subtype。</li>
+          <li><strong>Research 3：</strong>P2-E + Q2 × Market State｜沿用Native Q2 Subtype。</li>
           <li><strong>Research 4：</strong>Deep-RF Management｜記RF後原SL、Shadow MFE、No-RF counterfactual。</li>
           <li><strong>Research 5：</strong>Strong Retest客觀化｜今版無market-data feed，所以唔加手填ATR負擔。</li>
           <li><strong>Research 6：</strong>Instrument × Price-Action Regime × Loss Frequency｜沿用Instrument、Market State、Post-entry Price Pattern交叉研究。</li>
@@ -718,9 +711,7 @@
             <div><span>Transition Type</span><strong id="transitionTypeDisplay">N/A</strong></div>
             <div><span>T0 Context</span><strong id="t0ContextDisplay">N/A</strong></div>
             <div><span>Auction 25% Filter</span><strong id="t0BalanceFilterDisplay">N/A</strong></div>
-            <div><span>Control Alignment</span><strong id="controlAlignmentDisplay">Transitioning</strong></div>
           </div>
-          <p id="controlAlignmentNote" class="state-note">V1.3研究欄位；暫時唔直接改Size。</p>
 
           <div class="combined-deployment-box">
             <div class="combined-deployment-title">
@@ -1303,7 +1294,6 @@
             <div><span>Transition Type</span><strong id="resultTransitionType"></strong></div>
             <div><span>T0 Context</span><strong id="resultT0Context"></strong></div>
             <div><span>Auction 25% Filter</span><strong id="resultT0BalanceFilter"></strong></div>
-            <div><span>Control Alignment</span><strong id="resultControlAlignment"></strong></div>
             <div><span>交易優先方向</span><strong id="resultPreferredDirection"></strong></div>
             <div><span>交易路線</span><strong id="resultMarketRoute"></strong></div>
             <div><span>Setup Type</span><strong id="resultSetupType"></strong></div>
@@ -1319,6 +1309,10 @@
             <div><span>P×Q／方向Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>Range修正</span><strong id="resultRangeSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
+            <div><span>V1.3 Production / Base Size</span><strong id="resultV13BaseSize"></strong></div>
+            <div><span>V1.4 Candidate Size</span><strong id="resultV14CandidateSize"></strong></div>
+            <div><span>V1.4 Size Rules</span><strong id="resultV14SizeRules"></strong></div>
+            <div><span>V1.4 Runner Shadow</span><strong id="resultV14Runner"></strong></div>
             <div><span>Objective at Entry</span><strong id="resultTradeObjective"></strong></div>
             <div id="resultPrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="resultPrimaryCapReason"></strong></div>
             <div id="resultAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="resultAdditionalCapFlags"></strong></div>
@@ -1326,7 +1320,7 @@
           </div>
 
           <div class="final-size">
-            <span>最終注碼</span>
+            <span>V1.3 Production Size</span>
             <strong id="finalSize">0注｜不做</strong>
           </div>
 
@@ -1342,8 +1336,8 @@
           </label>
 
           <div class="principle-box">
-            <strong>Master Trade Matrix V1.3 — Frozen｜2025 H2 Shadow Research Overlay</strong>
-            <span>正式決策全程跟Frozen V1.3；Shadow只記錄，唔反過來改Valid Candidate、P/Q、Size、Objective、Entry或Management。</span>
+            <strong>Master Trade Matrix V1.4｜V1.3 Production Base + V1.4 Candidate Overlay</strong>
+            <span>V1.3 Production Size仍係Base Size／Valid Candidate來源；V1.4 Candidate只喺V1.3計完後做指定±1 step。Rule 2同Rule 4仍屬Shadow／未確認。</span>
           </div>
 
           <div id="euOpeningBacktestPanel" class="hidden" hidden aria-hidden="true">
@@ -1457,24 +1451,28 @@
             <label>
               Valid Candidate｜Auto
               <select id="validCandidate" disabled>
-                <option value="Yes">Yes｜Final Size &gt; 0</option>
-                <option value="No" selected>No｜Final Size = 0</option>
+                <option value="Yes">Yes｜V1.3 Production Size &gt; 0</option>
+                <option value="No" selected>No｜V1.3 Production Size = 0</option>
               </select>
-              <small>Matrix最終注碼 &gt; 0 → Yes；0注 → No。</small>
+              <small>V1.3 Production Size &gt; 0 → Yes；0注 → No。V1.4 Candidate唔反向改Valid Candidate。</small>
             </label>
           </div>
 
           <div class="shadow-research-panel">
             <div class="shadow-research-heading">
-              <strong>2025 H2 Shadow Research｜Pruned</strong>
-              <span>只保留目前information value最高嘅欄位；Opening Context／Initiative Trigger Level／Initiative @ 2R／Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改Frozen Decision。</span>
+              <strong>V1.4 Research Overlay｜Pruned</strong>
+              <span>只保留目前information value最高嘅欄位；Opening Context／Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改V1.3 Production Decision。</span>
             </div>
 
             <div class="summary-grid shadow-auto-grid">
               <div id="shadowPrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="shadowPrimaryCapReason">N/A</strong></div>
               <div id="shadowAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="shadowAdditionalCapFlags">N/A</strong></div>
               <div><span>Objective at Entry</span><strong id="shadowObjectiveAtEntry">N/A</strong></div>
-              <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ Final Size</small></div>
+              <div><span>V1.3 Base Size</span><strong id="shadowV13BaseSize">N/A</strong></div>
+              <div><span>V1.4 Candidate Size</span><strong id="shadowV14CandidateSize">N/A</strong></div>
+              <div><span>V1.4 Size Rules</span><strong id="shadowV14SizeRules">N/A</strong></div>
+              <div><span>V1.4 Runner</span><strong id="shadowV14Runner">N/A</strong></div>
+              <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ V1.3 Production Size</small></div>
             </div>
 
             <div class="yes-no-grid">
@@ -1494,20 +1492,6 @@
                   <option value="insideEdge">Inside-Edge</option>
                   <option value="outsideHold">Outside-Hold</option>
                   <option value="outsideFail">Outside-Fail</option>
-                </select>
-              </label>
-
-              <label>
-                Initiative Trigger Level
-                <input id="initiativeTriggerLevel" type="text" autocomplete="off" placeholder="例如 Asia High / 15M Working High / PDH / Range High">
-              </label>
-
-              <label>
-                Initiative @ 2R
-                <select id="initiativeAt2R">
-                  <option value="No" selected>No</option>
-                  <option value="Attempt">Attempt</option>
-                  <option value="Confirmed">Confirmed</option>
                 </select>
               </label>
 
@@ -1595,7 +1579,6 @@
               <strong>Retest Internal Structure：</strong>Entry TF入場前已見清晰對手micro structure先算Structured；Long要見LH → LL，Short鏡像HH → HL。
               <br><strong>Retest vs Reclaim Structure：</strong>N/A已同時代表Reclaim冇清晰micro structure；有structure先揀Hold／Sweep-Reclaim／Break-Accept。
               <br><strong>Retest Acceptance：</strong>Hold／Close Through量較大reclaimed setup level有冇失守。
-              <br><strong>已停手動記錄：</strong>Reclaim / Retest Strong Bar ATR Ratio、獨立Reclaim Internal Structure、Relative ATR Ratio。
             </p>
           </div>
 
@@ -1766,7 +1749,7 @@
       <article class="card">
         <p class="eyebrow">MASTER TRADE MATRIX V1.3｜2026/08 FROZEN</p>
         <h2>HSI／UK100／GER40／外匯／黃金整合版</h2>
-        <p class="large-rule">大局 → 主／次Market State → Direction Permission → Control Alignment → Raw P → Setup／E → Native Q → Obstacle／RR → Final Size → Expansion／Reaction／Skip</p>
+        <p class="large-rule">大局 → 主／次Market State → Direction Permission → Raw P → Setup／E → Native Q → Obstacle／RR → V1.3 Base Size → V1.4 Overlay</p>
         <p>Native Q3同Q2永久分開；E只係Instrument／Session Edge，可令Raw P3取得P2-effective，但唔會洗白Q2、唔會P2→P1、亦唔會創造方向權限。</p>
       </article>
 
@@ -1804,10 +1787,18 @@
         </ul>
       </article>
 
+
       <article class="card">
-        <h2>Control Alignment｜研究欄位</h2>
-        <p><strong>Confirmed：</strong>次判已建立Trade方向Trend。<br><strong>Transitioning：</strong>次判舊方向失效，正在向Trade方向轉。<br><strong>Opposing：</strong>次判仍然係Trade反方向Trend。</p>
-        <p class="muted">V1.3暫時只記錄，唔直接改Size；研究假設 Confirmed ＞ Transitioning ＞ Opposing。</p>
+        <h2>Master Trade Matrix V1.4｜Overlay Rules</h2>
+        <p class="large-rule">V1.3 Production Size = Base Size。V1.4唔改Direction Permission、Market State、P/Q、E、RR、Hard Veto或P4；Hard 0永遠唔救返。</p>
+        <ul>
+          <li><strong>Rule 1｜正式：</strong>P2-E + Native Q2同時含F+S → -1 step。</li>
+          <li><strong>Rule 2｜Shadow：</strong>P2-E + Aligned With Weakness（只限H/W同向、至少一層Weak，而且Trade順共同方向；唔包括Single Transition／反共同方向）→ -1 step。</li>
+          <li><strong>Rule 3｜正式：</strong>P2-E + Raw P3-PB + Q3 + 明確方向Conflict + 順Main逆Effective Secondary Judge，排除T0 → +1 step，Max 1.0。</li>
+          <li><strong>Rule 4｜Runner Shadow：</strong>Raw P3-PB + Q3 + 同一類明確Conflict + 順Main逆Effective Secondary Judge → 50%@2R + 50% Runner@4R；唔需要Initiative @2R gate。</li>
+          <li><strong>Non-stacking：</strong>多個Upgrade最多+1；多個Downgrade最多-1；Upgrade + Downgrade互相抵消，回到V1.3 Base。</li>
+          <li><strong>Structural Gap：</strong>Gap Off用Secondary Main；Gap On用Secondary Working判Rule 2／3／4。</li>
+        </ul>
       </article>
 
       <article class="card">
@@ -1859,7 +1850,7 @@
         <ul>
           <li><strong>C：</strong>一層Directional Transition＋另一層Confirmed同方向：P1/P2 Q3＝0.5、Q2＝0.25；P2-E＋Q2全局最多0.25。</li>
           <li><strong>E：</strong>主判T0＋次判Confirmed，順次判：方向票只由Confirmed次判提供；Size同C，Objective固定Reaction。主判T0-Balance可受Auction Filter，T0-Post-Break唔套25%。</li>
-          <li><strong>J：</strong>主判Directional Transition＋次判Confirmed反方向：做任何一邊Size暫時一樣；P1 Q3＝0.5、Q2＝0.25；P2 Q3＝0.25、Q2＝0；P3＝0。Control Alignment分研究Tag。</li>
+          <li><strong>J：</strong>主判Directional Transition＋次判Confirmed反方向：做任何一邊Size暫時一樣；P1 Q3＝0.5、Q2＝0.25；P2 Q3＝0.25、Q2＝0；P3＝0。研究分組改用Main／Effective Secondary Judge狀態。</li>
           <li><strong>M：</strong>主判T0但逆次判Confirmed：T0冇方向票，正常0；清晰HTF P1／主要Boundary＋Native Q3先0.25 Reaction Probe。</li>
           <li><strong>F / T0：</strong>T0-Balance保留Strict Neutral／Range規則；T0-Post-Break解除25% hard restriction但仍係Neutral。Balance × Post-Break或雙Post-Break未有正式Directional Control時最高0.25、Q3 only。</li>
         </ul>
@@ -2194,10 +2185,10 @@
       <label>
         Valid Candidate｜Auto
         <select id="editValidCandidate" disabled>
-          <option value="Yes">Yes｜Final Size &gt; 0</option>
-          <option value="No">No｜Final Size = 0</option>
+          <option value="Yes">Yes｜V1.3 Production Size &gt; 0</option>
+          <option value="No">No｜V1.3 Production Size = 0</option>
         </select>
-        <small>歷史Final Size自動判定，唔需要手動修改。</small>
+        <small>歷史V1.3 Production Size自動判定，唔需要手動修改。</small>
       </label>
 
       <div class="shadow-research-panel">
@@ -2223,21 +2214,6 @@
               <option value="insideEdge">Inside-Edge</option>
               <option value="outsideHold">Outside-Hold</option>
               <option value="outsideFail">Outside-Fail</option>
-            </select>
-          </label>
-
-          <label>
-            Initiative Trigger Level
-            <input id="editInitiativeTriggerLevel" type="text" autocomplete="off" placeholder="例如 Asia High / 15M Working High / PDH / Range High">
-          </label>
-
-          <label>
-            Initiative @ 2R
-            <select id="editInitiativeAt2R">
-              <option value="" hidden>未記錄｜Legacy</option>
-              <option value="No">No</option>
-              <option value="Attempt">Attempt</option>
-              <option value="Confirmed">Confirmed</option>
             </select>
           </label>
 
