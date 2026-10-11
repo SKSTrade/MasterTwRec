@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.31</span>
+    <span class="version-badge">V1.30.32</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1309,8 +1309,9 @@
             <div><span>P×Q／方向Matrix</span><strong id="resultMatrixSize"></strong></div>
             <div><span>Range修正</span><strong id="resultRangeSize"></strong></div>
             <div><span>大局障礙修正</span><strong id="resultObstacleSize"></strong></div>
-            <div><span>V1.3 Production / Base Size</span><strong id="resultV13BaseSize"></strong></div>
-            <div><span>V1.4 Candidate Size</span><strong id="resultV14CandidateSize"></strong></div>
+            <div><span>V1.3 Base Size</span><strong id="resultV13BaseSize"></strong></div>
+            <div><span>V1.4 Production Size</span><strong id="resultV14ProductionSize"></strong></div>
+            <div><span>V1.4 Shadow Size</span><strong id="resultV14ShadowSize"></strong></div>
             <div><span>V1.4 Size Rules</span><strong id="resultV14SizeRules"></strong></div>
             <div><span>V1.4 Runner Shadow</span><strong id="resultV14Runner"></strong></div>
             <div><span>Objective at Entry</span><strong id="resultTradeObjective"></strong></div>
@@ -1320,7 +1321,7 @@
           </div>
 
           <div class="final-size">
-            <span>V1.3 Production Size</span>
+            <span>V1.4 Production Size｜Final</span>
             <strong id="finalSize">0注｜不做</strong>
           </div>
 
@@ -1336,8 +1337,8 @@
           </label>
 
           <div class="principle-box">
-            <strong>Master Trade Matrix V1.4｜V1.3 Production Base + V1.4 Candidate Overlay</strong>
-            <span>V1.3 Production Size仍係Base Size／Valid Candidate來源；V1.4 Candidate只喺V1.3計完後做指定±1 step。Rule 2同Rule 4仍屬Shadow／未確認。</span>
+            <strong>Master Trade Matrix V1.4｜Base → Production → Shadow</strong>
+            <span>V1.3 Base Size只作基準；V1.4 Production Size套正式Rule 1／3，亦係Final Size同Valid Candidate來源。Rule 2只改Shadow Size；Rule 4只標示Shadow Runner。</span>
           </div>
 
           <div id="euOpeningBacktestPanel" class="hidden" hidden aria-hidden="true">
@@ -1413,6 +1414,7 @@
               <option value="70%於2R＋30%試3R">70%於2R＋30%試3R</option>
               <option value="50%於2R＋50%Runner">50%於2R＋50% Runner</option>
             </select>
+            <small id="tpPlanV14ShadowNote" class="state-note hidden"></small>
           </label>
 
           <label>
@@ -1444,24 +1446,24 @@
           <div class="yes-no-grid">
             <label>MFE R<input id="mfeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 2.35"></label>
             <label>MAE R<input id="maeR" type="number" step="0.01" inputmode="decimal" placeholder="例如 -0.65"></label>
-            <label>Time to RF（H/M）<input id="timeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空"></label>
+            <label>Time to RF（H/M）<input id="timeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空"><small>一有有效Time to RF資料，「去唔去到推RF位」會自動轉Yes。</small></label>
           </div>
 
           <div class="yes-no-grid">
             <label>
               Valid Candidate｜Auto
               <select id="validCandidate" disabled>
-                <option value="Yes">Yes｜V1.3 Production Size &gt; 0</option>
-                <option value="No" selected>No｜V1.3 Production Size = 0</option>
+                <option value="Yes">Yes｜V1.4 Production Size &gt; 0</option>
+                <option value="No" selected>No｜V1.4 Production Size = 0</option>
               </select>
-              <small>V1.3 Production Size &gt; 0 → Yes；0注 → No。V1.4 Candidate唔反向改Valid Candidate。</small>
+              <small>V1.4 Production Size &gt; 0 → Yes；0注 → No。Shadow Size／Runner唔反向改Valid Candidate。</small>
             </label>
           </div>
 
           <div class="shadow-research-panel">
             <div class="shadow-research-heading">
               <strong>V1.4 Research Overlay｜Pruned</strong>
-              <span>只保留目前information value最高嘅欄位；Opening Context／Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改V1.3 Production Decision。</span>
+              <span>只保留目前information value最高嘅欄位；Opening Context／Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改V1.4 Production Size。</span>
             </div>
 
             <div class="summary-grid shadow-auto-grid">
@@ -1469,10 +1471,11 @@
               <div id="shadowAdditionalCapFlagsRow" class="hidden"><span>Additional Cap Flags</span><strong id="shadowAdditionalCapFlags">N/A</strong></div>
               <div><span>Objective at Entry</span><strong id="shadowObjectiveAtEntry">N/A</strong></div>
               <div><span>V1.3 Base Size</span><strong id="shadowV13BaseSize">N/A</strong></div>
-              <div><span>V1.4 Candidate Size</span><strong id="shadowV14CandidateSize">N/A</strong></div>
+              <div><span>V1.4 Production Size</span><strong id="shadowV14ProductionSize">N/A</strong></div>
+              <div><span>V1.4 Shadow Size</span><strong id="shadowV14ShadowSize">N/A</strong></div>
               <div><span>V1.4 Size Rules</span><strong id="shadowV14SizeRules">N/A</strong></div>
               <div><span>V1.4 Runner</span><strong id="shadowV14Runner">N/A</strong></div>
-              <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ V1.3 Production Size</small></div>
+              <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ V1.4 Production Size</small></div>
             </div>
 
             <div class="yes-no-grid">
@@ -1749,7 +1752,7 @@
       <article class="card">
         <p class="eyebrow">MASTER TRADE MATRIX V1.3｜2026/08 FROZEN</p>
         <h2>HSI／UK100／GER40／外匯／黃金整合版</h2>
-        <p class="large-rule">大局 → 主／次Market State → Direction Permission → Raw P → Setup／E → Native Q → Obstacle／RR → V1.3 Base Size → V1.4 Overlay</p>
+        <p class="large-rule">大局 → 主／次Market State → Direction Permission → Raw P → Setup／E → Native Q → Obstacle／RR → V1.3 Base Size → V1.4 Production → V1.4 Shadow</p>
         <p>Native Q3同Q2永久分開；E只係Instrument／Session Edge，可令Raw P3取得P2-effective，但唔會洗白Q2、唔會P2→P1、亦唔會創造方向權限。</p>
       </article>
 
@@ -1790,13 +1793,15 @@
 
       <article class="card">
         <h2>Master Trade Matrix V1.4｜Overlay Rules</h2>
-        <p class="large-rule">V1.3 Production Size = Base Size。V1.4唔改Direction Permission、Market State、P/Q、E、RR、Hard Veto或P4；Hard 0永遠唔救返。</p>
+        <p class="large-rule">V1.3 Base Size係基準。V1.4 Production只套正式Rule 1／3；Rule 2／4只屬Shadow。V1.4唔改Direction Permission、Market State、P/Q、E、RR、Hard Veto或P4；Hard 0永遠唔救返。</p>
         <ul>
           <li><strong>Rule 1｜正式：</strong>P2-E + Native Q2同時含F+S → -1 step。</li>
           <li><strong>Rule 2｜Shadow：</strong>P2-E + Aligned With Weakness（只限H/W同向、至少一層Weak，而且Trade順共同方向；唔包括Single Transition／反共同方向）→ -1 step。</li>
           <li><strong>Rule 3｜正式：</strong>P2-E + Raw P3-PB + Q3 + 明確方向Conflict + 順Main逆Effective Secondary Judge，排除T0 → +1 step，Max 1.0。</li>
           <li><strong>Rule 4｜Runner Shadow：</strong>Raw P3-PB + Q3 + 同一類明確Conflict + 順Main逆Effective Secondary Judge → 50%@2R + 50% Runner@4R；唔需要Initiative @2R gate。</li>
-          <li><strong>Non-stacking：</strong>多個Upgrade最多+1；多個Downgrade最多-1；Upgrade + Downgrade互相抵消，回到V1.3 Base。</li>
+          <li><strong>Production：</strong>Rule 1／3先由V1.3 Base計V1.4 Production Size；呢個先係Final Size同Valid Candidate來源。</li>
+          <li><strong>Shadow：</strong>Rule 2只落V1.4 Shadow Size；Rule 4只做Runner Shadow。Shadow唔改Production。</li>
+          <li><strong>Non-stacking：</strong>同一track多個Upgrade最多+1；多個Downgrade最多-1；Upgrade + Downgrade互相抵消，回到V1.3 Base。</li>
           <li><strong>Structural Gap：</strong>Gap Off用Secondary Main；Gap On用Secondary Working判Rule 2／3／4。</li>
         </ul>
       </article>
@@ -2166,6 +2171,7 @@
         <label>
           Time to RF（H/M）
           <input id="editTimeToRF" type="text" inputmode="text" autocomplete="off" placeholder="例如 11H45M；未到RF留空">
+          <small>輸入有效時間後，「去到推RF位」自動轉Yes。</small>
         </label>
       </div>
 
@@ -2185,10 +2191,10 @@
       <label>
         Valid Candidate｜Auto
         <select id="editValidCandidate" disabled>
-          <option value="Yes">Yes｜V1.3 Production Size &gt; 0</option>
-          <option value="No">No｜V1.3 Production Size = 0</option>
+          <option value="Yes">Yes｜V1.4 Production Size &gt; 0</option>
+          <option value="No">No｜V1.4 Production Size = 0</option>
         </select>
-        <small>歷史V1.3 Production Size自動判定，唔需要手動修改。</small>
+        <small>V1.4 Production Size自動判定，唔需要手動修改。</small>
       </label>
 
       <div class="shadow-research-panel">

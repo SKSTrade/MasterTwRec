@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-31-matrix-v14-overlay-rule2-fix";
+const CACHE_NAME = "master-trade-system-v1-30-32-matrix-v14-production-shadow";
 const ASSETS = [
   "./",
   "./index.html",

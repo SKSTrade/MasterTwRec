@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.31",
+  "name": "Master Trade System V1.30.32",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.4 overlay on V1.3 Production Base: non-stacking size Rules 1-3, conflict runner Rule 4 shadow, Structural Gap-aware effective Secondary Judge; pruned Initiative and Control Alignment fields.",
+  "description": "Master Trade Matrix V1.4 with explicit V1.3 Base, V1.4 Production, and V1.4 Shadow layers; Rule 1/3 drive Production, Rule 2/4 remain Shadow, with Structural Gap-aware Effective Secondary Judge.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

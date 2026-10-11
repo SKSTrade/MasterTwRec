@@ -3765,6 +3765,21 @@ function q2SubtypeInfo(
   };
 }
 
+function syncAsia2BDirectionToTradeDirection() {
+  const select = $("asia2BType");
+
+  if (!select) return;
+
+  const target =
+    direction() === "Long"
+      ? "asiaBottom"
+      : "asiaTop";
+
+  if (select.value !== target) {
+    select.value = target;
+  }
+}
+
 function evaluateAsia2B(baseTrigger) {
   const selectedSetupType =
     setupTypeFromTemplate(false);
@@ -5834,33 +5849,46 @@ function v14AlignedWithWeaknessInfo(
   };
 }
 
-function v14RuleSummary(
+function v14ProductionRuleSummary(
   overlay
 ) {
   const hits = [];
 
   if (overlay.rule1Triggered) {
-    hits.push("R1 -1｜P2-E + Q2-F+S");
-  }
-  if (overlay.rule2Triggered) {
-    hits.push("R2 -1 Shadow｜P2-E + Aligned With Weakness");
+    hits.push("R1 -1｜P2-E + Q2含F+S");
   }
   if (overlay.rule3Triggered) {
     hits.push("R3 +1｜P2-E + P3-PB + Q3 + 順Main逆次");
   }
 
   if (hits.length === 0) {
-    return "No size adjustment";
+    return "No production size adjustment";
   }
 
   if (
-    overlay.hasUpgrade &&
-    overlay.hasDowngrade
+    overlay.productionHasUpgrade &&
+    overlay.productionHasDowngrade
   ) {
     return `${hits.join("｜")}｜Upgrade + Downgrade抵消`;
   }
 
   return hits.join("｜");
+}
+
+function v14ShadowRuleSummary(
+  overlay
+) {
+  if (overlay.rule2Triggered) {
+    return "R2 -1 Shadow｜P2-E + Aligned With Weakness";
+  }
+
+  return "No additional shadow size adjustment";
+}
+
+function v14RuleSummary(
+  overlay
+) {
+  return `${v14ProductionRuleSummary(overlay)}｜${v14ShadowRuleSummary(overlay)}`;
 }
 
 function resolveV14CandidateSize(
@@ -5924,7 +5952,8 @@ function evaluateV14Overlay({
   q2SubtypeCodes = [],
   mainState,
   secondaryState,
-  tradeDirection
+  tradeDirection,
+  matrixRouteCode = ""
 }) {
   const baseSize =
     Number(v13BaseSize) || 0;
@@ -5939,6 +5968,8 @@ function evaluateV14Overlay({
       ? q2SubtypeCodes
       : [];
 
+  // Rule 1 intentionally applies to ANY Q2 subtype combination
+  // that contains both Fast (F) and Strong (S).
   const hasFastStrong =
     nativeQ === "Q2" &&
     q2Codes.includes("F") &&
@@ -5968,6 +5999,7 @@ function evaluateV14Overlay({
 
   const rule2Triggered =
     p2Effective &&
+    matrixRouteCode === "weakAligned" &&
     weakness.eligible;
 
   const rule3Triggered =
@@ -5981,35 +6013,54 @@ function evaluateV14Overlay({
     nativeQ === "Q3" &&
     conflict.followsMainOpposesSecondary;
 
-  const hasUpgrade =
+  // Production track: ONLY confirmed V1.4 rules.
+  const productionHasUpgrade =
     rule3Triggered;
-  const hasDowngrade =
+  const productionHasDowngrade =
+    rule1Triggered;
+
+  const productionResolved =
+    resolveV14CandidateSize(
+      baseSize,
+      productionHasUpgrade,
+      productionHasDowngrade
+    );
+
+  // Shadow track: same Base, including all size rules under research.
+  // Non-stacking is preserved across Production + Shadow triggers.
+  const shadowHasUpgrade =
+    rule3Triggered;
+  const shadowHasDowngrade =
     rule1Triggered ||
     rule2Triggered;
 
-  const resolvedSize =
+  const shadowResolved =
     resolveV14CandidateSize(
       baseSize,
-      hasUpgrade,
-      hasDowngrade
+      shadowHasUpgrade,
+      shadowHasDowngrade
     );
 
-  const candidateSize =
-    resolvedSize.candidateSize;
-  const adjustment =
-    resolvedSize.adjustment;
+  const productionSize =
+    productionResolved.candidateSize;
+  const shadowSize =
+    shadowResolved.candidateSize;
 
   const runnerEligible =
-    baseSize > 0 &&
+    productionSize > 0 &&
     runnerConditionMet;
 
   const overlay = {
     version:
-      "Master Trade Matrix V1.4 Overlay｜2026-10",
+      "Master Trade Matrix V1.4｜2026-10",
     v13BaseSize:
       baseSize,
-    candidateSize,
-    adjustment,
+    productionSize,
+    shadowSize,
+    productionAdjustment:
+      productionResolved.adjustment,
+    shadowAdjustment:
+      shadowResolved.adjustment,
     p2Effective,
     conflict,
     weakness,
@@ -6023,18 +6074,71 @@ function evaluateV14Overlay({
       runnerEligible
         ? "50% @ 2R + 50% Runner → 4R｜Shadow"
         : "N/A",
-    hasUpgrade,
-    hasDowngrade,
+    productionHasUpgrade,
+    productionHasDowngrade,
+    shadowHasUpgrade,
+    shadowHasDowngrade,
     hardZeroLocked:
-      baseSize <= 0
+      baseSize <= 0,
+
+    // Backward-compatible aliases for older snapshots/import code.
+    candidateSize:
+      shadowSize,
+    adjustment:
+      shadowResolved.adjustment,
+    hasUpgrade:
+      shadowHasUpgrade,
+    hasDowngrade:
+      shadowHasDowngrade
   };
 
+  overlay.productionRuleSummary =
+    v14ProductionRuleSummary(
+      overlay
+    );
+  overlay.shadowRuleSummary =
+    v14ShadowRuleSummary(
+      overlay
+    );
   overlay.ruleSummary =
     v14RuleSummary(
       overlay
     );
 
   return overlay;
+}
+
+function v14RunnerResultLabel(
+  eligible,
+  mfeR
+) {
+  if (!eligible) {
+    return "N/A";
+  }
+
+  if (
+    mfeR === null ||
+    mfeR === undefined ||
+    mfeR === ""
+  ) {
+    return "Eligible｜待MFE結果";
+  }
+
+  const mfe = Number(mfeR);
+
+  if (!Number.isFinite(mfe)) {
+    return "Eligible｜待MFE結果";
+  }
+
+  if (mfe >= 4) {
+    return "3R｜50%@2R + 50%@4R";
+  }
+
+  if (mfe >= 2) {
+    return "1R｜50%@2R + 50% Runner BE";
+  }
+
+  return "未啟動｜MFE < 2R";
 }
 
 function liveControlAlignmentFromRoute(
@@ -7664,11 +7768,71 @@ function syncProfitRWithEntryStatus(
 }
 
 
+function syncReachedRFFromTimeInput(
+  editMode = false
+) {
+  const inputId =
+    editMode
+      ? "editTimeToRF"
+      : "timeToRF";
+  const selectId =
+    editMode
+      ? "editReachedRF"
+      : "reachedRF";
+
+  const input = $(inputId);
+  const select = $(selectId);
+
+  if (!input || !select) return;
+
+  const raw = input.value.trim();
+  const parsed = parseDurationMinutes(raw);
+
+  if (
+    raw !== "" &&
+    Number.isFinite(parsed)
+  ) {
+    select.value = "Yes";
+    select.dataset.autoFromTimeToRF = "1";
+    return;
+  }
+
+  if (
+    raw === "" &&
+    select.dataset.autoFromTimeToRF === "1"
+  ) {
+    select.value = "No";
+    delete select.dataset.autoFromTimeToRF;
+  }
+}
+
+function syncTpPlanV14ShadowNote() {
+  const note = $("tpPlanV14ShadowNote");
+
+  if (!note) return;
+
+  const eligible =
+    Boolean(
+      currentDecision?.v14Rule4RunnerEligible
+    );
+
+  note.textContent = eligible
+    ? "V1.4 Shadow Runner命中：50% @ 2R + 50% Runner → 4R。只作Shadow管理標示，唔改V1.4 Production Size。"
+    : "";
+  note.classList.toggle(
+    "hidden",
+    !eligible
+  );
+}
+
 function recordAutoValidCandidate(
   record
 ) {
   return autoValidCandidateValue(
-    record?.finalSize
+    record?.v14ProductionSize ??
+    record?.finalSize ??
+    record?.v13BaseSize ??
+    record?.v13ProductionSize
   );
 }
 
@@ -7684,7 +7848,7 @@ function syncAutoJournalFields() {
   if (currentDecision) {
     $("validCandidate").value =
       autoValidCandidateValue(
-        currentDecision.finalSize
+        currentDecision.v14ProductionSize
       );
   } else {
     $("validCandidate").value =
@@ -7697,6 +7861,9 @@ function syncAutoJournalFields() {
         "mfeR"
       )
     );
+
+  syncReachedRFFromTimeInput(false);
+  syncTpPlanV14ShadowNote();
 }
 
 function syncEditAutoJournalFields(
@@ -7715,6 +7882,8 @@ function syncEditAutoJournalFields(
         "editMfeR"
       )
     );
+
+  syncReachedRFFromTimeInput(true);
 }
 
 
@@ -7780,11 +7949,13 @@ function updateShadowResearchPreview() {
       objectiveAtEntry;
 
   $("shadowV13BaseSize").textContent =
-    SIZE_LABELS[decision.finalSize];
-  $("shadowV14CandidateSize").textContent =
-    `${SIZE_LABELS[decision.v14CandidateSize]}｜Candidate`;
+    SIZE_LABELS[decision.v13BaseSize];
+  $("shadowV14ProductionSize").textContent =
+    `${SIZE_LABELS[decision.v14ProductionSize]}｜Production`;
+  $("shadowV14ShadowSize").textContent =
+    `${SIZE_LABELS[decision.v14ShadowSize]}｜Shadow`;
   $("shadowV14SizeRules").textContent =
-    `${decision.v14RuleSummary}｜${decision.v14Adjustment}`;
+    `Production：${decision.v14ProductionRuleSummary}｜${decision.v14ProductionAdjustment}；Shadow：${decision.v14ShadowRuleSummary}｜${decision.v14ShadowAdjustment}`;
   $("shadowV14Runner").textContent =
     decision.v14Rule4RunnerEligible
       ? decision.v14RunnerPlan
@@ -7840,11 +8011,11 @@ function evaluateDecision(
     obstacle
   );
 
-  const finalSize = hardVetoes.length > 0 ? 0 : obstacle.adjustedSize;
+  const v13BaseSize = hardVetoes.length > 0 ? 0 : obstacle.adjustedSize;
 
   const v14 = evaluateV14Overlay({
     v13BaseSize:
-      finalSize,
+      v13BaseSize,
     rawPosition:
       setupResult.basePosition,
     executionPosition:
@@ -7864,11 +8035,14 @@ function evaluateDecision(
     secondaryState:
       secondaryJudge.effectiveState,
     tradeDirection:
-      direction()
+      direction(),
+    matrixRouteCode:
+      matrix.routeCode
   });
 
   const objective = tradeObjectiveInfo({
-    finalSize,
+    finalSize:
+      v14.productionSize,
     matrixRouteCode: matrix.routeCode,
     setupResult,
     baseTrigger,
@@ -7879,15 +8053,32 @@ function evaluateDecision(
   });
 
   const shadowAlignedTransitionSize =
+    v13BaseSize > 0 &&
     matrix.routeCode === "alignedTransition" &&
     setupResult.effectivePosition === "P2" &&
     baseTrigger.quality === "Q3"
       ? 0.5
       : null;
 
+  const v14ShadowSize =
+    shadowAlignedTransitionSize !== null
+      ? shadowAlignedTransitionSize
+      : v14.shadowSize;
+
+  const v14ShadowAdjustment =
+    shadowAlignedTransitionSize !== null
+      ? `Aligned Transition Shadow｜${SIZE_LABELS[shadowAlignedTransitionSize]}`
+      : v14.shadowAdjustment;
+
+  const v14ShadowRuleSummary =
+    shadowAlignedTransitionSize !== null
+      ? "Aligned Transition P2/P2-E + Q3 Shadow"
+      : v14.shadowRuleSummary;
+
   const capReason =
     capReasonInfo({
-      finalSize,
+      finalSize:
+        v13BaseSize,
       routeCode:
         matrix.routeCode,
       rawPosition:
@@ -7924,9 +8115,9 @@ function evaluateDecision(
     `⑥ Setup／E：${setupResult.setupTemplateLabel}；${enhancement.label}。同一Order-flow event只計一次E；P3-PB／MID／EXT唔會改E升級權或Frozen Size。`,
     `⑦ Native Q：${baseTrigger.quality}${baseTrigger.quality === "Q2" ? `｜${q2Subtype.label}` : ""}；V1.3唔會用E將Q2改名Q3。`,
     `⑧ Obstacle／RR：${obstacle.explanation}`,
-    `⑨ V1.3 Production / Base Size：${SIZE_LABELS[finalSize]}。${matrix.cellExplanation}`,
-    `⑩ V1.4 Candidate Size：${SIZE_LABELS[v14.candidateSize]}。${v14.ruleSummary}；${v14.adjustment}。Rule 2＝Shadow only；Structural Gap判Conflict／Weakness時使用Effective Secondary Judge＝${secondaryJudge.effectiveState}。`,
-    `⑪ V1.4 Runner：${v14.rule4RunnerEligible ? v14.rule4RunnerPlan : "N/A"}。Rule 4同Size分開，唔需要Initiative @ 2R gate。`,
+    `⑨ V1.3 Base Size：${SIZE_LABELS[v13BaseSize]}。${matrix.cellExplanation}`,
+    `⑩ V1.4 Production Size：${SIZE_LABELS[v14.productionSize]}。${v14.productionRuleSummary}；${v14.productionAdjustment}。Rule 1／3正式；Hard 0唔救。`,
+    `⑪ V1.4 Shadow：Size＝${SIZE_LABELS[v14ShadowSize]}｜${v14ShadowRuleSummary}｜${v14ShadowAdjustment}；Runner＝${v14.rule4RunnerEligible ? v14.rule4RunnerPlan : "N/A"}。Rule 2／4只屬Shadow。`,
     `⑫ Objective at Entry：${simplifiedObjectiveAtEntry(objective.code, objective.shadowClass)}。${objective.reason}`
   ];
 
@@ -8112,12 +8303,23 @@ function evaluateDecision(
       capReason.primary,
     additionalCapFlags:
       capReason.flags,
+    v13BaseSize,
     v14Version:
       v14.version,
+    v14ProductionSize:
+      v14.productionSize,
+    v14ShadowSize,
+    v14ProductionAdjustment:
+      v14.productionAdjustment,
+    v14ShadowAdjustment,
+    v14ProductionRuleSummary:
+      v14.productionRuleSummary,
+    v14ShadowRuleSummary,
+    // Backward-compatible aliases
     v14CandidateSize:
-      v14.candidateSize,
+      v14ShadowSize,
     v14Adjustment:
-      v14.adjustment,
+      v14ShadowAdjustment,
     v14RuleSummary:
       v14.ruleSummary,
     v14Rule1Triggered:
@@ -8136,7 +8338,9 @@ function evaluateDecision(
       v14.conflict.followsMainOpposesSecondary,
     v14AlignedWithWeakness:
       v14.weakness.eligible,
-    finalSize,
+    // finalSize now means the executable V1.4 Production Size.
+    finalSize:
+      v14.productionSize,
     reasons,
     warnings,
     hardVetoes
@@ -8487,18 +8691,20 @@ function renderDecision(decision) {
       decision.obstacleSize
     ]}`;
   $("resultV13BaseSize").textContent =
-    SIZE_LABELS[decision.finalSize];
-  $("resultV14CandidateSize").textContent =
-    `${SIZE_LABELS[decision.v14CandidateSize]}｜Candidate`;
+    SIZE_LABELS[decision.v13BaseSize];
+  $("resultV14ProductionSize").textContent =
+    `${SIZE_LABELS[decision.v14ProductionSize]}｜Production`;
+  $("resultV14ShadowSize").textContent =
+    `${SIZE_LABELS[decision.v14ShadowSize]}｜Shadow`;
   $("resultV14SizeRules").textContent =
-    `${decision.v14RuleSummary}｜${decision.v14Adjustment}`;
+    `Production：${decision.v14ProductionRuleSummary}｜${decision.v14ProductionAdjustment}；Shadow：${decision.v14ShadowRuleSummary}｜${decision.v14ShadowAdjustment}`;
   $("resultV14Runner").textContent =
     decision.v14Rule4RunnerEligible
       ? decision.v14RunnerPlan
       : "N/A";
   $("finalSize").textContent =
     SIZE_LABELS[
-      decision.finalSize
+      decision.v14ProductionSize
     ];
 
   $("decisionExplanations").innerHTML = [
@@ -9281,6 +9487,7 @@ function updateInterface() {
 
 function recalculate() {
   updateInterface();
+  syncAsia2BDirectionToTradeDirection();
 
   currentBaseTrigger =
     evaluateBaseTrigger();
@@ -9523,7 +9730,7 @@ function checklistSummary() {
     "",
     `大局實際結構重疊：${$("backgroundDirectOverlap").value === "yes" ? "有" : "冇"}`,
     `P1順風：${tailwind === "valid" ? "有｜仍有效" : tailwind === "expired" ? "曾有｜已失效" : "冇"}`,
-    `Matrix Version：Master Trade Matrix V1.4｜V1.3 Production Base + V1.4 Overlay`,
+    `Matrix Version：Master Trade Matrix V1.4｜Base + Production + Shadow`,
     `Transition Type：${currentDecision?.transitionTypeLabel || transitionTypeInfo().label}`,
     `Raw P → P3 Context → E → Execution P：${currentAsia2B.basePosition} → ${
       currentAsia2B.basePosition === "P3"
@@ -9531,8 +9738,9 @@ function checklistSummary() {
         : "N/A"
     } → ${currentDecision?.enhancementLabel || "None"} → ${currentAsia2B.effectivePosition}`,
     `Native Q：${currentBaseTrigger.quality}${currentBaseTrigger.quality === "Q2" ? `｜${q2SubtypeInfo(currentBaseTrigger).label}` : ""}`,
-    `V1.3 Production / Base Size：${SIZE_LABELS[currentDecision.finalSize]}`,
-    `V1.4 Candidate Size：${SIZE_LABELS[currentDecision.v14CandidateSize]}｜${currentDecision.v14RuleSummary}｜${currentDecision.v14Adjustment}`,
+    `V1.3 Base Size：${SIZE_LABELS[currentDecision.v13BaseSize]}`,
+    `V1.4 Production Size：${SIZE_LABELS[currentDecision.v14ProductionSize]}｜${currentDecision.v14ProductionRuleSummary}｜${currentDecision.v14ProductionAdjustment}`,
+    `V1.4 Shadow Size：${SIZE_LABELS[currentDecision.v14ShadowSize]}｜${currentDecision.v14ShadowRuleSummary}｜${currentDecision.v14ShadowAdjustment}`,
     `V1.4 Runner Shadow：${currentDecision.v14Rule4RunnerEligible ? currentDecision.v14RunnerPlan : "N/A"}`,
     `Objective at Entry：${decisionObjectiveAtEntry(currentDecision)}`,
     `Transition主判P1順風P2資格：${transitionP1TailwindEligibilityInfo(
@@ -9570,7 +9778,7 @@ function checklistSummary() {
     `障礙：${obstacleDisplayLabel(currentDecision.obstacleState)}`,
     `P×Q／方向Matrix：${SIZE_LABELS[currentDecision.rawMatrixSize]}`,
     `障礙修正：${SIZE_LABELS[currentDecision.obstacleSize]}`,
-    `V1.3 Production Size：${SIZE_LABELS[currentDecision.finalSize]}`,
+    `最終注碼｜V1.4 Production Size：${SIZE_LABELS[currentDecision.v14ProductionSize]}`,
     "",
     `追價：${yesNo(checked("chasedBreakout"))}`,
     `違反交易時間：${yesNo(checked("violatesTradingTime"))}`,
@@ -10076,11 +10284,11 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.31",
+      "PracticeJournal-V1.30.32",
     engineVersion:
-      "MasterTradeMatrix-V1.4-Overlay-2026-10-r43",
+      "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r44",
     matrixVersion:
-      "Master Trade Matrix V1.4｜V1.3 Production Base + V1.4 Overlay",
+      "Master Trade Matrix V1.4｜Base + Production + Shadow",
 
     recordMode:
       recordMode(),
@@ -10452,16 +10660,32 @@ async function saveDecision(event) {
       currentDecision.positionQualitySize,
     obstacleSize:
       currentDecision.obstacleSize,
+    // Executable size + explicit three-layer snapshot.
     finalSize:
-      currentDecision.finalSize,
+      currentDecision.v14ProductionSize,
+    v13BaseSize:
+      currentDecision.v13BaseSize,
     v13ProductionSize:
-      currentDecision.finalSize,
+      currentDecision.v13BaseSize,
     v14Version:
       currentDecision.v14Version,
+    v14ProductionSize:
+      currentDecision.v14ProductionSize,
+    v14ShadowSize:
+      currentDecision.v14ShadowSize,
+    v14ProductionAdjustment:
+      currentDecision.v14ProductionAdjustment,
+    v14ShadowAdjustment:
+      currentDecision.v14ShadowAdjustment,
+    v14ProductionRuleSummary:
+      currentDecision.v14ProductionRuleSummary,
+    v14ShadowRuleSummary:
+      currentDecision.v14ShadowRuleSummary,
+    // Backward-compatible aliases
     v14CandidateSize:
-      currentDecision.v14CandidateSize,
+      currentDecision.v14ShadowSize,
     v14Adjustment:
-      currentDecision.v14Adjustment,
+      currentDecision.v14ShadowAdjustment,
     v14RuleSummary:
       currentDecision.v14RuleSummary,
     v14Rule1Triggered:
@@ -10474,6 +10698,11 @@ async function saveDecision(event) {
       currentDecision.v14Rule4RunnerEligible,
     v14RunnerPlan:
       currentDecision.v14RunnerPlan,
+    v14RunnerResult:
+      v14RunnerResultLabel(
+        currentDecision.v14Rule4RunnerEligible,
+        mfeRValue
+      ),
     v14ConflictExplicit:
       currentDecision.v14ConflictExplicit,
     v14FollowMainOpposeSecondary:
@@ -10544,7 +10773,7 @@ async function saveDecision(event) {
       timeToRFMinutes,
     validCandidate:
       autoValidCandidateValue(
-        currentDecision?.finalSize
+        currentDecision?.v14ProductionSize
       ),
     postEntryObjectiveUpgrade:
       normalizePostEntryObjectiveUpgrade(
@@ -10587,7 +10816,9 @@ async function saveDecision(event) {
         "deepRFNoRfFinalR"
       ),
     reachedRF:
-      $("reachedRF").value,
+      Number.isFinite(timeToRFMinutes)
+        ? "Yes"
+        : $("reachedRF").value,
     reachedTP2:
       autoReachedTP2Value(
         mfeRValue
@@ -12528,19 +12759,30 @@ async function openRecord(recordId) {
       record.obstacleOutcome || "N/A"
     )}
     <br>
-    <strong>V1.3 Production / Base Size：</strong>
+    <strong>V1.3 Base Size：</strong>
     ${escapeHtml(
       safeSizeLabel(
+        record.v13BaseSize ??
+        record.v13ProductionSize ??
         record.finalSize
       )
     )}
     <br>
-    <strong>V1.4 Candidate Size：</strong>
+    <strong>V1.4 Production Size：</strong>
     ${escapeHtml(
       safeSizeLabel(
-        Number.isFinite(record.v14CandidateSize)
-          ? record.v14CandidateSize
-          : record.finalSize
+        record.v14ProductionSize ??
+        record.finalSize
+      )
+    )}
+    <br>
+    <strong>V1.4 Shadow Size：</strong>
+    ${escapeHtml(
+      safeSizeLabel(
+        record.v14ShadowSize ??
+        record.v14CandidateSize ??
+        record.v14ProductionSize ??
+        record.finalSize
       )
     )}
     <br>
@@ -12555,6 +12797,15 @@ async function openRecord(recordId) {
       record.v14Rule4RunnerEligible
         ? (record.v14RunnerPlan || "50% @ 2R + 50% Runner → 4R｜Shadow")
         : "N/A"
+    )}
+    <br>
+    <strong>V1.4 Runner Result：</strong>
+    ${escapeHtml(
+      record.v14RunnerResult ||
+      v14RunnerResultLabel(
+        Boolean(record.v14Rule4RunnerEligible),
+        record.mfeR
+      )
     )}
     <br>
     <strong>第一真實障礙：</strong>
@@ -13092,6 +13343,7 @@ async function saveRecordEdit() {
   records[index].normalizedR =
     normalizedRValue(
       records[index].actualR,
+      records[index].v14ProductionSize ??
       records[index].finalSize
     );
   records[index].mfeR =
@@ -13105,14 +13357,22 @@ async function saveRecordEdit() {
   records[index].timeToRF =
     editedTimeToRF;
   records[index].reachedRF =
-    $("editReachedRF").value;
+    Number.isFinite(editedTimeToRF)
+      ? "Yes"
+      : $("editReachedRF").value;
   records[index].reachedTP2 =
     autoReachedTP2Value(
       records[index].mfeR
     );
   records[index].validCandidate =
     autoValidCandidateValue(
+      records[index].v14ProductionSize ??
       records[index].finalSize
+    );
+  records[index].v14RunnerResult =
+    v14RunnerResultLabel(
+      Boolean(records[index].v14Rule4RunnerEligible),
+      records[index].mfeR
     );
   records[index].postEntryObjectiveUpgrade =
     normalizePostEntryObjectiveUpgrade(
@@ -13408,12 +13668,16 @@ function buildCsv(records) {
     "P×Q／方向Matrix",
     "大局修正",
     "最終注碼",
-    "V1.3 Production Size",
+    "V1.3 Base Size",
+    "V1.4 Production Size",
+    "V1.4 Shadow Size",
+    "V1.4 Runner Result",
     "V1.4 Overlay Version",
-    "V1.4 Candidate Size",
-    "V1.4 Adjustment",
-    "V1.4 Size Rules",
-    "V1.4 Rule 1 P2-E + Q2-F+S",
+    "V1.4 Production Adjustment",
+    "V1.4 Shadow Adjustment",
+    "V1.4 Production Rules",
+    "V1.4 Shadow Rules",
+    "V1.4 Rule 1 P2-E + Q2含F+S",
     "V1.4 Rule 2 Aligned With Weakness Shadow",
     "V1.4 Rule 3 PB Q3 Conflict Upgrade",
     "V1.4 Rule 4 Runner Shadow",
@@ -13772,18 +14036,37 @@ function buildCsv(records) {
         record.matrixSize ??
         "",
       record.obstacleSize ??
+        record.v13BaseSize ??
+        record.v13ProductionSize ??
         record.finalSize ??
         "",
-      record.finalSize ?? "",
-      record.v13ProductionSize ??
+      record.v14ProductionSize ??
         record.finalSize ??
         "",
+      record.v13BaseSize ??
+        record.v13ProductionSize ??
+        record.finalSize ??
+        "",
+      record.v14ProductionSize ??
+        record.finalSize ??
+        "",
+      record.v14ShadowSize ??
+        record.v14CandidateSize ??
+        record.v14ProductionSize ??
+        record.finalSize ??
+        "",
+      record.v14RunnerResult ||
+        v14RunnerResultLabel(
+          Boolean(record.v14Rule4RunnerEligible),
+          record.mfeR
+        ),
       record.v14Version || "",
-      record.v14CandidateSize ??
-        record.finalSize ??
-        "",
-      record.v14Adjustment || "",
-      record.v14RuleSummary || "",
+      record.v14ProductionAdjustment || "",
+      record.v14ShadowAdjustment ||
+        record.v14Adjustment || "",
+      record.v14ProductionRuleSummary || "",
+      record.v14ShadowRuleSummary ||
+        record.v14RuleSummary || "",
       record.v14Rule1Triggered
         ? "Yes"
         : "No",
@@ -16072,7 +16355,9 @@ function recordFromCsvRow(row) {
       csvNumber(
         firstCsvValue(
           row,
-          "最終注碼"
+          "V1.4 Production Size",
+          "最終注碼",
+          "V1.3 Production Size"
         )
       ) ?? 0,
     entryStatus,
@@ -16241,15 +16526,26 @@ function recordFromCsvRow(row) {
         csvNumber(
           firstCsvValue(
             row,
-            "V1.3 Production Size",
-            "最終注碼"
+            "V1.4 Production Size",
+            "最終注碼",
+            "V1.3 Production Size"
           )
         ) ?? 0
+      ),
+    v13BaseSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "V1.3 Base Size",
+          "V1.3 Production Size",
+          "最終注碼"
+        )
       ),
     v13ProductionSize:
       csvNumber(
         firstCsvValue(
           row,
+          "V1.3 Base Size",
           "V1.3 Production Size",
           "最終注碼"
         )
@@ -16259,29 +16555,80 @@ function recordFromCsvRow(row) {
         row,
         "V1.4 Overlay Version"
       ) || "",
+    v14ProductionSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "V1.4 Production Size",
+          "最終注碼",
+          "V1.3 Production Size"
+        )
+      ),
+    v14ShadowSize:
+      csvNumber(
+        firstCsvValue(
+          row,
+          "V1.4 Shadow Size",
+          "V1.4 Candidate Size",
+          "V1.4 Production Size",
+          "最終注碼"
+        )
+      ),
+    v14RunnerResult:
+      firstCsvValue(
+        row,
+        "V1.4 Runner Result"
+      ) || "",
+    v14ProductionAdjustment:
+      firstCsvValue(
+        row,
+        "V1.4 Production Adjustment"
+      ) || "",
+    v14ShadowAdjustment:
+      firstCsvValue(
+        row,
+        "V1.4 Shadow Adjustment",
+        "V1.4 Adjustment"
+      ) || "",
+    v14ProductionRuleSummary:
+      firstCsvValue(
+        row,
+        "V1.4 Production Rules"
+      ) || "",
+    v14ShadowRuleSummary:
+      firstCsvValue(
+        row,
+        "V1.4 Shadow Rules",
+        "V1.4 Size Rules"
+      ) || "",
+    // Backward-compatible aliases
     v14CandidateSize:
       csvNumber(
         firstCsvValue(
           row,
+          "V1.4 Shadow Size",
           "V1.4 Candidate Size",
-          "V1.3 Production Size",
+          "V1.4 Production Size",
           "最終注碼"
         )
       ),
     v14Adjustment:
       firstCsvValue(
         row,
+        "V1.4 Shadow Adjustment",
         "V1.4 Adjustment"
       ) || "",
     v14RuleSummary:
       firstCsvValue(
         row,
+        "V1.4 Shadow Rules",
         "V1.4 Size Rules"
       ) || "",
     v14Rule1Triggered:
       csvBoolean(
         firstCsvValue(
           row,
+          "V1.4 Rule 1 P2-E + Q2含F+S",
           "V1.4 Rule 1 P2-E + Q2-F+S"
         )
       ),
@@ -18580,7 +18927,7 @@ function recalculateLiveDecision() {
     relationNotes[routeCode] || "";
 
   const notes = [
-    `Live Quick：V1.3 Production Base｜市場：${MARKET_CONFIG[marketCode(true)].label}。V1.4 Candidate需完整Main＋Effective Secondary Judge State，請以完整判斷頁為準。`,
+    `Live Quick：V1.3 Base｜市場：${MARKET_CONFIG[marketCode(true)].label}。V1.4 Production／Shadow需完整Main＋Effective Secondary Judge State，請以完整判斷頁為準。`,
     `Setup：${definition.label}。`,
     showCounterContext
       ? effectivePosition === "P1"
@@ -19259,6 +19606,9 @@ function setupEvents() {
       "input",
       () => {
         $(id).setCustomValidity("");
+        syncReachedRFFromTimeInput(
+          id === "editTimeToRF"
+        );
       }
     );
 
