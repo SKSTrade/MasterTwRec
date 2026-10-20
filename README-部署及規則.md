@@ -1,5 +1,11 @@
-# Master Trade System V1.30.33
-## Master Trade Matrix V1.4｜Base + Production + Shadow
+# Master Trade System V1.30.34
+
+## V1.30.34｜紀錄類型版面更新
+
+- 「紀錄類型與市場」的 Practice／Live／Review 改為三欄等寬，同一行並排。
+- 手機版同樣維持單行顯示。
+- 只作用於紀錄類型選擇，不影響 Long／Short 兩欄方向選擇。
+
 
 ### 三層Size架構
 

@@ -270,6 +270,36 @@ textarea:focus {
   font-weight: 800;
 }
 
+/* V1.30.34: record type stays in one equal-width row */
+.record-mode-segmented {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.record-mode-segmented label {
+  min-width: 0;
+}
+
+.record-mode-segmented span {
+  padding-left: 6px;
+  padding-right: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .record-mode-segmented {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .record-mode-segmented span {
+    padding: 9px 3px;
+    font-size: 0.88rem;
+    letter-spacing: -0.01em;
+  }
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

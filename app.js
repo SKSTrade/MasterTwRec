@@ -10284,7 +10284,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.33",
+      "PracticeJournal-V1.30.34",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r44",
     matrixVersion:

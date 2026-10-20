@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-33-review-multifilter-selected-export";
+const CACHE_NAME = "master-trade-system-v1-30-34-record-mode-three-column";
 const ASSETS = [
   "./",
   "./index.html",
