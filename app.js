@@ -10284,7 +10284,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.32",
+      "PracticeJournal-V1.30.33",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r44",
     matrixVersion:
@@ -10918,10 +10918,26 @@ function formatDate(iso) {
   }
 }
 
+function normalizeRecordMode(mode) {
+  const value = String(mode || "").trim();
+
+  if (["Review", "覆盤", "复盘"].includes(value)) {
+    return "Review";
+  }
+
+  if (["Live", "實戰", "实战"].includes(value)) {
+    return "Live";
+  }
+
+  return "Practice";
+}
+
 function recordModeLabel(mode) {
-  return mode === "Live"
-    ? "實戰"
-    : "練習";
+  const normalized = normalizeRecordMode(mode);
+
+  if (normalized === "Live") return "實戰";
+  if (normalized === "Review") return "覆盤";
+  return "練習";
 }
 
 function safeSizeLabel(value) {
@@ -10963,6 +10979,14 @@ function updateHistoryBulkControls() {
       selectedCount === 0;
 
   $("historyDeleteSelected")
+    .disabled =
+      selectedCount === 0;
+
+  $("historyExportSelectedCsv")
+    .disabled =
+      selectedCount === 0;
+
+  $("historyExportSelectedZip")
     .disabled =
       selectedCount === 0;
 
@@ -11048,6 +11072,15 @@ function toggleSelectAllFilteredHistory() {
 function clearHistorySelection() {
   selectedHistoryRecordIds.clear();
   renderHistory();
+}
+
+function selectedHistoryRecords() {
+  return loadRecords().filter(
+    (record) =>
+      selectedHistoryRecordIds.has(
+        record.id
+      )
+  );
 }
 
 async function deleteSelectedHistoryRecords() {
@@ -11313,14 +11346,49 @@ function recordSequenceMap(
   );
 }
 
+function checkedHistoryFilterValues(selector) {
+  return [...document.querySelectorAll(selector)]
+    .filter((input) => input.checked)
+    .map((input) => input.value);
+}
+
+function selectedHistoryModeFilters() {
+  return checkedHistoryFilterValues(
+    "[data-history-mode-filter]"
+  );
+}
+
+function selectedHistorySymbolFilters() {
+  return checkedHistoryFilterValues(
+    "[data-history-symbol-filter]"
+  );
+}
+
+function updateHistoryFilterSummaries() {
+  const modes = selectedHistoryModeFilters();
+  const symbols = selectedHistorySymbolFilters();
+
+  $("historyModeFilterSummary").textContent =
+    modes.length === 0
+      ? "全部類型"
+      : modes.map(recordModeLabel).join("＋");
+
+  $("historySymbolFilterSummary").textContent =
+    symbols.length === 0
+      ? "全部商品"
+      : symbols.join("＋");
+}
+
 function updateHistorySymbolFilter(
   records
 ) {
-  const select =
-    $("historySymbolFilter");
+  const container =
+    $("historySymbolFilterOptions");
 
   const selected =
-    select.value || "All";
+    new Set(
+      selectedHistorySymbolFilters()
+    );
 
   const symbols =
     [...new Set(
@@ -11346,18 +11414,24 @@ function updateHistorySymbolFilter(
         )
     );
 
-  select.innerHTML = [
-    '<option value="All">全部商品</option>',
-    ...symbols.map(
-      (symbol) =>
-        `<option value="${escapeHtml(symbol)}">${escapeHtml(symbol)}</option>`
-    )
-  ].join("");
+  container.innerHTML =
+    symbols.length > 0
+      ? symbols.map(
+          (symbol) => `
+            <label>
+              <input
+                type="checkbox"
+                value="${escapeHtml(symbol)}"
+                data-history-symbol-filter
+                ${selected.has(symbol) ? "checked" : ""}
+              >
+              <span>${escapeHtml(symbol)}</span>
+            </label>
+          `
+        ).join("")
+      : '<span class="multi-filter-empty">未有商品</span>';
 
-  select.value =
-    symbols.includes(selected)
-      ? selected
-      : "All";
+  updateHistoryFilterSummaries();
 }
 
 function historyTradeDateValue(
@@ -11568,17 +11642,20 @@ function sortHistoryRecords(
 }
 
 function clearHistoryFilters() {
-  $("historyModeFilter").value =
-    "All";
+  document.querySelectorAll(
+    "[data-history-mode-filter], [data-history-symbol-filter]"
+  ).forEach((input) => {
+    input.checked = false;
+  });
+
   $("historyEntryFilter").value =
-    "All";
-  $("historySymbolFilter").value =
     "All";
   $("historyDateFrom").value =
     "";
   $("historyDateTo").value =
     "";
 
+  updateHistoryFilterSummaries();
   renderHistory();
 }
 
@@ -11732,12 +11809,12 @@ function renderHistory() {
     allRecords
   );
 
-  const modeFilter =
-    $("historyModeFilter").value;
+  const modeFilters =
+    selectedHistoryModeFilters();
   const entryFilter =
     $("historyEntryFilter").value;
-  const symbolFilter =
-    $("historySymbolFilter").value;
+  const symbolFilters =
+    selectedHistorySymbolFilters();
   const dateFrom =
     $("historyDateFrom").value;
   const dateTo =
@@ -11750,9 +11827,12 @@ function renderHistory() {
     sortHistoryRecords(
       allRecords.filter((record) => {
       const modeMatches =
-        modeFilter === "All" ||
-        record.recordMode ===
-          modeFilter;
+        modeFilters.length === 0 ||
+        modeFilters.includes(
+          normalizeRecordMode(
+            record.recordMode
+          )
+        );
 
       const entryMatches =
         entryFilter === "All" ||
@@ -11767,8 +11847,10 @@ function renderHistory() {
         ).trim();
 
       const symbolMatches =
-        symbolFilter === "All" ||
-        recordSymbol === symbolFilter;
+        symbolFilters.length === 0 ||
+        symbolFilters.includes(
+          recordSymbol
+        );
 
       const tradeDate =
         String(
@@ -11804,11 +11886,11 @@ function renderHistory() {
 
   const activeFilterParts = [];
 
-  if (modeFilter !== "All") {
+  if (modeFilters.length > 0) {
     activeFilterParts.push(
-      modeFilter === "Live"
-        ? "實戰"
-        : "練習"
+      `類型：${modeFilters
+        .map(recordModeLabel)
+        .join("＋")}`
     );
   }
 
@@ -11818,9 +11900,9 @@ function renderHistory() {
     );
   }
 
-  if (symbolFilter !== "All") {
+  if (symbolFilters.length > 0) {
     activeFilterParts.push(
-      symbolFilter
+      `商品：${symbolFilters.join("＋")}`
     );
   }
 
@@ -12908,8 +12990,9 @@ async function openRecord(recordId) {
     ).trim();
 
   $("editRecordMode").value =
-    record.recordMode ||
-    "Practice";
+    normalizeRecordMode(
+      record.recordMode
+    );
   $("editEntryStatus").value =
     record.entryStatus ||
     "Entry";
@@ -13292,7 +13375,9 @@ async function saveRecordEdit() {
   records[index].symbol =
     editedSymbol;
   records[index].recordMode =
-    $("editRecordMode").value;
+    normalizeRecordMode(
+      $("editRecordMode").value
+    );
   records[index].entryStatus =
     $("editEntryStatus").value;
 
@@ -14256,9 +14341,10 @@ function downloadBlob(blob, filename) {
   );
 }
 
-function exportCsv() {
-  const records = loadRecords();
-
+function exportCsvRecords(
+  records,
+  scopeLabel = "AllMarkets"
+) {
   if (records.length === 0) {
     showToast(
       "未有紀錄可以匯出"
@@ -14280,13 +14366,37 @@ function exportCsv() {
 
   downloadBlob(
     blob,
-    `MasterTrade-AllMarkets-Journal-${new Date()
+    `MasterTrade-${scopeLabel}-Journal-${new Date()
       .toISOString()
       .slice(0, 10)}.csv`
   );
 
   showToast(
-    "CSV已匯出"
+    `CSV已匯出：${records.length}筆紀錄`
+  );
+}
+
+function exportCsv() {
+  exportCsvRecords(
+    loadRecords(),
+    "AllMarkets"
+  );
+}
+
+function exportSelectedCsv() {
+  const records =
+    selectedHistoryRecords();
+
+  if (records.length === 0) {
+    showToast(
+      "請先勾選要匯出嘅紀錄"
+    );
+    return;
+  }
+
+  exportCsvRecords(
+    records,
+    "Selected"
   );
 }
 
@@ -14733,8 +14843,21 @@ function imageExtension(blob) {
   return "jpg";
 }
 
-async function exportBackupZip() {
-  const records = loadRecords();
+async function exportBackupZipRecords(
+  records,
+  options = {}
+) {
+  const buttonId =
+    options.buttonId ||
+    "exportBackupZip";
+  const scopeLabel =
+    options.scopeLabel ||
+    "AllMarkets";
+  const idleLabel =
+    options.idleLabel ||
+    "匯出全部CSV＋照片 ZIP";
+
+  const button = $(buttonId);
 
   if (records.length === 0) {
     showToast(
@@ -14743,9 +14866,8 @@ async function exportBackupZip() {
     return;
   }
 
-  $("exportBackupZip").disabled =
-    true;
-  $("exportBackupZip").textContent =
+  button.disabled = true;
+  button.textContent =
     "整理緊…";
 
   try {
@@ -14844,7 +14966,7 @@ async function exportBackupZip() {
 
     downloadBlob(
       zipBlob,
-      `MasterTrade-AllMarkets-Backup-${new Date()
+      `MasterTrade-${scopeLabel}-Backup-${new Date()
         .toISOString()
         .slice(0, 10)}.zip`
     );
@@ -14862,11 +14984,42 @@ async function exportBackupZip() {
       "ZIP匯出失敗，請再試一次"
     );
   } finally {
-    $("exportBackupZip").disabled =
-      false;
-    $("exportBackupZip").textContent =
-      "匯出CSV＋照片 ZIP";
+    button.disabled = false;
+    button.textContent =
+      idleLabel;
   }
+}
+
+async function exportBackupZip() {
+  await exportBackupZipRecords(
+    loadRecords(),
+    {
+      buttonId: "exportBackupZip",
+      scopeLabel: "AllMarkets",
+      idleLabel: "匯出全部CSV＋照片 ZIP"
+    }
+  );
+}
+
+async function exportSelectedBackupZip() {
+  const records =
+    selectedHistoryRecords();
+
+  if (records.length === 0) {
+    showToast(
+      "請先勾選要匯出嘅紀錄"
+    );
+    return;
+  }
+
+  await exportBackupZipRecords(
+    records,
+    {
+      buttonId: "historyExportSelectedZip",
+      scopeLabel: "Selected",
+      idleLabel: "匯出已選CSV＋照片 ZIP"
+    }
+  );
 }
 
 
@@ -15215,11 +15368,12 @@ function recordFromCsvRow(row) {
       ) ||
       "MasterTradeMatrix-AllMarkets-V1.1-EUOpening",
     recordMode:
-      firstCsvValue(
-        row,
-        "類型"
-      ) ||
-      "Practice",
+      normalizeRecordMode(
+        firstCsvValue(
+          row,
+          "類型"
+        )
+      ),
     marketCode:
       firstCsvValue(
         row,
@@ -19690,10 +19844,13 @@ function setupEvents() {
       }
     );
 
-  $("historyModeFilter")
+  $("historyModeFilterOptions")
     .addEventListener(
       "change",
-      renderHistory
+      () => {
+        updateHistoryFilterSummaries();
+        renderHistory();
+      }
     );
 
   $("historyEntryFilter")
@@ -19702,10 +19859,13 @@ function setupEvents() {
       renderHistory
     );
 
-  $("historySymbolFilter")
+  $("historySymbolFilterOptions")
     .addEventListener(
       "change",
-      renderHistory
+      () => {
+        updateHistoryFilterSummaries();
+        renderHistory();
+      }
     );
 
   $("historyDateFrom")
@@ -19752,6 +19912,18 @@ function setupEvents() {
     .addEventListener(
       "click",
       clearHistorySelection
+    );
+
+  $("historyExportSelectedCsv")
+    .addEventListener(
+      "click",
+      exportSelectedCsv
+    );
+
+  $("historyExportSelectedZip")
+    .addEventListener(
+      "click",
+      exportSelectedBackupZip
     );
 
   $("historyDeleteSelected")

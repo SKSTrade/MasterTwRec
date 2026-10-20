@@ -1,4 +1,4 @@
-# Master Trade System V1.30.32
+# Master Trade System V1.30.33
 ## Master Trade Matrix V1.4｜Base + Production + Shadow
 
 ### 三層Size架構
@@ -58,3 +58,11 @@ Structural Gap Off用Secondary Main；Gap On用Secondary Working，即Effective 
 - V1.4 Runner Result
 
 另保留Rule trigger／Adjustment欄，方便之後拆Production、Shadow、Runner來源。
+
+
+## V1.30.33｜紀錄庫操作更新
+
+- 紀錄類型新增 **覆盤 Review**，可於新紀錄及歷史編輯使用。
+- 紀錄庫 **類型** 與 **商品** 篩選改為多選；同一篩選內採 OR，不同篩選組之間採 AND。未勾任何選項代表全部。
+- 多選紀錄模式新增 **匯出已選CSV** 及 **匯出已選CSV＋照片 ZIP**；原本全量匯出保留。
+- CSV 匯入兼容 `Review`／`覆盤`／`复盘`，統一正規化為 `Review`。

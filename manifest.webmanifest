@@ -1,7 +1,7 @@
 {
-  "name": "Master Trade System V1.30.32",
+  "name": "Master Trade System V1.30.33",
   "short_name": "Master Trade",
-  "description": "Master Trade Matrix V1.4 with explicit V1.3 Base, V1.4 Production, and V1.4 Shadow layers; Rule 1/3 drive Production, Rule 2/4 remain Shadow, with Structural Gap-aware Effective Secondary Judge.",
+  "description": "Master Trade Matrix V1.4 with V1.4 Production/Shadow sizing, Review records, multi-select history filters, and selected-record CSV/ZIP export.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

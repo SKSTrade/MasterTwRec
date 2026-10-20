@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.32</span>
+    <span class="version-badge">V1.30.33</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -529,6 +529,10 @@
             <label>
               <input type="radio" name="recordMode" value="Live">
               <span>實戰 Live</span>
+            </label>
+            <label>
+              <input type="radio" name="recordMode" value="Review">
+              <span>覆盤 Review</span>
             </label>
           </div>
 
@@ -1329,7 +1333,7 @@
         </article>
 
         <article id="rbJournal" class="card journal-card rulebook-anchor">
-          <h2>練習／實戰結果紀錄</h2>
+          <h2>練習／實戰／覆盤結果紀錄</h2>
 
           <label>
             交易日期
@@ -1618,7 +1622,7 @@
             <textarea id="note" rows="6" placeholder="事前劇本、失效點、Entry/Miss/Skip原因、入市後Price Pattern、管理、錯誤、下一次改進"></textarea>
           </label>
 
-          <button type="submit" class="primary-button">儲存練習／實戰紀錄</button>
+          <button type="submit" class="primary-button">儲存練習／實戰／覆盤紀錄</button>
         </article>
       </form>
     </section>
@@ -1628,8 +1632,8 @@
         <div class="section-heading">
           <h2>紀錄庫與統計</h2>
           <div class="export-actions">
-            <button id="exportCsv" class="secondary-button">匯出CSV</button>
-            <button id="exportBackupZip" class="secondary-button">匯出CSV＋照片 ZIP</button>
+            <button id="exportCsv" class="secondary-button">匯出全部CSV</button>
+            <button id="exportBackupZip" class="secondary-button">匯出全部CSV＋照片 ZIP</button>
           <p class="state-note"><strong>ZIP Round-trip：</strong>可以先匯出ZIP，打開入面嘅 <code>trades.csv</code> 修改，再用Windows／macOS重新壓成一般ZIP後匯入。App會以紀錄ID比對 <code>records.json</code>，只將CSV有改動嘅同ID紀錄更新；未改嘅重複紀錄會Skip。唔好手動修改「紀錄ID」。</p>
             <button id="importCsvButton" class="secondary-button" type="button">匯入CSV</button>
             <button id="importBackupZipButton" class="secondary-button" type="button">匯入／更新備份ZIP</button>
@@ -1658,14 +1662,17 @@
 
       <article class="card filter-card">
         <div class="filter-grid">
-          <label>
-            類型
-            <select id="historyModeFilter">
-              <option value="All">全部</option>
-              <option value="Practice">練習</option>
-              <option value="Live">實戰</option>
-            </select>
-          </label>
+          <div class="filter-field">
+            <span class="field-label">類型</span>
+            <details id="historyModeFilter" class="multi-filter">
+              <summary><span id="historyModeFilterSummary">全部類型</span></summary>
+              <div id="historyModeFilterOptions" class="multi-filter-options">
+                <label><input type="checkbox" value="Practice" data-history-mode-filter><span>練習</span></label>
+                <label><input type="checkbox" value="Live" data-history-mode-filter><span>實戰</span></label>
+                <label><input type="checkbox" value="Review" data-history-mode-filter><span>覆盤</span></label>
+              </div>
+            </details>
+          </div>
 
           <label>
             入市結果
@@ -1677,12 +1684,13 @@
             </select>
           </label>
 
-          <label>
-            商品
-            <select id="historySymbolFilter">
-              <option value="All">全部商品</option>
-            </select>
-          </label>
+          <div class="filter-field">
+            <span class="field-label">商品</span>
+            <details id="historySymbolFilter" class="multi-filter">
+              <summary><span id="historySymbolFilterSummary">全部商品</span></summary>
+              <div id="historySymbolFilterOptions" class="multi-filter-options"></div>
+            </details>
+          </div>
 
           <label>
             日期由
@@ -1730,11 +1738,17 @@
             <button id="historyClearSelection" class="secondary-button compact-button" type="button" disabled>
               清除選取
             </button>
+            <button id="historyExportSelectedCsv" class="secondary-button compact-button" type="button" disabled>
+              匯出已選CSV
+            </button>
+            <button id="historyExportSelectedZip" class="secondary-button compact-button" type="button" disabled>
+              匯出已選CSV＋照片 ZIP
+            </button>
             <button id="historyDeleteSelected" class="danger-button compact-button" type="button" disabled>
               刪除已選
             </button>
           </div>
-          <p class="state-note">選取模式下，點擊紀錄卡會勾選／取消；完成後按「刪除已選」。</p>
+          <p class="state-note">選取模式下，點擊紀錄卡會勾選／取消；可只匯出已選紀錄，或者一拼刪除。</p>
         </div>
       </article>
 
@@ -2072,6 +2086,7 @@
         <select id="editRecordMode">
           <option value="Practice">練習 Practice</option>
           <option value="Live">實戰 Live</option>
+          <option value="Review">覆盤 Review</option>
         </select>
       </label>
 

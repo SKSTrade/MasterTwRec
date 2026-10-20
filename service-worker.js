@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-32-matrix-v14-production-shadow";
+const CACHE_NAME = "master-trade-system-v1-30-33-review-multifilter-selected-export";
 const ASSETS = [
   "./",
   "./index.html",

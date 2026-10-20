@@ -1501,3 +1501,86 @@ dialog::backdrop {
 .shadow-auto-grid {
   margin-bottom: 12px;
 }
+
+
+/* V1.30.33 multi-select history filters */
+.filter-field {
+  display: grid;
+  gap: 6px;
+}
+
+.filter-field > .field-label {
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
+.multi-filter {
+  position: relative;
+}
+
+.multi-filter > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.multi-filter > summary::-webkit-details-marker {
+  display: none;
+}
+
+.multi-filter > summary::after {
+  content: "▾";
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.multi-filter[open] > summary::after {
+  content: "▴";
+}
+
+.multi-filter-options {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.multi-filter-options label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.multi-filter-options label:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.multi-filter-options input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.multi-filter-empty {
+  padding: 7px 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
