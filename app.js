@@ -353,14 +353,14 @@ const SETUP_DEFINITIONS = {
     type: "B",
     variant: "sweep",
     previousHLSweepSetup: true,
-    note: "外匯Previous H/L Sweep：揀PWH／PWL、Mon H／L或PDH／PDL，再記錄Sweep發生喺Asia定Europe／London。Mon H／L高質Sweep＝E+，Raw P3可P2-effective；PWH／PWL、PDH／PDL今版維持原待遇。Native Q永久保留。"
+    note: "外匯Previous H/L Sweep：揀PWH／PWL、Mon H／L或PDH／PDL，再記錄Sweep發生喺Asia定Europe／London。三者高質Sweep都屬E+，Raw P3可P2-effective；Native Q永久保留。"
   },
   fx_liquidity_sweep: {
     marketGroup: "FX",
     label: "FX-Other｜普通Liquidity Sweep",
     type: "B",
     variant: "sweep",
-    note: "Europe H／L、局部Swing或其他普通Liquidity；冇自動P／Q升級。Mon H／L應改用FX-B Previous H/L Sweep，因Mon H／L有E+資格。"
+    note: "Europe H／L、局部Swing或其他普通Liquidity；冇自動P／Q升級。PWH／PWL、Mon H／L、PDH／PDL應使用FX-B Previous H/L Sweep，三者都有E+資格。"
   },
   fx_breakout_retest: {
     marketGroup: "FX",
@@ -979,7 +979,7 @@ function fxMonHLEnhancementInfo(
       promoteQuality: false,
       marker: "",
       reason:
-        "FX Mon H/L Enhancement不適用。"
+        "FX Previous H/L Enhancement不適用。"
     };
   }
 
@@ -990,7 +990,8 @@ function fxMonHLEnhancementInfo(
 
   const sourceEligible =
     info.eligible &&
-    info.source === "monHL";
+    ["pwhPwl", "monHL", "pdhPdl"]
+      .includes(info.source);
 
   if (!sourceEligible) {
     return {
@@ -1001,7 +1002,7 @@ function fxMonHLEnhancementInfo(
       promoteQuality: false,
       marker: "",
       reason:
-        "FX Previous H/L已記錄，但只有Mon H/L享有位置Enhancement；PWH/PWL、PDH/PDL今版維持原本待遇。"
+        "FX Previous H/L未符合E+來源資格；PWH/PWL、Mon H/L、PDH/PDL三者均可享有位置Enhancement。"
     };
   }
 
@@ -1069,12 +1070,12 @@ function fxMonHLEnhancementInfo(
       highQuality
         ? `FX ${info.sourceLabel} E+高質Sweep成立：Raw P3→P2-effective；Native ${trigger.quality || "Q"}永久保留。`
         : trigger.retestQuality === "invalid"
-          ? "FX Mon H/L：Retest已Invalid，E+唔可以救Setup。"
+          ? `FX ${info.sourceLabel}：Retest已Invalid，E+唔可以救Setup。`
           : trigger.reclaimQuality === "negated"
-            ? "FX Mon H/L：Reclaim失效，E+唔可以救Setup。"
+            ? `FX ${info.sourceLabel}：Reclaim失效，E+唔可以救Setup。`
             : !controlShift
-              ? "FX Mon H/L：未有Control transfer，未達E+資格。"
-              : "FX Mon H/L：未完成有效Sweep＋Reclaim，未達E+資格。"
+              ? `FX ${info.sourceLabel}：未有Control transfer，未達E+資格。`
+              : `FX ${info.sourceLabel}：未完成有效Sweep＋Reclaim，未達E+資格。`
   };
 }
 
@@ -4103,7 +4104,7 @@ function evaluateAsia2B(baseTrigger) {
     fxMonEnhancement.sourceEligible
   ) {
     reasons.push(
-      `${fxMonEnhancement.reason} Mon H/L位置優先級高過PDH/PDL；E+只改善Execution P，唔改Native Q。`
+      `${fxMonEnhancement.reason} PWH/PWL、Mon H/L、PDH/PDL三者都可用E+改善Execution P，唔改Native Q。`
     );
   }
 
@@ -10284,7 +10285,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.34",
+      "PracticeJournal-V1.30.35",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r44",
     matrixVersion:
@@ -19091,8 +19092,8 @@ function recalculateLiveDecision() {
     livePreviousHLInfo.applicable
       ? `Previous H/L Sweep：${livePreviousHLInfo.sourceLabel}｜${livePreviousHLInfo.sessionLabel}。${
           marketCode(true) === "FX" &&
-          livePreviousHLInfo.source === "monHL"
-            ? " FX Mon H/L＝E+；Raw P3可獲P2-effective，Native Q不變。"
+          livePreviousHLInfo.eligible
+            ? " FX Previous H/L（PWH/PWL、Mon H/L、PDH/PDL）＝E+；高質Sweep時Raw P3可獲P2-effective，Native Q不變。"
             : ""
         }`
       : "",

@@ -1,4 +1,11 @@
-# Master Trade System V1.30.34
+# Master Trade System V1.30.35
+
+## V1.30.35｜FX-B Previous H/L Enhancement更新
+
+- FX-B 的 Previous H/L Sweep：PWH／PWL、Mon H／L、PDH／PDL三者現在享有相同位置Enhancement權利。
+- 只要屬高質有效Sweep／Reclaim、Control transfer成立、Retest未Invalid，Raw P3可升為P2-effective（P2-E）。
+- Native Q維持原級，E+只改Execution P，唔會將Q2升做Q3。
+- XAU-B原本已經對PWH／PWL、Mon H／L、PDH／PDL三者提供相同P3→P2-E權利，今版維持不變。
 
 ## V1.30.34｜紀錄類型版面更新
 

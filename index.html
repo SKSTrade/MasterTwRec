@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.34</span>
+    <span class="version-badge">V1.30.35</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -815,7 +815,7 @@
               </select>
             </label>
 
-            <p class="state-note">XAU：PWH/PWL、Mon H/L、PDH/PDL高質Sweep＝E+。FX：Mon H/L高質Sweep同樣＝E+，Raw P3可P2-effective；FX嘅PWH/PWL、PDH/PDL今版維持原待遇。</p>
+            <p class="state-note">XAU同FX-B：PWH/PWL、Mon H/L、PDH/PDL三者高質Sweep都＝E+，Raw P3可P2-effective；Native Q保持原級。</p>
           </div>
 
           <div id="xauLiquidityPanel" class="conditional-panel hidden">
@@ -880,7 +880,7 @@
 
           <div id="typeBPanel" class="conditional-panel">
             <p><strong>Type B：</strong>一般市場普通Liquidity Sweep＋Reclaim冇自動P／Q升級；XAU另按專用PWH／PWL、Mon H/L、PDH／PDL E+，以及Asia H/L E位置Enhancement規則處理；Mon H/L優先級高過PDH/PDL。</p>
-            <p class="state-note"><strong>V1.28.1：</strong>XAU-B同FX-B Previous H/L Sweep都會獨立記錄「PDH/PDL 或 PWH/PWL」＋「Asia 或 Europe/London Sweep」。FX呢個新Setup暫時冇E；XAU沿用E+規則。</p>
+            <p class="state-note"><strong>V1.30.35：</strong>XAU-B同FX-B Previous H/L Sweep都會獨立記錄PWH/PWL、Mon H/L或PDH/PDL＋Asia或Europe/London Sweep；三個正式Previous H/L來源高質Sweep都享有E+，Raw P3可P2-effective。</p>
           </div>
 
           <div id="typeCPanel" class="conditional-panel hidden">
@@ -1908,8 +1908,8 @@
         <h3>Type A｜高質Session 2B</h3>
         <p>只包括HSI OPR 2B、FX Asia／OPR 2B、UK100／GER40正式開市後POR 2B。高質Setup可令Raw P3獲P2-effective；<strong>Native Q永久保留，V1.3取消Q2→Q3。</strong></p>
         <h3>Type B｜普通Sweep＋Reclaim</h3>
-        <p>Mon H/L正式視為獨立E Source，唔需要額外Structure先取得E資格。XAU同FX都適用；Mon H/L位置優先級高過PDH/PDL。高質Mon H/L Sweep可令Raw P3→P2-effective；Native Q永久保留。其他普通Swing／Europe H/L等仍冇自動P／Q升級。</p>
-        <p><strong>FX Mon H/L：</strong>用FX-B Previous H/L Sweep記錄；Mon H/L＝E+，高質Sweep可令Raw P3→P2-effective。FX嘅PWH/PWL、PDH/PDL今版維持原本待遇。</p>
+        <p>Previous H/L正式E Source：FX-B同XAU-B嘅PWH/PWL、Mon H/L、PDH/PDL都可取得E+資格。高質Sweep可令Raw P3→P2-effective；Native Q永久保留。其他普通Swing／Europe H/L等仍冇自動P／Q升級。</p>
+        <p><strong>FX-B Previous H/L：</strong>PWH/PWL、Mon H/L、PDH/PDL三者都＝E+；高質Sweep可令Raw P3→P2-effective，Native Q不變。</p>
         <h3>Type C｜Breakout／No Sweep</h3>
         <p>EU-D POR Full Repair嘅Breakout＋Acceptance＋第一次Retest係原生P2；EU-B Asia Sweep＋Post-open Confirmation普通P3可取得P2-effective，而真實15M／1H Breakout／Swap維持原生P2或P1。No-Sweep反轉只限真正P1。</p>
       </article>
@@ -1970,7 +1970,7 @@
         <h2>外匯 Matrix</h2>
         <ul>
           <li><strong>FX-A：</strong>Asia／OPR 2B｜高質P3可P2-effective。</li>
-          <li><strong>FX-B：</strong>普通Liquidity Sweep｜P由真實結構決定，冇自動升級。</li>
+          <li><strong>FX-B：</strong>Previous H/L Sweep｜PWH/PWL、Mon H/L、PDH/PDL三者高質Sweep都可用E+令Raw P3→P2-effective；其他普通Liquidity仍冇自動升級。</li>
           <li><strong>FX-C：</strong>Breakout＋Acceptance＋First Retest｜原生P2；改變4H狀態可P1。</li>
           <li><strong>FX-D：</strong>只限Daily／4H P1、主判弱化、次判Sweep＋Reclaim＋右側反轉、第一段反應新鮮。</li>
         </ul>
@@ -1979,8 +1979,8 @@
       <article class="card">
         <h2>FX Previous H/L Sweep｜V1.28.1</h2>
         <ul>
-          <li><strong>FX-B｜Sweep PDH／PDL 或 PWH／PWL：</strong>獨立記錄Liquidity來源同Sweep Session。</li>
-          <li><strong>Liquidity：</strong>PDH／PDL或PWH／PWL。</li>
+          <li><strong>FX-B｜Sweep PWH／PWL、Mon H/L 或 PDH／PDL：</strong>獨立記錄Liquidity來源同Sweep Session；三者高質Sweep都享有E+。</li>
+          <li><strong>Liquidity：</strong>PWH／PWL、Mon H/L或PDH／PDL。</li>
           <li><strong>Session：</strong>Asia或Europe／London。</li>
           <li><strong>Execution：</strong>仍然按Raw P＋Native Q＋Direction Permission；V1.28.1暫時冇自動E／P3→P2-effective。</li>
         </ul>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-34-record-mode-three-column";
+const CACHE_NAME = "master-trade-system-v1-30-35-fx-prevhl-enhancement";
 const ASSETS = [
   "./",
   "./index.html",
