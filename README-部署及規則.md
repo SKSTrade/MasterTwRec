@@ -1,3 +1,10 @@
+## V1.30.41｜研究面板精簡布局
+
+- 「V1.4 Research Overlay｜Pruned」及「V1.5 Shadow Research｜Simulation Only」已移至新增交易表單底部、儲存按鈕之前，預設收起。
+- 點擊各區塊標題可以展開；所有原有欄位、計算、Journal 儲存、CSV 欄位及研究結果均原樣保留。
+- 純 UI 排版更新：`app.js`、V1.4 Production、V1.5 Shadow、US100、HSI-C 既有邏輯完全不變。
+- Service Worker 快取版本已更新，部署時請上載全部檔案並重新載入頁面。
+
 # Master Trade System V1.30.40
 
 ## V1.30.40｜US100 雙 Setup Research（2026-11-10）

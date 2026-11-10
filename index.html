@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.40</span>
+    <span class="version-badge">V1.30.41</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1482,11 +1482,49 @@
             </label>
           </div>
 
-          <div class="shadow-research-panel">
-            <div class="shadow-research-heading">
-              <strong>V1.4 Research Overlay｜Pruned</strong>
-              <span>只保留目前information value最高嘅欄位；Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改V1.4 Production Size。</span>
+          <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
+
+          <div class="paste-image-section">
+            <span class="field-label">圖片／Chart Screenshot</span>
+            <div
+              id="chartPasteZone"
+              class="paste-zone"
+              contenteditable="true"
+              role="textbox"
+              tabindex="0"
+              spellcheck="false"
+              aria-label="貼上Chart Screenshot"
+            >點擊呢個區域後貼上圖片｜Mac：⌘V／Ctrl+V｜iPhone：長按後選「貼上」</div>
+            <button id="pasteClipboardImage" type="button" class="secondary-button paste-button">從剪貼簿貼上圖片</button>
+          </div>
+
+          <div id="imagePreviewContainer" class="image-preview hidden">
+            <div class="image-gallery-header">
+              <strong id="pendingImageCount">已貼上 0 張圖片</strong>
+              <button id="removePendingImage" type="button" class="secondary-button">移除全部圖片</button>
             </div>
+            <div id="imagePreviewGallery" class="multi-image-gallery"></div>
+          </div>
+
+          <p class="state-note">
+            可以連續貼上多張圖片；每次貼上會新增圖片而唔會覆蓋之前嗰張。圖片會自動縮細後儲存在呢部裝置。CSV只會記錄圖片數量，唔會將圖片放入CSV。
+          </p>
+
+          <label>
+            事前理由／覆盤備註
+            <textarea id="note" rows="6" placeholder="事前劇本、失效點、Entry/Miss/Skip原因、入市後Price Pattern、管理、錯誤、下一次改進"></textarea>
+          </label>
+
+          <!-- Research sections are intentionally collapsed and placed last for end-of-period review. -->
+          <div class="research-bottom-area" aria-label="Backtest完成後研究區">
+            <p class="state-note research-bottom-intro">期末研究／Shadow Simulation｜一般Backtest可以略過，需要補充研究欄位或檢查模擬結果時再展開。</p>
+          <details id="v14ResearchOverlayPanel" class="shadow-research-panel research-collapse">
+            <summary>
+              <span>V1.4 Research Overlay｜Pruned</span>
+              <small>研究細節／Entry-TF結構｜點擊展開</small>
+            </summary>
+            <div class="research-collapse-body">
+              <p class="state-note">只保留目前 information value 最高嘅欄位；Entry-TF Main／Working Structure 只作研究，唔影響 V1.4 Production Size。</p>
 
             <div class="summary-grid shadow-auto-grid">
               <div id="shadowPrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="shadowPrimaryCapReason">N/A</strong></div>
@@ -1500,25 +1538,6 @@
               <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ V1.4 Production Size</small></div>
             </div>
 
-            <div class="v15-research-panel">
-              <h3>V1.5 Shadow Research｜Simulation Only</h3>
-              <p class="state-note">Frozen V1.4 Production保持不變；S1使用Effective Secondary，S2使用Original Secondary，S3只限嚴格Direction Conflict。</p>
-              <div id="v15ShadowValues" class="summary-grid shadow-auto-grid"></div>
-              <div class="yes-no-grid">
-                <label>Runner Event Sequence（由實際Price Action核實）
-                  <select id="v15RunnerEvidence">
-                    <option value="" selected>Auto｜MFE≥4R自動確認；其他可選手動證據</option>
-                    <option value="reached4">先2R → 後4R（4R先於RF）</option>
-                    <option value="reachedRf">先2R → 後RF（RF先於4R）</option>
-                    <option value="notReached">RF／原出場先於2R（Not Reached）</option>
-                  </select>
-                </label>
-                <label>2R後原RF Exit（Unit R）<input id="v15RunnerRfExitR" type="number" step="any" placeholder="必須明確輸入，例如0"></label>
-                <label>已核實Runner Unit R（特別減倉／管理可覆寫）<input id="v15RunnerUnitROverride" type="number" step="any" placeholder="非必填；特殊管理必填"></label>
-              </div>
-              <label>Runner路徑／減倉證據備註<textarea id="v15RunnerNote" rows="2" placeholder="記錄2R、4R、RF嘅事件先後，以及部分平倉／Reduced／推RF路徑"></textarea></label>
-              <p class="state-note">MFE定義為原RF觸發前最高R：MFE ≥ 4R自動確認2R → 4R先於RF（優先於舊手動事件選項）。標準50%@2R／50%@4R＝+3 Unit R；特殊Reduce／部分平倉仍需核實Runner總Unit R，否則Shadow Actual R保持Unresolved。MFE不足4R不會自動推斷2R／RF先後。S3不推BE。</p>
-            </div>
 
             <div class="yes-no-grid">
               <label>
@@ -1614,40 +1633,34 @@
               <br><strong>Retest vs Reclaim Structure：</strong>N/A已同時代表Reclaim冇清晰micro structure；有structure先揀Hold／Sweep-Reclaim／Break-Accept。
               <br><strong>Retest Acceptance：</strong>Hold／Close Through量較大reclaimed setup level有冇失守。
             </p>
-          </div>
-
-          <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
-
-          <div class="paste-image-section">
-            <span class="field-label">圖片／Chart Screenshot</span>
-            <div
-              id="chartPasteZone"
-              class="paste-zone"
-              contenteditable="true"
-              role="textbox"
-              tabindex="0"
-              spellcheck="false"
-              aria-label="貼上Chart Screenshot"
-            >點擊呢個區域後貼上圖片｜Mac：⌘V／Ctrl+V｜iPhone：長按後選「貼上」</div>
-            <button id="pasteClipboardImage" type="button" class="secondary-button paste-button">從剪貼簿貼上圖片</button>
-          </div>
-
-          <div id="imagePreviewContainer" class="image-preview hidden">
-            <div class="image-gallery-header">
-              <strong id="pendingImageCount">已貼上 0 張圖片</strong>
-              <button id="removePendingImage" type="button" class="secondary-button">移除全部圖片</button>
             </div>
-            <div id="imagePreviewGallery" class="multi-image-gallery"></div>
+          </details>
+
+          <details id="v15ShadowResearchPanel" class="v15-research-panel research-collapse">
+              <summary>
+                <span>V1.5 Shadow Research｜Simulation Only</span>
+                <small>S1／S2／S3模擬結果與Runner證據｜點擊展開</small>
+              </summary>
+              <div class="research-collapse-body">
+              <p class="state-note">Frozen V1.4 Production保持不變；S1使用Effective Secondary，S2使用Original Secondary，S3只限嚴格Direction Conflict。</p>
+              <div id="v15ShadowValues" class="summary-grid shadow-auto-grid"></div>
+              <div class="yes-no-grid">
+                <label>Runner Event Sequence（由實際Price Action核實）
+                  <select id="v15RunnerEvidence">
+                    <option value="" selected>Auto｜MFE≥4R自動確認；其他可選手動證據</option>
+                    <option value="reached4">先2R → 後4R（4R先於RF）</option>
+                    <option value="reachedRf">先2R → 後RF（RF先於4R）</option>
+                    <option value="notReached">RF／原出場先於2R（Not Reached）</option>
+                  </select>
+                </label>
+                <label>2R後原RF Exit（Unit R）<input id="v15RunnerRfExitR" type="number" step="any" placeholder="必須明確輸入，例如0"></label>
+                <label>已核實Runner Unit R（特別減倉／管理可覆寫）<input id="v15RunnerUnitROverride" type="number" step="any" placeholder="非必填；特殊管理必填"></label>
+              </div>
+              <label>Runner路徑／減倉證據備註<textarea id="v15RunnerNote" rows="2" placeholder="記錄2R、4R、RF嘅事件先後，以及部分平倉／Reduced／推RF路徑"></textarea></label>
+              <p class="state-note">MFE定義為原RF觸發前最高R：MFE ≥ 4R自動確認2R → 4R先於RF（優先於舊手動事件選項）。標準50%@2R／50%@4R＝+3 Unit R；特殊Reduce／部分平倉仍需核實Runner總Unit R，否則Shadow Actual R保持Unresolved。MFE不足4R不會自動推斷2R／RF先後。S3不推BE。</p>
+              </div>
+          </details>
           </div>
-
-          <p class="state-note">
-            可以連續貼上多張圖片；每次貼上會新增圖片而唔會覆蓋之前嗰張。圖片會自動縮細後儲存在呢部裝置。CSV只會記錄圖片數量，唔會將圖片放入CSV。
-          </p>
-
-          <label>
-            事前理由／覆盤備註
-            <textarea id="note" rows="6" placeholder="事前劇本、失效點、Entry/Miss/Skip原因、入市後Price Pattern、管理、錯誤、下一次改進"></textarea>
-          </label>
 
           <button type="submit" class="primary-button">儲存練習／實戰／覆盤紀錄</button>
         </article>
