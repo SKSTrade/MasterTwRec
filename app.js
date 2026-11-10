@@ -6527,6 +6527,13 @@ function v15ReadRunnerInputs(editMode=false) {
     v15RunnerNote: ($(id("v15RunnerNote"))?.value||"").trim()
   };
 }
+function syncV15RunnerManualUI(editMode=false) {
+  const selectId=editMode?"editV15RunnerEvidence":"v15RunnerEvidence";
+  const fieldsId=editMode?"editV15RunnerManualFields":"v15RunnerManualFields";
+  const selected=$(selectId)?.value||"";
+  // Old evidence values continue to be viewable/editable after CSV import.
+  $(fieldsId)?.classList.toggle("hidden",selected==="");
+}
 function v15RestoreResearchInputs(record, editMode=false) {
   for (const [key] of V15_BROKEN_FIELDS) {
     const id = editMode ? "edit"+key[0].toUpperCase()+key.slice(1) : key;
@@ -6536,6 +6543,7 @@ function v15RestoreResearchInputs(record, editMode=false) {
     const id = editMode ? "edit"+key[0].toUpperCase()+key.slice(1) : key;
     if ($(id)) $(id).value=record?.[key]??"";
   }
+  syncV15RunnerManualUI(editMode);
   syncV15TransitionUI(editMode);
 }
 function v15Number(raw) {
@@ -6594,32 +6602,58 @@ function evaluateV15Shadow(source) {
   let runnerResult=s3?"Unresolved":"N/A", runnerUnit=null;
   let runnerEvidenceBasis="N/A";
   if(s3 && entry) {
-    // Journal contract: MFE is the highest R reached BEFORE the original RF.
-    // Therefore MFE >= 4 proves 2R -> 4R happened before RF. It takes precedence
-    // over stale/manual paths; an MFE value alone is NOT sufficient to reconstruct
-    // partial exits, Reduce, or other non-standard position management.
+    // User-confirmed Journal definition: MFE = highest favourable R reached
+    // BEFORE the original risk-free (RF) stop is first hit. Once +2R is reached,
+    // the remaining Runner stop is always at the entry price (0 Unit R).
+    // Only eligible S3 trades use this counterfactual; Production is untouched.
     const mfe=v15Number(source?.mfeR);
-    const proven4FromMfe=mfe!==null && mfe>=4;
-    const evidence=proven4FromMfe?"reached4":(source?.v15RunnerEvidence||"");
-    runnerEvidenceBasis=proven4FromMfe?"Auto: pre-RF MFE >= 4R":
-      evidence?"Manual: "+evidence:"Missing";
+    const evidence=source?.v15RunnerEvidence||"";
     const override=v15Number(source?.v15RunnerUnitROverride);
-    const specialManagement=(["Reduce","Exit"].includes(source?.postEntryAction)) ||
-      (source?.tpPlan && source.tpPlan!=="2R全平");
-    if(evidence==="reached4") {
+    const rfExit=v15Number(source?.v15RunnerRfExitR);
+    // A TP plan describes a plan, NOT proof of an executed partial reduction.
+    // Actual Reduce / discretionary Exit needs a verified alternative result.
+    const specialManagement=["Reduce","Exit"].includes(source?.postEntryAction);
+    if(evidence==="manual") {
+      // Explicit manual mode takes priority over MFE for exceptional management.
+      runnerEvidenceBasis="Manual: verified total Runner Unit R";
+      runnerResult=override===null?"Unresolved":"Manual";
+      runnerUnit=override;
+    } else if(mfe!==null) {
+      if(mfe>=4) {
+        runnerResult="4R";
+        runnerEvidenceBasis="Auto: pre-RF MFE >= 4R; 50%@2R + 50%@4R";
+        runnerUnit=specialManagement?null:3;
+      } else if(mfe>=2) {
+        runnerResult="RF";
+        runnerEvidenceBasis="Auto: 2R <= pre-RF MFE < 4R; remaining 50% exits at BE (0R)";
+        runnerUnit=specialManagement?null:1;
+      } else {
+        // The S3 Runner never reaches its first 2R TP; use the original P/L.
+        runnerResult="Not Reached";
+        runnerEvidenceBasis="Auto: pre-RF MFE < 2R; original result";
+        runnerUnit=unit;
+      }
+      if(specialManagement && mfe>=2) {
+        runnerEvidenceBasis+="; Reduce/Exit requires verified manual Unit R";
+      }
+    } else if(evidence==="reached4") {
+      // Legacy CSV/manual evidence remains readable when MFE is missing.
       runnerResult="4R";
+      runnerEvidenceBasis="Legacy: verified 2R -> 4R before RF";
       runnerUnit=specialManagement?override:(override??3);
     } else if(evidence==="reachedRf") {
       runnerResult="RF";
-      const rfExit=v15Number(source?.v15RunnerRfExitR);
-      runnerUnit=override ?? (specialManagement||rfExit===null?null:1+0.5*rfExit);
+      runnerEvidenceBasis="Legacy: verified 2R -> RF (BE by default)";
+      runnerUnit=specialManagement?override:(override??(1+0.5*(rfExit??0)));
     } else if(evidence==="notReached") {
       runnerResult="Not Reached";
+      runnerEvidenceBasis="Legacy: no 2R TP; original result";
       runnerUnit=unit;
+    } else {
+      runnerEvidenceBasis="Missing pre-RF MFE; select Manual for exceptions";
     }
-    // Keep confirmed 4R hit visible even if actual Shadow R remains unresolved
-    // due to a missing verified unit-R for special management.
-    if(runnerResult!=="4R" && runnerResult!=="Unresolved" && runnerUnit===null) runnerResult="Unresolved";
+    // Preserve the reached target as a classification even if the profit is
+    // unresolved (e.g. reduced positions without verified management details).
   } else if(s3 && !entry) {
     runnerResult="N/A"; // Not an executed trade: no simulated P/L.
   }
@@ -12318,6 +12352,10 @@ function v15GroupValue(record, group, shadow) {
   }
   return String(record[group]??"")||"Missing";
 }
+function v15RunnerWasApplied(shadow) {
+  return shadow?.v15S3RunnerEligible && !shadow.v15RunnerUnresolved &&
+    ["4R","RF","Manual"].includes(shadow.v15S3RunnerResult);
+}
 function v15AnalyticsMetric(items, version) {
   const samples=[],unresolved=[];
   let trigger=0, applied=0, blocked=0, eligibleCount=0;
@@ -12339,10 +12377,10 @@ function v15AnalyticsMetric(items, version) {
       if(triggered&&size!==prod)applied++;
       if(triggered&&shadow.v15ShadowReason==="Blocked by Production Adjustment")blocked++;
     }else if(version==="S3 Only"){
-      if(triggered&&!shadow.v15RunnerUnresolved)applied++;
+      if(triggered&&v15RunnerWasApplied(shadow))applied++;
     }else if(version==="Combined"){
       if((triggered&&shadow.v15CombinedShadowSize!==prod) ||
-        (shadow.v15S3RunnerEligible&&!shadow.v15RunnerUnresolved))applied++;
+        v15RunnerWasApplied(shadow))applied++;
       if(shadow.v15Blocked)blocked++;
     }
     if(shadow.v15S3RunnerEligible)eligibleCount++;
@@ -20706,11 +20744,15 @@ function setupEvents() {
     $(id).addEventListener("input", updateShadowResearchPreview);
     $(id).addEventListener("change", updateShadowResearchPreview);
   }
+  $("v15RunnerEvidence").addEventListener("change",()=>syncV15RunnerManualUI(false));
   for (const id of ["editV15RunnerEvidence","editV15RunnerRfExitR","editV15RunnerUnitROverride","editV15RunnerNote"]) {
-    $(id).addEventListener("input",()=>{
+    const update=()=>{
+      if(id==="editV15RunnerEvidence")syncV15RunnerManualUI(true);
       const preview=currentV15EditPreviewRecord();
       if(preview) renderV15Panel(preview,true);
-    });
+    };
+    $(id).addEventListener("input",update);
+    $(id).addEventListener("change",update);
   }
   for (const id of ["mfeR","profitR"]) {
     $(id).addEventListener("input",updateShadowResearchPreview);

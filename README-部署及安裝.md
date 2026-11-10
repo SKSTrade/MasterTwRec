@@ -1,3 +1,25 @@
+## V1.30.43｜S3 Runner Event Sequence 改為 MFE Auto / Manual（2026-11-10）
+
+- **只修改 V1.5 S3 Runner 研究層**；V1.4 Production、S1／S2、S3 Eligibility、原有六市場與 US100 雙 Setup 不變。
+- 標準模式 `Auto｜按MFE自動計`：MFE 按已確認定義只記 RF 首次觸發前最高有利 R。
+  - `MFE >= 4R`：S3 Runner Result = `4R`，單位收益 `0.5×2 + 0.5×4 = +3 Unit R`。
+  - `2R <= MFE < 4R`：S3 Runner Result = `RF`，剩餘半倉原RF=入場價（0R），單位收益 `0.5×2 + 0.5×0 = +1 Unit R`。
+  - `MFE < 2R`：未啟動2R分注，Runner `Not Reached`，維持原交易 Unit R，**Applied Count 不計入 Runner 操作**。
+  - MFE 空白：沒有手動佐證則 `Unresolved`，絕不假設盈利。
+- `特殊情況｜手動覆蓋 Runner Unit R`：輸入經實際減倉／出場證實的總 Unit R，可覆寫 MFE 自動收益；未填數值則 `Unresolved`。若記錄明示 `Post-entry Reduce`／`Exit`，即使達標也須核實 Unit R，防止虛構收益。單純 TP Plan 非「2R全平」不再等同已經發生特殊減倉。
+- Runner Event Sequence 介面默認只需 Auto／Manual 兩種選擇，手動明細在選 Manual 時才展開。舊 CSV `reached4`、`reachedRf`、`notReached` 仍保留匯入、編輯及復原；若已記 MFE，以最新 MFE 自動規則優先。
+- **R 乘注碼**：以上係未乘 Size 的 Unit R，Shadow Actual R 仍由 Unit R × 模擬注碼計算；不修改正式 Actual R。
+- 無新增任何 CSV 欄名或新 Sizing Rule；升級 PWA 快取至 V1.30.43。
+- 驗收報告：`V1.30.43-Runner-MFE-Auto-Manual-更新及回歸測試.md`。
+
+## V1.30.42｜V1.4 Overlay 還原（2026-11-10）
+
+- 「V1.4 Research Overlay｜Pruned」恢復至 V1.30.40 原本位置（MFE／MAE／Valid Candidate 下方、Reviewed Session／圖片上方），並恢復原本展開樣式。
+- V1.4 Overlay 內部「V1.4 Size Rules」不再顯示；仍保留原有 DOM 元素（以 `.hidden` 隱藏），確保 JS 計算更新不受影響。
+- 「V1.5 Shadow Research｜Simulation Only」仍在紀錄表單底部（備註之後、儲存前），預設收起。
+- 只修改 HTML、版本字樣、PWA Cache 和文件。`app.js`、`styles.css`、原有市場計算、CSV 和 Journal 儲存功能完全不變。
+- Runner Event Sequence：MFE>=4R 自動推論 S3 4R 成功；不足4R按需要記錄 2R→RF 等事件；特殊減倉須額外輸入已核實 Unit R。此規則本版未更動。
+
 ## V1.30.41｜研究面板精簡布局
 
 - 「V1.4 Research Overlay｜Pruned」及「V1.5 Shadow Research｜Simulation Only」已移至新增交易表單底部、儲存按鈕之前，預設收起。

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.41</span>
+    <span class="version-badge">V1.30.43</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1482,49 +1482,11 @@
             </label>
           </div>
 
-          <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
-
-          <div class="paste-image-section">
-            <span class="field-label">圖片／Chart Screenshot</span>
-            <div
-              id="chartPasteZone"
-              class="paste-zone"
-              contenteditable="true"
-              role="textbox"
-              tabindex="0"
-              spellcheck="false"
-              aria-label="貼上Chart Screenshot"
-            >點擊呢個區域後貼上圖片｜Mac：⌘V／Ctrl+V｜iPhone：長按後選「貼上」</div>
-            <button id="pasteClipboardImage" type="button" class="secondary-button paste-button">從剪貼簿貼上圖片</button>
-          </div>
-
-          <div id="imagePreviewContainer" class="image-preview hidden">
-            <div class="image-gallery-header">
-              <strong id="pendingImageCount">已貼上 0 張圖片</strong>
-              <button id="removePendingImage" type="button" class="secondary-button">移除全部圖片</button>
+          <div class="shadow-research-panel">
+            <div class="shadow-research-heading">
+              <strong>V1.4 Research Overlay｜Pruned</strong>
+              <span>只保留目前information value最高嘅欄位；Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改V1.4 Production Size。</span>
             </div>
-            <div id="imagePreviewGallery" class="multi-image-gallery"></div>
-          </div>
-
-          <p class="state-note">
-            可以連續貼上多張圖片；每次貼上會新增圖片而唔會覆蓋之前嗰張。圖片會自動縮細後儲存在呢部裝置。CSV只會記錄圖片數量，唔會將圖片放入CSV。
-          </p>
-
-          <label>
-            事前理由／覆盤備註
-            <textarea id="note" rows="6" placeholder="事前劇本、失效點、Entry/Miss/Skip原因、入市後Price Pattern、管理、錯誤、下一次改進"></textarea>
-          </label>
-
-          <!-- Research sections are intentionally collapsed and placed last for end-of-period review. -->
-          <div class="research-bottom-area" aria-label="Backtest完成後研究區">
-            <p class="state-note research-bottom-intro">期末研究／Shadow Simulation｜一般Backtest可以略過，需要補充研究欄位或檢查模擬結果時再展開。</p>
-          <details id="v14ResearchOverlayPanel" class="shadow-research-panel research-collapse">
-            <summary>
-              <span>V1.4 Research Overlay｜Pruned</span>
-              <small>研究細節／Entry-TF結構｜點擊展開</small>
-            </summary>
-            <div class="research-collapse-body">
-              <p class="state-note">只保留目前 information value 最高嘅欄位；Entry-TF Main／Working Structure 只作研究，唔影響 V1.4 Production Size。</p>
 
             <div class="summary-grid shadow-auto-grid">
               <div id="shadowPrimaryCapReasonRow" class="hidden"><span>0.25 Primary Cap Reason</span><strong id="shadowPrimaryCapReason">N/A</strong></div>
@@ -1533,10 +1495,11 @@
               <div><span>V1.3 Base Size</span><strong id="shadowV13BaseSize">N/A</strong></div>
               <div><span>V1.4 Production Size</span><strong id="shadowV14ProductionSize">N/A</strong></div>
               <div><span>V1.4 Shadow Size</span><strong id="shadowV14ShadowSize">N/A</strong></div>
-              <div><span>V1.4 Size Rules</span><strong id="shadowV14SizeRules">N/A</strong></div>
+              <div class="hidden" aria-hidden="true"><span>V1.4 Size Rules</span><strong id="shadowV14SizeRules">N/A</strong></div>
               <div><span>V1.4 Runner</span><strong id="shadowV14Runner">N/A</strong></div>
               <div><span>Normalized R</span><strong id="shadowNormalizedR">N/A</strong><small>Actual R ÷ V1.4 Production Size</small></div>
             </div>
+
 
 
             <div class="yes-no-grid">
@@ -1633,9 +1596,44 @@
               <br><strong>Retest vs Reclaim Structure：</strong>N/A已同時代表Reclaim冇清晰micro structure；有structure先揀Hold／Sweep-Reclaim／Break-Accept。
               <br><strong>Retest Acceptance：</strong>Hold／Close Through量較大reclaimed setup level有冇失守。
             </p>
-            </div>
-          </details>
+          </div>
 
+          <p class="state-note"><strong>Reviewed Session已移出逐Trade紀錄。</strong> 同一Session可以有多個Trade Candidate，逐單填會重複計數；Opportunity Rate要留待獨立Session Review層統計。</p>
+
+          <div class="paste-image-section">
+            <span class="field-label">圖片／Chart Screenshot</span>
+            <div
+              id="chartPasteZone"
+              class="paste-zone"
+              contenteditable="true"
+              role="textbox"
+              tabindex="0"
+              spellcheck="false"
+              aria-label="貼上Chart Screenshot"
+            >點擊呢個區域後貼上圖片｜Mac：⌘V／Ctrl+V｜iPhone：長按後選「貼上」</div>
+            <button id="pasteClipboardImage" type="button" class="secondary-button paste-button">從剪貼簿貼上圖片</button>
+          </div>
+
+          <div id="imagePreviewContainer" class="image-preview hidden">
+            <div class="image-gallery-header">
+              <strong id="pendingImageCount">已貼上 0 張圖片</strong>
+              <button id="removePendingImage" type="button" class="secondary-button">移除全部圖片</button>
+            </div>
+            <div id="imagePreviewGallery" class="multi-image-gallery"></div>
+          </div>
+
+          <p class="state-note">
+            可以連續貼上多張圖片；每次貼上會新增圖片而唔會覆蓋之前嗰張。圖片會自動縮細後儲存在呢部裝置。CSV只會記錄圖片數量，唔會將圖片放入CSV。
+          </p>
+
+          <label>
+            事前理由／覆盤備註
+            <textarea id="note" rows="6" placeholder="事前劇本、失效點、Entry/Miss/Skip原因、入市後Price Pattern、管理、錯誤、下一次改進"></textarea>
+          </label>
+
+          <!-- V1.5 Shadow Simulation is intentionally collapsed at the bottom. -->
+          <div class="research-bottom-area" aria-label="Backtest完成後研究區">
+            <p class="state-note research-bottom-intro">期末 V1.5 Shadow Simulation｜Backtest 時可以略過，完成一期回測後再展開研究。</p>
           <details id="v15ShadowResearchPanel" class="v15-research-panel research-collapse">
               <summary>
                 <span>V1.5 Shadow Research｜Simulation Only</span>
@@ -1645,19 +1643,24 @@
               <p class="state-note">Frozen V1.4 Production保持不變；S1使用Effective Secondary，S2使用Original Secondary，S3只限嚴格Direction Conflict。</p>
               <div id="v15ShadowValues" class="summary-grid shadow-auto-grid"></div>
               <div class="yes-no-grid">
-                <label>Runner Event Sequence（由實際Price Action核實）
+                <label>Runner Event Sequence｜Auto / Manual
                   <select id="v15RunnerEvidence">
-                    <option value="" selected>Auto｜MFE≥4R自動確認；其他可選手動證據</option>
-                    <option value="reached4">先2R → 後4R（4R先於RF）</option>
-                    <option value="reachedRf">先2R → 後RF（RF先於4R）</option>
-                    <option value="notReached">RF／原出場先於2R（Not Reached）</option>
+                    <option value="" selected>Auto｜按MFE自動計（預設）</option>
+                    <option value="manual">特殊情況｜手動覆蓋 Runner Unit R</option>
+                    <option value="reached4" hidden>舊紀錄：先2R → 後4R</option>
+                    <option value="reachedRf" hidden>舊紀錄：先2R → 後RF</option>
+                    <option value="notReached" hidden>舊紀錄：未到2R</option>
                   </select>
                 </label>
-                <label>2R後原RF Exit（Unit R）<input id="v15RunnerRfExitR" type="number" step="any" placeholder="必須明確輸入，例如0"></label>
-                <label>已核實Runner Unit R（特別減倉／管理可覆寫）<input id="v15RunnerUnitROverride" type="number" step="any" placeholder="非必填；特殊管理必填"></label>
               </div>
-              <label>Runner路徑／減倉證據備註<textarea id="v15RunnerNote" rows="2" placeholder="記錄2R、4R、RF嘅事件先後，以及部分平倉／Reduced／推RF路徑"></textarea></label>
-              <p class="state-note">MFE定義為原RF觸發前最高R：MFE ≥ 4R自動確認2R → 4R先於RF（優先於舊手動事件選項）。標準50%@2R／50%@4R＝+3 Unit R；特殊Reduce／部分平倉仍需核實Runner總Unit R，否則Shadow Actual R保持Unresolved。MFE不足4R不會自動推斷2R／RF先後。S3不推BE。</p>
+              <div id="v15RunnerManualFields" class="hidden">
+                <div class="yes-no-grid">
+                  <label>已核實Runner Unit R（手動覆蓋）<input id="v15RunnerUnitROverride" type="number" step="any" placeholder="例如2.4；特殊情況填寫"></label>
+                  <label>舊版2R後RF Exit（Unit R）<input id="v15RunnerRfExitR" type="number" step="any" placeholder="舊紀錄相容，普通Auto不需填"></label>
+                </div>
+                <label>Runner特殊管理／減倉備註<textarea id="v15RunnerNote" rows="2" placeholder="只喺特殊管理時記錄實際出場／部分平倉資料"></textarea></label>
+              </div>
+              <p class="state-note">只對S3 Runner Eligible交易生效。MFE係原RF前最高R：≥4R自動 +3 Unit R；≥2R但不足4R自動 +1 Unit R（剩餘半倉RF=0R）；不足2R沒有Runner分注，沿用原交易結果。實際Reduce／提前Exit等特殊管理需手動輸入已核實Runner Unit R，否則收益Unresolved。V1.4 Production不變。</p>
               </div>
           </details>
           </div>
@@ -2326,14 +2329,24 @@
           </div>
           <div id="editV15ShadowValues" class="summary-grid shadow-auto-grid"></div>
           <div class="yes-no-grid">
-            <label>Runner Event Sequence
-              <select id="editV15RunnerEvidence"><option value="">Unresolved</option><option value="reached4">2R → 4R</option><option value="reachedRf">2R → RF</option><option value="notReached">RF / Exit先於2R</option></select>
+            <label>Runner Event Sequence｜Auto / Manual
+              <select id="editV15RunnerEvidence">
+                <option value="">Auto｜按MFE自動計（預設）</option>
+                <option value="manual">特殊情況｜手動覆蓋 Runner Unit R</option>
+                <option value="reached4" hidden>舊紀錄：先2R → 後4R</option>
+                <option value="reachedRf" hidden>舊紀錄：先2R → 後RF</option>
+                <option value="notReached" hidden>舊紀錄：未到2R</option>
+              </select>
             </label>
-            <label>2R後原RF Exit Unit R<input id="editV15RunnerRfExitR" type="number" step="any" placeholder="輸入0亦可"></label>
-            <label>已核實Runner Unit R（特別減倉）<input id="editV15RunnerUnitROverride" type="number" step="any"></label>
           </div>
-          <label>Runner路徑證據備註<textarea id="editV15RunnerNote" rows="2"></textarea></label>
-          <p class="state-note">MFE係原RF前最高R；MFE ≥ 4R自動確認S3到4R。特別減倉仍需填已核實Runner Unit R先可計Shadow Actual R。</p>
+          <div id="editV15RunnerManualFields" class="hidden">
+            <div class="yes-no-grid">
+              <label>已核實Runner Unit R（手動覆蓋）<input id="editV15RunnerUnitROverride" type="number" step="any" placeholder="特殊管理填寫"></label>
+              <label>舊版2R後RF Exit Unit R<input id="editV15RunnerRfExitR" type="number" step="any" placeholder="普通Auto不需填"></label>
+            </div>
+            <label>Runner特殊管理／減倉備註<textarea id="editV15RunnerNote" rows="2"></textarea></label>
+          </div>
+          <p class="state-note">S3 eligible且MFE ≥4R → +3 Unit R；2R ≤ MFE &lt;4R → +1 Unit R（保本RF=0）；MFE &lt;2R → 原交易結果。特殊Reduce／Exit需手動核實；Production完全不變。</p>
         </div>
         <div class="yes-no-grid">
           <label>
