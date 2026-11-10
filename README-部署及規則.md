@@ -1,6 +1,6 @@
-# Master Trade System V1.30.35
+# Master Trade System V1.30.36
 
-## V1.30.35｜FX-B Previous H/L Enhancement更新
+## V1.30.36｜FX-B Previous H/L Enhancement更新
 
 - FX-B 的 Previous H/L Sweep：PWH／PWL、Mon H／L、PDH／PDL三者現在享有相同位置Enhancement權利。
 - 只要屬高質有效Sweep／Reclaim、Control transfer成立、Retest未Invalid，Raw P3可升為P2-effective（P2-E）。
@@ -79,3 +79,11 @@ Structural Gap Off用Secondary Main；Gap On用Secondary Working，即Effective 
 - 紀錄庫 **類型** 與 **商品** 篩選改為多選；同一篩選內採 OR，不同篩選組之間採 AND。未勾任何選項代表全部。
 - 多選紀錄模式新增 **匯出已選CSV** 及 **匯出已選CSV＋照片 ZIP**；原本全量匯出保留。
 - CSV 匯入兼容 `Review`／`覆盤`／`复盘`，統一正規化為 `Review`。
+
+
+## V1.30.36｜Matrix V1.4 表單精簡
+
+- 全部市場嘅「核心 Setup」移除共用 Type C 強趨勢 Pullback，外匯移除 FX-C Breakout／Retest。保留 HSI-C 與 EU-B／EU-D 等獨立市場 Setup，原有 Setup Type 分類計算不改。
+- 移除 Opening Context 的填寫、歷史記錄詳情／編輯欄位，以及新 CSV 匯出欄位。現有 LocalStorage 歷史紀錄不作清除。
+- 品種改用下拉選單：HSI、UK100、GER40、外匯（EURUSD／GBPUSD／USDCHF）、XAUUSD；歷史記錄編輯支援保留舊有非標準品種。
+- 其他 V1.4 Production／Shadow 及入場 Matrix 公式保持原狀。

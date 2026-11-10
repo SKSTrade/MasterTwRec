@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.35</span>
+    <span class="version-badge">V1.30.36</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -555,7 +555,7 @@
 
           <label>
             品種
-            <input id="symbol" type="text" value="EURUSD" autocomplete="off" autocapitalize="characters">
+            <select id="symbol"><option value="EURUSD">EURUSD</option><option value="GBPUSD">GBPUSD</option><option value="USDCHF">USDCHF</option></select>
           </label>
         </article>
 
@@ -880,7 +880,7 @@
 
           <div id="typeBPanel" class="conditional-panel">
             <p><strong>Type B：</strong>一般市場普通Liquidity Sweep＋Reclaim冇自動P／Q升級；XAU另按專用PWH／PWL、Mon H/L、PDH／PDL E+，以及Asia H/L E位置Enhancement規則處理；Mon H/L優先級高過PDH/PDL。</p>
-            <p class="state-note"><strong>V1.30.35：</strong>XAU-B同FX-B Previous H/L Sweep都會獨立記錄PWH/PWL、Mon H/L或PDH/PDL＋Asia或Europe/London Sweep；三個正式Previous H/L來源高質Sweep都享有E+，Raw P3可P2-effective。</p>
+            <p class="state-note"><strong>V1.30.36：</strong>XAU-B同FX-B Previous H/L Sweep都會獨立記錄PWH/PWL、Mon H/L或PDH/PDL＋Asia或Europe/London Sweep；三個正式Previous H/L來源高質Sweep都享有E+，Raw P3可P2-effective。</p>
           </div>
 
           <div id="typeCPanel" class="conditional-panel hidden">
@@ -1467,7 +1467,7 @@
           <div class="shadow-research-panel">
             <div class="shadow-research-heading">
               <strong>V1.4 Research Overlay｜Pruned</strong>
-              <span>只保留目前information value最高嘅欄位；Opening Context／Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改V1.4 Production Size。</span>
+              <span>只保留目前information value最高嘅欄位；Entry-TF Main Structure／Entry-TF Working Structure同其他Shadow一樣唔改V1.4 Production Size。</span>
             </div>
 
             <div class="summary-grid shadow-auto-grid">
@@ -1488,17 +1488,6 @@
                 <select id="postEntryObjectiveUpgrade">
                   <option value="No" selected>No</option>
                   <option value="Yes">Yes</option>
-                </select>
-              </label>
-
-              <label>
-                Opening Context
-                <select id="openingContext">
-                  <option value="" selected>未記錄</option>
-                  <option value="insideMid">Inside-Mid</option>
-                  <option value="insideEdge">Inside-Edge</option>
-                  <option value="outsideHold">Outside-Hold</option>
-                  <option value="outsideFail">Outside-Fail</option>
                 </select>
               </label>
 
@@ -1971,7 +1960,6 @@
         <ul>
           <li><strong>FX-A：</strong>Asia／OPR 2B｜高質P3可P2-effective。</li>
           <li><strong>FX-B：</strong>Previous H/L Sweep｜PWH/PWL、Mon H/L、PDH/PDL三者高質Sweep都可用E+令Raw P3→P2-effective；其他普通Liquidity仍冇自動升級。</li>
-          <li><strong>FX-C：</strong>Breakout＋Acceptance＋First Retest｜原生P2；改變4H狀態可P1。</li>
           <li><strong>FX-D：</strong>只限Daily／4H P1、主判弱化、次判Sweep＋Reclaim＋右側反轉、第一段反應新鮮。</li>
         </ul>
       </article>
@@ -2077,9 +2065,9 @@
 
       <label>
         交易商品／品種
-        <input id="editSymbol" type="text" autocomplete="off" autocapitalize="characters" placeholder="例如 EURUSD、XAUUSD、GER40">
+        <select id="editSymbol"></select>
       </label>
-      <p class="state-note">只修改呢筆歷史紀錄嘅商品名稱；唔會重新計算市場分類、Setup、P／Q、Size或Objective at Entry。</p>
+      <p class="state-note">只修改呢筆歷史紀錄嘅品種；唔會重新計算市場分類、Setup、P／Q、Size或Objective at Entry。舊紀錄使用嘅其他品種會保留為選項。</p>
 
       <label>
         類型
@@ -2224,17 +2212,6 @@
             <select id="editPostEntryObjectiveUpgrade">
               <option value="No">No</option>
               <option value="Yes">Yes</option>
-            </select>
-          </label>
-
-          <label>
-            Opening Context
-            <select id="editOpeningContext">
-              <option value="">未記錄</option>
-              <option value="insideMid">Inside-Mid</option>
-              <option value="insideEdge">Inside-Edge</option>
-              <option value="outsideHold">Outside-Hold</option>
-              <option value="outsideFail">Outside-Fail</option>
             </select>
           </label>
 

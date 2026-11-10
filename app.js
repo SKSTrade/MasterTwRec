@@ -198,6 +198,49 @@ function recordP3Context(
     : "";
 }
 
+// Instruments offered for NEW records. Unknown historical symbols are preserved
+// in the record editor rather than silently replaced.
+const MARKET_INSTRUMENTS = {
+  HSI: ["HSI"],
+  UK100: ["UK100"],
+  GER40: ["GER40"],
+  FX: ["EURUSD", "GBPUSD", "USDCHF"],
+  XAU: ["XAUUSD"]
+};
+
+const ALL_INSTRUMENTS = [
+  ...new Set(Object.values(MARKET_INSTRUMENTS).flat())
+];
+
+function populateInstrumentSelect(market, preferredSymbol = "") {
+  const select = $("symbol");
+  const config = MARKET_CONFIG[market] || MARKET_CONFIG.FX;
+  const choices = MARKET_INSTRUMENTS[market] || MARKET_INSTRUMENTS.FX;
+  const preferred = String(preferredSymbol || "").trim().toUpperCase();
+
+  select.replaceChildren(...choices.map(symbol => new Option(symbol, symbol)));
+  select.value = choices.includes(preferred) ? preferred : config.defaultSymbol;
+}
+
+function populateEditInstrumentSelect(recordSymbol = "") {
+  const select = $("editSymbol");
+  const current = String(recordSymbol || "").trim().toUpperCase();
+  const symbols = [...ALL_INSTRUMENTS];
+
+  // Older data may contain an instrument outside the new fixed choices.
+  if (current && !symbols.includes(current)) {
+    symbols.push(current);
+  }
+
+  select.replaceChildren(...symbols.map(symbol => new Option(
+    current === symbol && !ALL_INSTRUMENTS.includes(symbol)
+      ? `${symbol}｜舊紀錄品種`
+      : symbol,
+    symbol
+  )));
+  select.value = symbols.includes(current) ? current : "";
+}
+
 const MARKET_CONFIG = {
   HSI: {
     label: "HSI",
@@ -207,7 +250,6 @@ const MARKET_CONFIG = {
       "hsi_opr_2b",
       "hsi_structure_sweep",
       "hsi_opr_continuation",
-      "trend_pullback",
       "custom"
     ],
     timeRule: "HSI：10:30後唔開新Setup；已入場倉位只按管理規則處理。"
@@ -220,7 +262,6 @@ const MARKET_CONFIG = {
       "eu_por_2b",
       "eu_asia_post_open",
       "eu_pure_full_repair",
-      "trend_pullback",
       "custom"
     ],
     timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
@@ -233,7 +274,6 @@ const MARKET_CONFIG = {
       "eu_por_2b",
       "eu_asia_post_open",
       "eu_pure_full_repair",
-      "trend_pullback",
       "custom"
     ],
     timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
@@ -246,9 +286,7 @@ const MARKET_CONFIG = {
       "fx_session_2b",
       "fx_previous_high_low_sweep",
       "fx_liquidity_sweep",
-      "fx_breakout_retest",
       "fx_p1_reversal",
-      "trend_pullback",
       "custom"
     ],
     timeRule: "外匯：按交易Session及你現有時間規則執行；入場後仍須重新評估Entry-time Q。"
@@ -261,7 +299,6 @@ const MARKET_CONFIG = {
       "xau_htf_location_sweep",
       "xau_asia_pdh_pdl",
       "xau_london_asia_sweep",
-      "trend_pullback",
       "custom"
     ],
     timeRule: "XAU：D大局／4H主判／1H次判／15M或5M Trigger；1M只改善Entry，唔重新判方向。高速大陽／大陰Retest唔可以因低Volume放行。"
@@ -1702,28 +1739,10 @@ function applyMarketPreset(
       config.preset
     );
 
-    const knownDefaults = [
-      "HSI",
-      "UK100",
-      "GER40",
-      "EURUSD",
-      "XAUUSD"
-    ];
-
-    const currentSymbol =
+    populateInstrumentSelect(
+      market,
       $("symbol").value
-        .trim()
-        .toUpperCase();
-
-    if (
-      !currentSymbol ||
-      knownDefaults.includes(
-        currentSymbol
-      )
-    ) {
-      $("symbol").value =
-        config.defaultSymbol;
-    }
+    );
 
     $("marketTimeRuleNote")
       .textContent =
@@ -7068,41 +7087,6 @@ function normalizeRetestInternalStructure(
 }
 
 
-function openingContextLabel(
-  code
-) {
-  const labels = {
-    insideMid:
-      "Inside-Mid",
-    insideEdge:
-      "Inside-Edge",
-    outsideHold:
-      "Outside-Hold",
-    outsideFail:
-      "Outside-Fail"
-  };
-
-  return labels[code] || "";
-}
-
-function normalizeOpeningContext(
-  value
-) {
-  const raw =
-    String(value || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[\s_-]+/g, "");
-
-  const map = {
-    insidemid: "insideMid",
-    insideedge: "insideEdge",
-    outsidehold: "outsideHold",
-    outsidefail: "outsideFail"
-  };
-
-  return map[raw] || "";
-}
 
 
 
@@ -10214,7 +10198,7 @@ async function saveDecision(event) {
       .toUpperCase();
 
   if (!symbol) {
-    showToast("請輸入品種");
+    showToast("請選擇品種");
     $("symbol").focus();
     return;
   }
@@ -10285,7 +10269,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.35",
+      "PracticeJournal-V1.30.36",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r44",
     matrixVersion:
@@ -10780,10 +10764,6 @@ async function saveDecision(event) {
       normalizePostEntryObjectiveUpgrade(
         $("postEntryObjectiveUpgrade").value
       ),
-    openingContext:
-      normalizeOpeningContext(
-        $("openingContext").value
-      ),
     entryTFMainStructure:
       normalizeEntryTFMainStructure(
         $("entryTFMainStructure").value
@@ -10869,7 +10849,6 @@ async function saveDecision(event) {
   $("timeToRF").value = "";
   $("validCandidate").value = "No";
   $("postEntryObjectiveUpgrade").value = "No";
-  $("openingContext").value = "";
   $("entryTFMainStructure").value = "";
   syncEntryTFMainStructureHelp(
     false
@@ -12908,15 +12887,6 @@ async function openRecord(recordId) {
     <strong>Post-entry Objective Upgrade：</strong>
     ${escapeHtml(normalizePostEntryObjectiveUpgrade(record.postEntryObjectiveUpgrade))}
     <br>
-    <strong>Opening Context：</strong>
-    ${escapeHtml(
-      openingContextLabel(
-        normalizeOpeningContext(
-          record.openingContext
-        )
-      ) || "未記錄"
-    )}
-    <br>
     <strong>Entry-TF Main Structure：</strong>
     ${escapeHtml(
       entryTFMainStructureLabel(
@@ -12983,12 +12953,9 @@ async function openRecord(recordId) {
     recordTradeDate(record) ||
     localDateString();
 
-  $("editSymbol").value =
-    String(
-      record.symbol ||
-      record.marketCode ||
-      ""
-    ).trim();
+  populateEditInstrumentSelect(
+    record.symbol || record.marketCode || ""
+  );
 
   $("editRecordMode").value =
     normalizeRecordMode(
@@ -13099,11 +13066,6 @@ async function openRecord(recordId) {
   $("editPostEntryObjectiveUpgrade").value =
     normalizePostEntryObjectiveUpgrade(
       record.postEntryObjectiveUpgrade
-    );
-
-  $("editOpeningContext").value =
-    normalizeOpeningContext(
-      record.openingContext
     );
 
 
@@ -13348,7 +13310,7 @@ async function saveRecordEdit() {
 
   if (!editedSymbol) {
     showToast(
-      "請輸入交易商品／品種"
+      "請選擇交易商品／品種"
     );
     $("editSymbol").focus();
     return;
@@ -13463,10 +13425,6 @@ async function saveRecordEdit() {
   records[index].postEntryObjectiveUpgrade =
     normalizePostEntryObjectiveUpgrade(
       $("editPostEntryObjectiveUpgrade").value
-    );
-  records[index].openingContext =
-    normalizeOpeningContext(
-      $("editOpeningContext").value
     );
   records[index].entryTFMainStructure =
     normalizeEntryTFMainStructure(
@@ -13805,7 +13763,6 @@ function buildCsv(records) {
     "Normalized R",
     "Objective at Entry",
     "Post-entry Objective Upgrade",
-    "Opening Context",
     "Entry-TF Main Structure",
     "Entry-TF Working Structure",
     "Retest Internal Structure",
@@ -14268,11 +14225,6 @@ function buildCsv(records) {
       ),
       normalizePostEntryObjectiveUpgrade(
         record.postEntryObjectiveUpgrade
-      ),
-      openingContextLabel(
-        normalizeOpeningContext(
-          record.openingContext
-        )
       ),
       entryTFMainStructureLabel(
         normalizeEntryTFMainStructure(
@@ -16901,13 +16853,6 @@ function recordFromCsvRow(row) {
         firstCsvValue(
           row,
           "Post-entry Objective Upgrade"
-        )
-      ),
-    openingContext:
-      normalizeOpeningContext(
-        firstCsvValue(
-          row,
-          "Opening Context"
         )
       ),
     entryTFMainStructure:
