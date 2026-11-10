@@ -149,6 +149,288 @@ function isHsiOprContinuationRecord(
   );
 }
 
+
+// US100 research metadata only. Never pass these fields into Matrix sizing.
+const US100_MARKET = "US100";
+const US100_SETUP_POR = "us100_por_sweep_reclaim";
+const US100_SETUP_C = "us100_opr_continuation";
+function isUs100CRecord(record) {
+  return isUs100Record(record) &&
+    (record?.setupTemplate === US100_SETUP_C ||
+      String(record?.setupTemplateLabel || record?.setupFamily || "").includes("US100-C"));
+}
+function us100SetupFamily(record) {
+  if (isUs100CRecord(record)) return US100_SETUP_C;
+  if (isUs100Record(record) && record?.setupTemplate === US100_SETUP_POR) return US100_SETUP_POR;
+  return isUs100Record(record) ? (record?.setupTemplate || "legacy") : "";
+}
+function us100Tp2FromMfe(mfe) {
+  if (mfe === null || mfe === undefined || String(mfe).trim() === "") return "";
+  const n = Number(mfe);
+  return Number.isFinite(n) ? (n >= 4 ? "Yes" : "No") : "";
+}
+function autoReachedTP2ForMarket(mfe, market) {
+  return market === US100_MARKET ? us100Tp2FromMfe(mfe) : autoReachedTP2Value(mfe);
+}
+
+const US100_RESEARCH_STATUS = "Research / Shadow";
+const US100_PRODUCTION_STATUS = "Production";
+const US100_RESEARCH_FIELD_MAP = Object.freeze([
+  ["us100FullPremarketSwept", "US100 Full Premarket H/L Swept"],
+  ["us100PorWidthPoints", "US100 POR Width (Points)"],
+  ["us100PorSweepSequence", "US100 POR Sweep Sequence"],
+  ["us100MinutesFromCashOpen", "US100 Time from Cash Open to Entry (Min)"],
+  ["us100MajorNews0830", "US100 08:30 Major News"],
+  ["us100OpeningGapDirection", "US100 RTH Opening Gap Direction"],
+  ["us100News1000", "US100 10:00 ET Scheduled News"],
+  ["us100News1000Event", "US100 10:00 ET Event Name"],
+  ["us100EntryTimeET", "US100 Entry Time (ET)"],
+  ["us100SessionETDate", "US100 Session Date (ET)"],
+  ["us100PorHighPoints", "US100 Primary POR High (Points)"],
+  ["us100PorLowPoints", "US100 Primary POR Low (Points)"],
+  ["us100OprHighPoints", "US100-C OPR High (Points)"],
+  ["us100OprLowPoints", "US100-C OPR Low (Points)"],
+  ["us100OprWidthPoints", "US100-C OPR Width (Points)"],
+  ["us100ResearchTradeId", "US100 Shared Execution ID"],
+  ["us100OprWindowComplete", "US100-C OPR Window Complete"],
+  ["us100OprAfter0930", "US100-C Break After 09:30 ET"],
+  ["us100OprTrendAligned", "US100-C Main Effective Secondary Aligned"],
+]);
+const US100_OPTION_FIELDS = new Set([
+  "us100FullPremarketSwept", "us100PorSweepSequence",
+  "us100MajorNews0830", "us100OpeningGapDirection", "us100News1000"
+]);
+const US100_NUMERIC_FIELDS = new Set([
+  "us100PorWidthPoints", "us100MinutesFromCashOpen",
+  "us100PorHighPoints", "us100PorLowPoints", "us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"
+]);
+const US100_OPTION_VALUES = Object.freeze({
+  us100FullPremarketSwept: ["Yes", "No", "N/A"],
+  us100PorSweepSequence: ["High Only", "Low Only", "High → Low", "Low → High", "N/A"],
+  us100MajorNews0830: ["None", "CPI", "NFP", "PPI", "Other", "Unknown"],
+  us100OpeningGapDirection: ["Gap Up", "Gap Down", "Flat", "N/A"],
+  us100News1000: ["Yes", "No", "Unknown"]
+});
+function isUs100Record(record) {
+  return String(record?.marketCode || "").toUpperCase() === US100_MARKET ||
+    String(record?.symbol || "").toUpperCase() === US100_MARKET;
+}
+function recordResearchStatus(record) {
+  return isUs100Record(record) ? US100_RESEARCH_STATUS : US100_PRODUCTION_STATUS;
+}
+function isProductionRecord(record) { return !isUs100Record(record); }
+function us100ResearchText(record, field) {
+  const v = record?.[field];
+  return v === undefined || v === null || v === "" ||
+    (typeof v === "number" && !Number.isFinite(v)) ? "Missing" : String(v);
+}
+function parseUs100Number(v) {
+  if (v === "" || v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function sanitizedUs100ResearchField(field, value) {
+  if (US100_NUMERIC_FIELDS.has(field)) {
+    const n = parseUs100Number(value);
+    return field === "us100PorWidthPoints" && n !== null && n < 0 ? null : n;
+  }
+  if (US100_OPTION_FIELDS.has(field)) {
+    return US100_OPTION_VALUES[field].includes(value) ? value : "";
+  }
+  if (field === "us100SessionETDate") {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? value : "";
+  }
+  if (["us100OprWindowComplete", "us100OprAfter0930", "us100OprTrendAligned"].includes(field)) {
+    return value === "Yes" ? "Yes" : "";
+  }
+  if (field === "us100ResearchTradeId") {
+    return String(value || "").trim().slice(0, 120);
+  }
+  if (field === "us100EntryTimeET") {
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || "")) ? value : "";
+  }
+  return String(value ?? "").trim();
+}
+function us100ResearchInputs(prefix = "") {
+  const data = {};
+  for (const [field] of US100_RESEARCH_FIELD_MAP) {
+    if (field === "us100SessionETDate") continue;
+    const node = $(prefix ? "edit" + field[0].toUpperCase() + field.slice(1) : field);
+    if (node) data[field] = sanitizedUs100ResearchField(field,
+      node.type === "checkbox" ? (node.checked ? "Yes" : "") : node.value);
+  }
+  // The live candidate uses the HSI-C contract fields, but persists its own evidence.
+  if (!prefix && setupTemplateCode(false) === US100_SETUP_C) {
+    data.us100OprWindowComplete = checked("hsiOprWindowComplete") ? "Yes" : "";
+    data.us100OprAfter0930 = checked("hsiOprAfter0930") ? "Yes" : "";
+    data.us100OprTrendAligned = checked("hsiOprTrendAligned") ? "Yes" : "";
+  }
+  for (const [high, low, width] of [
+    ["us100PorHighPoints", "us100PorLowPoints", "us100PorWidthPoints"],
+    ["us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"]
+  ]) {
+    const h = data[high], l = data[low];
+    if (h !== null && l !== null && h >= l) data[width] = Number((h - l).toFixed(6));
+  }
+  data.us100SessionETDate = $(prefix ? "editTradeDate" : "tradeDate").value;
+  if (data.us100EntryTimeET) {
+    const parts = data.us100EntryTimeET.split(":").map(Number);
+    data.us100MinutesFromCashOpen = (parts[0] - 9) * 60 + parts[1] - 30;
+  }
+  return data;
+}
+function applyUs100ResearchInputs(record, prefix = "") {
+  for (const [field] of US100_RESEARCH_FIELD_MAP) {
+    if (field === "us100SessionETDate") continue;
+    const node = $(prefix ? "edit" + field[0].toUpperCase() + field.slice(1) : field);
+    if (node) {
+      if (node.type === "checkbox") node.checked = record?.[field] === "Yes";
+      else node.value = record?.[field] ?? "";
+    }
+  }
+  syncUs100MinutesFromEntry(prefix);
+  syncUs100RangeWidths(prefix);
+}
+function syncUs100MinutesFromEntry(prefix = "") {
+  const input = $(prefix ? "editUs100EntryTimeET" : "us100EntryTimeET");
+  const minutes = $(prefix ? "editUs100MinutesFromCashOpen" : "us100MinutesFromCashOpen");
+  if (!input || !minutes) return;
+  const time = sanitizedUs100ResearchField("us100EntryTimeET", input.value);
+  if (time) {
+    const [h, m] = time.split(":").map(Number);
+    minutes.value = (h - 9) * 60 + m - 30;
+    minutes.readOnly = true;
+    minutes.title = "根據當日09:30 ET Cash Open自動計算；清除Entry Time可手動輸入。";
+  } else {
+    minutes.readOnly = false;
+    minutes.title = "Entry Time未填，可手動記錄分鐘數。";
+  }
+}
+function syncUs100RangeWidths(prefix = "") {
+  const id = key => prefix ? "edit" + key[0].toUpperCase() + key.slice(1) : key;
+  for (const [high, low, width] of [
+    ["us100PorHighPoints", "us100PorLowPoints", "us100PorWidthPoints"],
+    ["us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"]
+  ]) {
+    const hi = $(id(high)), lo = $(id(low)), result = $(id(width));
+    if (!hi || !lo || !result) continue;
+    const h = parseUs100Number(hi.value), l = parseUs100Number(lo.value);
+    if (h !== null && l !== null && h >= l) {
+      result.value = String(Number((h - l).toFixed(6)));
+      result.readOnly = true;
+      result.title = "根據獨立Range High／Low計算；清除任一價格可手動填Width。";
+    } else {
+      result.readOnly = false;
+      result.title = "缺少完整High／Low時可以手動輸入；資料不足唔會猜測。";
+    }
+    hi.setCustomValidity(h !== null && l !== null && h < l ? "Range High必須≥Range Low" : "");
+  }
+}
+const US100_ET_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York", year: "numeric", month: "2-digit",
+  day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+});
+const US100_HK_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Hong_Kong", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+});
+function us100NyWallParts(timestamp) {
+  return Object.fromEntries(US100_ET_FORMATTER.formatToParts(new Date(timestamp))
+    .filter(({type}) => ["year", "month", "day", "hour", "minute"].includes(type))
+    .map(({type, value}) => [type, Number(value)]));
+}
+function us100NyWallToEpoch(dateStr, hh, mm = 0) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || "")) return NaN;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const target = Date.UTC(y, m - 1, d, hh, mm);
+  let candidate = target;
+  for (let i = 0; i < 4; i += 1) {
+    const parts = us100NyWallParts(candidate);
+    const currentWall = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+    const difference = target - currentWall;
+    candidate += difference;
+    if (!difference) break;
+  }
+  return candidate;
+}
+function us100PorSessionSchedule(dateStr) {
+  const premarketOpen = us100NyWallToEpoch(dateStr, 4, 0);
+  const porStart = us100NyWallToEpoch(dateStr, 8, 30);
+  const cashOpen = us100NyWallToEpoch(dateStr, 9, 30);
+  const oprStart = us100NyWallToEpoch(dateStr, 9, 15);
+  if (![premarketOpen, porStart, oprStart, cashOpen].every(Number.isFinite)) return null;
+  const hk = t => US100_HK_FORMATTER.format(new Date(t));
+  const nyYear = Number(dateStr.slice(0, 4));
+  const offsetHours = Math.round((Date.UTC(nyYear, Number(dateStr.slice(5,7))-1, Number(dateStr.slice(8,10)), 9,30)-cashOpen)/3600000);
+  return {premarketOpen, porStart, oprStart, cashOpen,
+    fullPremarketHK: `${hk(premarketOpen)} – ${hk(cashOpen)}`,
+    primaryPorHK: `${hk(porStart)} – ${hk(cashOpen)}`,
+    oprHK: `${hk(oprStart)} – ${hk(cashOpen)}`,
+    cashOpenHK: hk(cashOpen),
+    nyOffsetHours: offsetHours,
+    porIncludesCashOpen: false};
+}
+function isUs100PorEtMinute(hour, minute) {
+  const t = hour * 60 + minute;
+  return t >= 8 * 60 + 30 && t < 9 * 60 + 30;
+}
+function isUs100OprEtMinute(hour, minute) {
+  const t = hour * 60 + minute;
+  return t >= 9 * 60 + 15 && t < 9 * 60 + 30;
+}
+function updateUs100PorDisplay() {
+  const panel = $("us100ResearchPanel");
+  if (!panel || panel.classList.contains("hidden")) return;
+  const dateStr = $("tradeDate").value;
+  const schedule = us100PorSessionSchedule(dateStr);
+  $("us100PorSchedule").textContent = schedule
+    ? `ET Session ${dateStr}｜Primary POR [08:30, 09:30) → HK ${schedule.primaryPorHK}｜US100-C OPR [09:15, 09:30) → HK ${schedule.oprHK}｜Full Premarket [04:00, 09:30) → HK ${schedule.fullPremarketHK}｜Cash Open → HK ${schedule.cashOpenHK}｜IANA America/New_York (UTC${schedule.nyOffsetHours})`
+    : "請先選美東Session交易日期，以顯示歷史DST對應香港時間。";
+}
+function updateUs100SetupVisibility(prefix = "") {
+  const edit = prefix === "edit";
+  const active = edit ? !$('editUs100ResearchPanel').classList.contains("hidden") : marketCode(false) === US100_MARKET;
+  const code = edit ? (loadRecords().find(r => r.id === activeRecordId)?.setupTemplate || "") : setupTemplateCode(false);
+  const isC = active && code === US100_SETUP_C;
+  $(edit ? "editUs100OprResearchFields" : "us100OprResearchFields")?.classList.toggle("hidden", !isC);
+  $(edit ? "editUs100PorResearchFields" : "us100PorResearchFields")?.classList.toggle("hidden", !active);
+  const familyText = $(edit ? "editUs100SetupFamilyStatus" : "us100SetupFamilyStatus");
+  if (familyText) familyText.textContent = !active ? "" : isC ? "US100-C｜09:15–09:30 ET OPR（獨立於POR）" :
+    code === US100_SETUP_POR ? "US100-POR｜08:30–09:30 ET Primary POR" : "Legacy US100研究紀錄";
+}
+function us100LiveOprTrendAligned() {
+  const main = stateBias($("mainState").value);
+  const secondary = stateBias(secondaryJudgeState());
+  return main !== null && main === secondary && main === tradeBias();
+}
+function updateUs100ResearchVisibility() {
+  const active = marketCode(false) === US100_MARKET;
+  $("us100ResearchPanel")?.classList.toggle("hidden", !active);
+  $("us100ResearchBanner")?.classList.toggle("hidden", !active);
+  $("us100SimulatedLabel")?.classList.toggle("hidden", !active);
+  $("us100ProductionLabel")?.classList.toggle("hidden", active);
+  // Full form accepts research only. Live Quick has no US100 instrument.
+  const liveRadio = document.querySelector('input[name="recordMode"][value="Live"]');
+  if (liveRadio) {
+    liveRadio.disabled = active;
+    if (active && liveRadio.checked) {
+      document.querySelector('input[name="recordMode"][value="Practice"]').checked = true;
+    }
+  }
+  if (active) updateUs100PorDisplay();
+  updateUs100SetupVisibility();
+}
+function updateUs100EditModePermission(record) {
+  const isResearch = isUs100Record(record);
+  const liveOption = $("editRecordMode").querySelector('option[value="Live"]');
+  liveOption.disabled = isResearch;
+  // Import can retain a pre-existing Live label without changing source data;
+  // editor may only re-save US100 as Practice/Review.
+  if (isResearch && $("editRecordMode").value === "Live") {
+    $("editRecordMode").value = "Practice";
+  }
+}
+
 const P3_CONTEXTS = {
   PB: {
     label: "P3-PB｜Pullback"
@@ -204,6 +486,7 @@ const MARKET_INSTRUMENTS = {
   HSI: ["HSI"],
   UK100: ["UK100"],
   GER40: ["GER40"],
+  US100: ["US100"],
   FX: ["EURUSD", "GBPUSD", "USDCHF"],
   XAU: ["XAUUSD"]
 };
@@ -222,10 +505,14 @@ function populateInstrumentSelect(market, preferredSymbol = "") {
   select.value = choices.includes(preferred) ? preferred : config.defaultSymbol;
 }
 
-function populateEditInstrumentSelect(recordSymbol = "") {
+function populateEditInstrumentSelect(recordSymbol = "", recordMarket = "") {
   const select = $("editSymbol");
   const current = String(recordSymbol || "").trim().toUpperCase();
-  const symbols = [...ALL_INSTRUMENTS];
+  // A record's market family never changes on edit; do not allow switching
+  // between US100 Research and an existing Production market by symbol alone.
+  const symbols = recordMarket === US100_MARKET
+    ? [US100_MARKET]
+    : ALL_INSTRUMENTS.filter(symbol => symbol !== US100_MARKET);
 
   // Older data may contain an instrument outside the new fixed choices.
   if (current && !symbols.includes(current)) {
@@ -278,6 +565,14 @@ const MARKET_CONFIG = {
     ],
     timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
   },
+  US100: {
+    label: "US100｜Research / Shadow",
+    marketType: "Index",
+    preset: "us100",
+    defaultSymbol: "US100",
+    setupCodes: ["us100_por_sweep_reclaim", "us100_opr_continuation"],
+    timeRule: "US100：僅Backtest／Practice／Review／Shadow；POR = 08:30–09:30 ET [不含09:30開市K]；Full Premarket = 04:00–09:30 ET。原V1.4 Size僅模擬，唔係正式Live Permission。"
+  },
   FX: {
     label: "外匯",
     preset: "fx",
@@ -306,6 +601,27 @@ const MARKET_CONFIG = {
 };
 
 const SETUP_DEFINITIONS = {
+  us100_por_sweep_reclaim: {
+    marketGroup: "US100_RESEARCH",
+    label: "US100-POR｜Sweep + Reclaim（Research）",
+    type: "B",
+    variant: "sweep",
+    note: "US100獨立研究分類。POR H/L Sweep＋Reclaim按通用Type B/P/Q引擎分類；POR、Full Premarket H/L均唔係新E Source，唔享有GER40 EU-A/EU-D嘅原生P2／E／Type A優惠。"
+  },
+  us100_opr_continuation: {
+    marketGroup: "US100_RESEARCH",
+    label: "US100-C｜OPR Continuation & Retest（Research）",
+    type: "C", classificationLabel: "US100-C｜OPR Continuation & Retest",
+    variant: "oprContinuation", provisional: true,
+    note: "Research only：09:15–09:30 ET OPR；09:30後Breakout／Full Reclaim、Acceptance、First Valid Retest；主判／Effective Secondary必須同向且順交易；沿用HSI-C既有OPR流程，唔新增E／P升級／Size優惠。"
+  },
+  us100_other_sweep: {
+    marketGroup: "US100_RESEARCH",
+    label: "US100-Other｜Generic Liquidity Sweep（Research）",
+    type: "B",
+    variant: "sweep",
+    note: "US100其他Liquidity Sweep：保留通用Type B／Raw P／Native Q、方向及障礙判斷；不設US100專屬Promotion。"
+  },
   hsi_opr_2b: {
     marketGroup: "HSI",
     label: "HSI-A｜OPR H／L 2B",
@@ -1747,6 +2063,7 @@ function applyMarketPreset(
     $("marketTimeRuleNote")
       .textContent =
         config.timeRule;
+    updateUs100ResearchVisibility();
   }
 }
 
@@ -1783,6 +2100,13 @@ function applyTimeframePreset(value) {
       "1H";
     $("entryTimeframe").value =
       "15M";
+  } else if (
+    value === "us100"
+  ) {
+    $("backgroundTimeframe").value = "4H";
+    $("mainTimeframe").value = "1H";
+    $("secondaryTimeframe").value = "15M";
+    $("entryTimeframe").value = "1M";
   } else if (
     value === "hsi"
   ) {
@@ -3355,19 +3679,24 @@ function evaluateBaseTrigger() {
     variant === "oprContinuation"
   ) {
     if (!checked("hsiOprWindowComplete")) {
-      addCoreFailure("HSI-C：09:15–09:30 OPR未確認完成。");
+      addCoreFailure((marketCode(false) === US100_MARKET ? "US100-C：09:15–09:30 OPR未確認完成。" : "HSI-C：09:15–09:30 OPR未確認完成。"));
     } else {
-      addPositive("HSI-C：09:15–09:30 OPR完成。");
+      addPositive((marketCode(false) === US100_MARKET ? "US100-C：09:15–09:30 OPR完成。" : "HSI-C：09:15–09:30 OPR完成。"));
     }
     if (!checked("hsiOprAfter0930")) {
-      addCoreFailure("HSI-C：Break唔係09:30後。");
+      addCoreFailure((marketCode(false) === US100_MARKET ? "US100-C：Break唔係09:30後。" : "HSI-C：Break唔係09:30後。"));
     } else {
-      addPositive("HSI-C：09:30後先Break OPR。");
+      addPositive((marketCode(false) === US100_MARKET ? "US100-C：09:30後先Break OPR。" : "HSI-C：09:30後先Break OPR。"));
     }
-    if (!checked("hsiOprTrendAligned")) {
-      addCoreFailure("HSI-C：主判＋次判Judge未雙同向，或者Trade方向未順主／次判Judge。");
+    if (!checked("hsiOprTrendAligned") ||
+      (marketCode(false) === US100_MARKET && !us100LiveOprTrendAligned())) {
+      addCoreFailure(marketCode(false) === US100_MARKET
+        ? "US100-C：主判同Effective Secondary未同向，或Trade未順主／次判。"
+        : "HSI-C：主判＋次判Judge未雙同向，或者Trade方向未順主／次判Judge。");
     } else {
-      addPositive("HSI-C：主判＋次判Judge雙同向，而且Trade方向順主／次判Judge。");
+      addPositive(marketCode(false) === US100_MARKET
+        ? "US100-C：主判／Effective Secondary／Trade三者同向。"
+        : "HSI-C：主判＋次判Judge雙同向，而且Trade方向順主／次判Judge。");
 
       const oprDirectionContext =
         $("hsiOprDirectionContext").value;
@@ -3377,6 +3706,11 @@ function evaluateBaseTrigger() {
           `HSI-C OPR Direction Context：${hsiOprDirectionContextLabel(oprDirectionContext)}。`
         );
       }
+    }
+    // US100-C also rejects a known pre-open entry regardless of manual checkbox.
+    if (marketCode(false) === US100_MARKET) {
+      const entryEt = $("us100EntryTimeET")?.value;
+      if (entryEt && entryEt < "09:30") addCoreFailure("US100-C：09:30 ET Cash Open之前不能Entry。");
     }
     evaluateBreakoutCore();
   } else if (
@@ -5370,7 +5704,9 @@ function applySetupMatrixConstraint(
     return {
       size,
       reason:
-        "HSI-C OPR Continuation & Retest屬Research／Provisional；Raw P同Execution P維持原Matrix，暫時冇E。"
+        marketCode(false) === US100_MARKET
+          ? "US100-C OPR Continuation屬Research：無專屬E／P Promotion；沿用Raw P及Execution P。"
+          : "HSI-C OPR Continuation & Retest屬Research／Provisional；Raw P同Execution P維持原Matrix，暫時冇E。"
     };
   }
 
@@ -6126,6 +6462,233 @@ function evaluateV14Overlay({
     );
 
   return overlay;
+}
+
+
+// V1.5 is strictly a derived RESEARCH layer. Frozen V1.4 rules are untouched.
+const V15_SHADOW_VERSION = "V1.5 Shadow Research";
+const V15_BROKEN_OPTIONS = ["Bullish Structure Broken", "Bearish Structure Broken"];
+const V15_BROKEN_FIELDS = [
+  ["mainTransitionBrokenStructure", "Main Transition Broken Structure", "mainState"],
+  ["originalSecondaryTransitionBrokenStructure", "Original Secondary Transition Broken Structure", "secondaryState"],
+  ["workingTransitionBrokenStructure", "Working Transition Broken Structure", "secondaryWorkingState"]
+];
+const V15_CSV_FIELDS = [
+  ["v15S1Trigger", "V1.5 S1 Trigger"],
+  ["v15S1ShadowSize", "V1.5 S1 Shadow Size"],
+  ["v15S2Trigger", "V1.5 S2 Trigger"],
+  ["v15S2ShadowSize", "V1.5 S2 Shadow Size"],
+  ["v15S3RunnerEligible", "V1.5 S3 Runner Eligible"],
+  ["v15S3RunnerResult", "V1.5 S3 Runner Result"],
+  ["v15S3RunnerShadowR", "V1.5 S3 Runner Shadow R"],
+  ["v15CombinedShadowSize", "V1.5 Combined Shadow Size"],
+  ["v15CombinedShadowR", "V1.5 Combined Shadow R"],
+  ["v15ShadowDeltaR", "V1.5 Shadow Delta R"],
+  ["v15ShadowReason", "V1.5 Shadow Reason"],
+  ["v15S1OnlyR", "V1.5 S1 Only R"],
+  ["v15S2OnlyR", "V1.5 S2 Only R"],
+  ["v15S3OnlyR", "V1.5 S3 Only R"],
+  ["v15S1Applied", "V1.5 S1 Applied"],
+  ["v15S2Applied", "V1.5 S2 Applied"],
+  ["v15Blocked", "V1.5 Blocked"],
+  ["v15RunnerEvidence", "V1.5 Runner Path Evidence"],
+  ["v15RunnerRfExitR", "V1.5 Runner RF Exit Unit R"],
+  ["v15RunnerUnitROverride", "V1.5 Runner Verified Unit R"],
+  ["v15RunnerNote", "V1.5 Runner Evidence Notes"],
+  ["v15ShadowResearchVersion", "V1.5 Shadow Research Version"],
+  ["marketRouteCode", "V1.5 Source Matrix Route Code"]
+];
+function v15ValidBroken(value) { return V15_BROKEN_OPTIONS.includes(value) ? value : ""; }
+function v15BrokenForRecord(record, key, stateKey) {
+  return isTransition(record?.[stateKey]) ? v15ValidBroken(record?.[key]) : "";
+}
+function syncV15TransitionUI(editMode=false) {
+  for (const [key, , stateKey] of V15_BROKEN_FIELDS) {
+    const row = $(editMode ? "edit"+key[0].toUpperCase()+key.slice(1)+"Row" : key+"Row");
+    if (!row) continue;
+    const state = editMode ? (loadRecords().find(r=>r.id===activeRecordId)?.[stateKey]||"") : $(stateKey).value;
+    const gapHidden = key === "workingTransitionBrokenStructure" && !editMode && $("structuralGapMode").value !== "on";
+    row.classList.toggle("hidden", !isTransition(state) || gapHidden);
+  }
+}
+function v15ReadBrokenInputs(editMode=false) {
+  return Object.fromEntries(V15_BROKEN_FIELDS.map(([key])=>{
+    const id = editMode ? "edit"+key[0].toUpperCase()+key.slice(1) : key;
+    return [key,v15ValidBroken($(id)?.value)];
+  }));
+}
+function v15ReadRunnerInputs(editMode=false) {
+  const prefix = editMode ? "edit" : "";
+  const id = key => prefix ? prefix+key[0].toUpperCase()+key.slice(1) : key;
+  return {
+    v15RunnerEvidence: $(id("v15RunnerEvidence"))?.value || "",
+    v15RunnerRfExitR: v15Number($(id("v15RunnerRfExitR"))?.value),
+    v15RunnerUnitROverride: v15Number($(id("v15RunnerUnitROverride"))?.value),
+    v15RunnerNote: ($(id("v15RunnerNote"))?.value||"").trim()
+  };
+}
+function v15RestoreResearchInputs(record, editMode=false) {
+  for (const [key] of V15_BROKEN_FIELDS) {
+    const id = editMode ? "edit"+key[0].toUpperCase()+key.slice(1) : key;
+    if ($(id)) $(id).value=v15ValidBroken(record?.[key]);
+  }
+  for (const key of ["v15RunnerEvidence", "v15RunnerRfExitR", "v15RunnerUnitROverride", "v15RunnerNote"]) {
+    const id = editMode ? "edit"+key[0].toUpperCase()+key.slice(1) : key;
+    if ($(id)) $(id).value=record?.[key]??"";
+  }
+  syncV15TransitionUI(editMode);
+}
+function v15Number(raw) {
+  if (raw === null || raw === undefined || String(raw).trim()==="") return null;
+  const n=Number(raw); return Number.isFinite(n)?n:null;
+}
+function v15StateIsConfirmed(state) { return isHealthy(state) || isWeak(state); }
+function v15TradeBias(dir) { return dir==="Long"?"up":dir==="Short"?"down":null; }
+function v15Q2Codes(record) {
+  if (Array.isArray(record?.q2SubtypeCodes)) return record.q2SubtypeCodes;
+  return String(record?.q2Subtype||"").toUpperCase().split(/[^A-Z]+/).filter(Boolean);
+}
+function v15EffectiveState(record) {
+  return recordSecondaryJudgeInfo(record).effectiveState;
+}
+function evaluateV15Shadow(source) {
+  const base=v15Number(source?.v13BaseSize ?? source?.v13ProductionSize ?? source?.finalSize)??0;
+  const prod=v15Number(source?.v14ProductionSize ?? source?.finalSize)??0;
+  const main=source?.mainState||"";
+  const original=source?.secondaryState||source?.secondaryOfficialState||"";
+  const effective=v15EffectiveState(source);
+  const dir=v15TradeBias(source?.direction);
+  const mainBias=stateBias(main), origBias=stateBias(original), effectiveBias=stateBias(effective);
+  const rawP=recordRawP(source);
+  const p3=recordP3Context(source);
+  const nativeQ=source?.nativeQ||source?.baseTrigger||"";
+  const s1=prod>0 && rawP==="P3" && p3==="EXT" && dir!==null && mainBias!==null && effectiveBias!==null &&
+    mainBias===effectiveBias && dir===mainBias &&
+    (v15StateIsConfirmed(main)||isTransition(main)) && (v15StateIsConfirmed(effective)||isTransition(effective)) &&
+    (!isHealthy(main)||!isHealthy(effective));
+  // S2 ALWAYS reads ORIGINAL secondary; a Structural Gap does not replace it.
+  const s2=prod>0 && isHealthy(main) && isTransition(original) && origBias!==null &&
+    mainBias!==null && mainBias!==origBias && dir===mainBias;
+  // STRICT Direction Conflict only: V1.4 route=conflictMain with both CONFIRMED directional trends.
+  // Excludes Mixed Transition, single-layer Transition and T0; never infer it from opposite biases alone.
+  // Older V1.4 CSV exports stored the exact route LABEL but not the route code.
+  // Accept only the exact legacy strict-conflict label; never infer from opposing biases alone.
+  const legacyStrictConflict=!source?.marketRouteCode &&
+    String(source?.marketRoute||"").startsWith("方向衝突｜順主判");
+  const strictConflict=(source?.marketRouteCode==="conflictMain"||legacyStrictConflict) &&
+    v15StateIsConfirmed(main) && v15StateIsConfirmed(effective) &&
+    mainBias!==null && effectiveBias!==null && mainBias!==effectiveBias;
+  const s3=prod>0 && rawP==="P3" && p3==="PB" && nativeQ==="Q3" &&
+    strictConflict && dir===mainBias && dir!==effectiveBias;
+  const alreadyAdjusted=Math.abs(prod-base)>1e-8;
+  const s1Size=s1 && !alreadyAdjusted?downgradeOneLevel(prod):prod;
+  const s2Size=s2 && !alreadyAdjusted?upgradeOneLevel(prod):prod;
+  const conflict=Boolean(s1&&s2);
+  const combinedSize=(alreadyAdjusted||conflict)?prod:s1?s1Size:s2?s2Size:prod;
+  const reason=prod<=0?"Hard 0 locked":alreadyAdjusted&&(s1||s2)?"Blocked by Production Adjustment":
+    conflict?"S1/S2 Conflict":s1?"S1 EXT Weak Alignment -1":s2?"S2 Original Secondary Transition +1": "No V1.5 sizing change";
+  const entry=source?.entryStatus==="Entry";
+  const rawActual=v15Number(source?.actualR ?? source?.profitR);
+  const unit=entry && prod>0 && rawActual!==null?rawActual/prod:null;
+  const ordinaryR=size=>unit===null?null:Number((unit*size).toFixed(8));
+  let runnerResult=s3?"Unresolved":"N/A", runnerUnit=null;
+  let runnerEvidenceBasis="N/A";
+  if(s3 && entry) {
+    // Journal contract: MFE is the highest R reached BEFORE the original RF.
+    // Therefore MFE >= 4 proves 2R -> 4R happened before RF. It takes precedence
+    // over stale/manual paths; an MFE value alone is NOT sufficient to reconstruct
+    // partial exits, Reduce, or other non-standard position management.
+    const mfe=v15Number(source?.mfeR);
+    const proven4FromMfe=mfe!==null && mfe>=4;
+    const evidence=proven4FromMfe?"reached4":(source?.v15RunnerEvidence||"");
+    runnerEvidenceBasis=proven4FromMfe?"Auto: pre-RF MFE >= 4R":
+      evidence?"Manual: "+evidence:"Missing";
+    const override=v15Number(source?.v15RunnerUnitROverride);
+    const specialManagement=(["Reduce","Exit"].includes(source?.postEntryAction)) ||
+      (source?.tpPlan && source.tpPlan!=="2R全平");
+    if(evidence==="reached4") {
+      runnerResult="4R";
+      runnerUnit=specialManagement?override:(override??3);
+    } else if(evidence==="reachedRf") {
+      runnerResult="RF";
+      const rfExit=v15Number(source?.v15RunnerRfExitR);
+      runnerUnit=override ?? (specialManagement||rfExit===null?null:1+0.5*rfExit);
+    } else if(evidence==="notReached") {
+      runnerResult="Not Reached";
+      runnerUnit=unit;
+    }
+    // Keep confirmed 4R hit visible even if actual Shadow R remains unresolved
+    // due to a missing verified unit-R for special management.
+    if(runnerResult!=="4R" && runnerResult!=="Unresolved" && runnerUnit===null) runnerResult="Unresolved";
+  } else if(s3 && !entry) {
+    runnerResult="N/A"; // Not an executed trade: no simulated P/L.
+  }
+  const unresolved=s3 && entry && (runnerResult==="Unresolved" || runnerUnit===null);
+  const s3OnlyR=unresolved?null:s3 && entry?runnerUnit===null?null:prod*runnerUnit:ordinaryR(prod);
+  const combinedR=unresolved?null:s3 && entry?runnerUnit===null?null:combinedSize*runnerUnit:ordinaryR(combinedSize);
+  return {
+    v15ShadowResearchVersion: V15_SHADOW_VERSION,
+    v15S1Trigger:!!s1, v15S1ShadowSize:s1Size, v15S1Applied:!!s1&&!alreadyAdjusted&&s1Size!==prod,
+    v15S2Trigger:!!s2, v15S2ShadowSize:s2Size, v15S2Applied:!!s2&&!alreadyAdjusted&&s2Size!==prod,
+    v15S3RunnerEligible:!!s3, v15S3RunnerResult:runnerResult,
+    v15RunnerEvidenceBasis:runnerEvidenceBasis,
+    v15S3RunnerShadowR:s3?s3OnlyR:null,
+    v15S1OnlyR:ordinaryR(s1Size),v15S2OnlyR:ordinaryR(s2Size),v15S3OnlyR:s3OnlyR,
+    v15CombinedShadowSize:combinedSize,v15CombinedShadowR:combinedR,
+    v15ShadowDeltaR:combinedR===null||rawActual===null?null:Number((combinedR-rawActual).toFixed(8)),
+    v15ShadowReason:reason,v15Blocked:alreadyAdjusted&&(s1||s2)||conflict,
+    v15RunnerUnresolved:unresolved
+  };
+}
+function v15Snapshot(record) {
+  // Derived from the frozen record snapshot. Never write over Production Size or Actual R.
+  return evaluateV15Shadow(record);
+}
+function v15SaveSnapshot(record) {
+  Object.assign(record,v15Snapshot(record));
+  // Only research version changes; the existing Frozen Matrix and Production identity stay unchanged.
+  record.shadowResearchVersion=V15_SHADOW_VERSION;
+}
+function v15Format(value, suffix="") { return v15Number(value)===null?"N/A":`${Number(value).toFixed(2)}${suffix}`; }
+function renderV15Panel(record, editMode=false) {
+  const prefix=editMode?"edit":"";
+  const id=key=>prefix?prefix+key[0].toUpperCase()+key.slice(1):key;
+  const panel=$(id("v15ShadowValues"));if(!panel) return;
+  const v=v15Snapshot(record);
+  panel.innerHTML=[
+    ["V1.3 Base / V1.4 Production",`${safeSizeLabel(record.v13BaseSize??record.v13ProductionSize??record.finalSize)} / ${safeSizeLabel(record.v14ProductionSize??record.finalSize)}`],
+    ["S1 EXT Weak Alignment",`${v.v15S1Trigger?"Yes":"No"}｜${safeSizeLabel(v.v15S1ShadowSize)}`],
+    ["S2 Original Secondary",`${v.v15S2Trigger?"Yes":"No"}｜${safeSizeLabel(v.v15S2ShadowSize)}`],
+    ["S3 Strict Conflict Runner",`${v.v15S3RunnerEligible?"Yes":"No"}｜${v.v15S3RunnerResult}｜${v15Format(v.v15S3RunnerShadowR,"R")}${v.v15RunnerUnresolved?"（R Unresolved）":""}`],
+    ["S3 Runner Evidence",v.v15S3RunnerEligible?v.v15RunnerEvidenceBasis:"N/A"],
+    ["Combined Shadow Size / R",`${safeSizeLabel(v.v15CombinedShadowSize)} / ${v15Format(v.v15CombinedShadowR,"R")}`],
+    ["Delta R vs Production", v15Format(v.v15ShadowDeltaR,"R")],
+    ["Shadow Reason",v.v15ShadowReason]
+  ].map(([label,val])=>`<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(val)}</strong></div>`).join("");
+}
+function currentV15EditPreviewRecord() {
+  const record=loadRecords().find(r=>r.id===activeRecordId);
+  if(!record) return null;
+  return {
+    ...record,...v15ReadRunnerInputs(true),
+    mfeR:optionalNumberFromInput("editMfeR"),
+    actualR:profitRForEntryStatus($("editEntryStatus").value,optionalNumberFromInput("editProfitR"))
+  };
+}
+function currentV15PreviewRecord() {
+  if(!currentDecision) return null;
+  return {
+    ...currentDecision,
+    mainState:$("mainState").value,secondaryState:$("secondaryState").value,
+    secondaryWorkingState:$("secondaryWorkingState").value,
+    direction:direction(),marketRouteCode:currentDecision.marketRouteCode,
+    rawP:currentDecision.rawPosition,p3Context:$("p3Context").value,
+    nativeQ:currentDecision.nativeQ,
+    entryStatus:$("entryStatus").value,
+    actualR:profitRForEntryStatus($("entryStatus").value,optionalNumberFromInput("profitR")),
+    mfeR:optionalNumberFromInput("mfeR"),
+    ...v15ReadRunnerInputs()
+  };
 }
 
 function v14RunnerResultLabel(
@@ -7824,9 +8387,7 @@ function recordAutoValidCandidate(
 function recordAutoReachedTP2(
   record
 ) {
-  return autoReachedTP2Value(
-    record?.mfeR
-  );
+  return autoReachedTP2ForMarket(record?.mfeR, isUs100Record(record) ? US100_MARKET : "");
 }
 
 function syncAutoJournalFields() {
@@ -7841,11 +8402,7 @@ function syncAutoJournalFields() {
   }
 
   $("reachedTP2").value =
-    autoReachedTP2Value(
-      optionalNumberFromInput(
-        "mfeR"
-      )
-    );
+    autoReachedTP2ForMarket(optionalNumberFromInput("mfeR"),marketCode(false));
 
   syncReachedRFFromTimeInput(false);
   syncTpPlanV14ShadowNote();
@@ -7958,6 +8515,8 @@ function updateShadowResearchPreview() {
   );
 
   syncDeepRFShadowUI(false);
+  const v15Record=currentV15PreviewRecord();
+  if(v15Record) renderV15Panel(v15Record);
 }
 
 function evaluateDecision(
@@ -8678,7 +9237,7 @@ function renderDecision(decision) {
   $("resultV13BaseSize").textContent =
     SIZE_LABELS[decision.v13BaseSize];
   $("resultV14ProductionSize").textContent =
-    `${SIZE_LABELS[decision.v14ProductionSize]}｜Production`;
+    `${SIZE_LABELS[decision.v14ProductionSize]}｜${marketCode(false) === US100_MARKET ? "Simulated / Research only" : "Production"}`;
   $("resultV14ShadowSize").textContent =
     `${SIZE_LABELS[decision.v14ShadowSize]}｜Shadow`;
   $("resultV14SizeRules").textContent =
@@ -8688,9 +9247,7 @@ function renderDecision(decision) {
       ? decision.v14RunnerPlan
       : "N/A";
   $("finalSize").textContent =
-    SIZE_LABELS[
-      decision.v14ProductionSize
-    ];
+    `${SIZE_LABELS[decision.v14ProductionSize]}${marketCode(false) === US100_MARKET ? "｜Simulation Only" : ""}`;
 
   $("decisionExplanations").innerHTML = [
     renderListBlock(
@@ -9011,6 +9568,7 @@ function updateCounterP2PermissionUI(
 }
 
 function updateInterface() {
+  syncV15TransitionUI(false);
   const timeframes =
     timeframeValues();
 
@@ -9298,6 +9856,16 @@ function updateInterface() {
         "trendPullback"
     );
 
+  if (variant === "oprContinuation") {
+    const isUs = marketCode(false) === US100_MARKET;
+    const header = $("oprContinuationHeader");
+    if (header) header.textContent = isUs ? "US100-C｜OPR Continuation & Retest (Research)" : "HSI-C｜OPR Continuation & Retest";
+    const desc = $("oprContinuationDescription");
+    if (desc) desc.textContent = isUs
+      ? "09:15–09:30 ET OPR（不包含09:30開市K）；必須主判／Effective Secondary同向並順Trade；09:30後Breakout或Full Reclaim + Acceptance + First Valid Retest，無額外E／P優惠。"
+      : "主判＋次判Judge必須雙同向；Gap Off次判Judge＝Main，Gap On＝Working。Trade亦必須順主／次判Judge；OPR Direction Context只作Subtype Research，唔改Frozen Size。";
+  }
+  updateUs100SetupVisibility();
   $("hsiOprContinuationPanel")
     .classList.toggle(
       "hidden",
@@ -10205,6 +10773,11 @@ async function saveDecision(event) {
 
   const tradeDate = $("tradeDate").value;
 
+  if (marketCode(false) === US100_MARKET && recordMode() === "Live") {
+    showToast("US100只限Practice／Review／Shadow，唔可儲存Live Production");
+    return;
+  }
+
   if (!tradeDate) {
     showToast("請選擇交易日期");
     $("tradeDate").focus();
@@ -10269,7 +10842,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.36",
+      "PracticeJournal-V1.30.40",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r44",
     matrixVersion:
@@ -10284,6 +10857,9 @@ async function saveDecision(event) {
         marketCode(false)
       ].label,
     symbol,
+    marketResearchStatus: marketCode(false) === US100_MARKET
+      ? US100_RESEARCH_STATUS : US100_PRODUCTION_STATUS,
+    ...(marketCode(false) === US100_MARKET ? us100ResearchInputs() : {}),
     setupTemplate:
       currentAsia2B.setupTemplate,
     setupTemplateLabel:
@@ -10801,9 +11377,7 @@ async function saveDecision(event) {
         ? "Yes"
         : $("reachedRF").value,
     reachedTP2:
-      autoReachedTP2Value(
-        mfeRValue
-      ),
+      autoReachedTP2ForMarket(mfeRValue, marketCode(false)),
     hasImage:
       pendingImageBlobs.length > 0,
     imageCount:
@@ -10814,6 +11388,9 @@ async function saveDecision(event) {
     note:
       $("note").value.trim()
   };
+
+  Object.assign(record, v15ReadBrokenInputs(), v15ReadRunnerInputs());
+  v15SaveSnapshot(record);
 
   const records = loadRecords();
   records.unshift(record);
@@ -10870,6 +11447,8 @@ async function saveDecision(event) {
   $("reachedRF").value = "No";
   $("reachedTP2").value = "No";
   $("note").value = "";
+  if (marketCode(false) === US100_MARKET) applyUs100ResearchInputs({});
+  v15RestoreResearchInputs({});
 
   syncProfitRWithEntryStatus(
     false
@@ -10877,7 +11456,9 @@ async function saveDecision(event) {
   updateShadowResearchPreview();
   renderHistory();
   showToast(
-    "已儲存全市場Matrix紀錄"
+    marketCode(false) === US100_MARKET
+      ? "US100 Research已儲存｜紀錄庫揀 Research / Shadow 查看"
+      : "已儲存全市場Matrix紀錄"
   );
 }
 
@@ -11621,6 +12202,213 @@ function sortHistoryRecords(
   return sorted;
 }
 
+
+function us100ResearchExecutionKey(record) {
+  if (!isUs100Record(record)) return `production:${record.id || ""}`;
+  const explicit = String(record.us100ResearchTradeId || "").trim();
+  if (explicit) return `id:${explicit}`;
+  const date = record.us100SessionETDate || recordTradeDate(record);
+  const time = String(record.us100EntryTimeET || "").trim();
+  const dir = record.direction;
+  // Never infer two different trades are identical when exact Entry ET is missing.
+  if (date && time && (dir === "Long" || dir === "Short"))
+    return `entry:${date}|${time}|${dir}`;
+  return `row:${record.id || record.createdAt || "unidentified"}`;
+}
+function us100DeduplicateForPerformance(records) {
+  const buckets = new Map(), result = [];
+  for (const record of records) {
+    if (!isUs100Record(record) || record.entryStatus !== "Entry") {
+      result.push(record); continue;
+    }
+    const key = us100ResearchExecutionKey(record);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(record);
+  }
+  for (const group of buckets.values()) {
+    if (group.length === 1) { result.push(group[0]); continue; }
+    const actuals = group.map(r => parseUs100Number(r.actualR ?? r.profitR));
+    const known = actuals.filter(v => v !== null);
+    // Mismatched execution outcomes are not reliable enough for a merged R total.
+    // Keep separate setup views unchanged and show the mismatch count for reconciliation.
+    if (new Set(known).size > 1) continue;
+    const preferred = group.find(r => us100SetupFamily(r) === US100_SETUP_POR) || group[0];
+    result.push(preferred);
+  }
+  return result;
+}
+function us100DuplicatedConflicts(records) {
+  const seen = new Map(), conflicts = [];
+  for (const r of records) {
+    if (!isUs100Record(r) || r.entryStatus !== "Entry") continue;
+    const key = us100ResearchExecutionKey(r);
+    const prior = seen.get(key);
+    if (!prior) { seen.set(key,r); continue; }
+    const a = parseUs100Number(prior.actualR ?? prior.profitR);
+    const b = parseUs100Number(r.actualR ?? r.profitR);
+    if (a !== null && b !== null && a !== b) conflicts.push(key);
+  }
+  return conflicts;
+}
+function us100ResearchSetupView(records, view) {
+  if (view === "por") return records.filter(r => isUs100Record(r) && us100SetupFamily(r) === US100_SETUP_POR);
+  if (view === "opr") return records.filter(r => isUs100CRecord(r));
+  if (view === "legacy") return records.filter(r => isUs100Record(r) && ![US100_SETUP_POR, US100_SETUP_C].includes(us100SetupFamily(r)));
+  return us100DeduplicateForPerformance(records.filter(isUs100Record));
+}
+function us100ResearchFiltersMatch(record) {
+  const pairs = [
+    ["researchFilterPremarket", "us100FullPremarketSwept"],
+    ["researchFilterSequence", "us100PorSweepSequence"],
+    ["researchFilter0830News", "us100MajorNews0830"],
+    ["researchFilterGap", "us100OpeningGapDirection"],
+    ["researchFilter1000News", "us100News1000"]
+  ];
+  const anyFilters = [
+    ...pairs.map(([id]) => $(id).value),
+    ...["researchFilterWidthMin", "researchFilterWidthMax", "researchFilterMinutesMin",
+       "researchFilterMinutesMax", "researchFilter1000Event", "researchFilterOprDirection"].map(id => $(id).value.trim())
+  ].some(Boolean);
+  if (!anyFilters) return true;
+  if (!isUs100Record(record)) return false;
+  for (const [id, field] of pairs) {
+    if ($(id).value && us100ResearchText(record, field) !== $(id).value) return false;
+  }
+  for (const [id, field, limit] of [
+    ["researchFilterWidthMin", "us100PorWidthPoints", "min"],
+    ["researchFilterWidthMax", "us100PorWidthPoints", "max"],
+    ["researchFilterMinutesMin", "us100MinutesFromCashOpen", "min"],
+    ["researchFilterMinutesMax", "us100MinutesFromCashOpen", "max"]
+  ]) {
+    if ($(id).value.trim() === "") continue;
+    const n = parseUs100Number(record[field]);
+    if (n === null || (limit === "min" ? n < Number($(id).value) : n > Number($(id).value))) return false;
+  }
+  const opr = $("researchFilterOprDirection").value;
+  if (opr && record.oprDirectionContext !== opr) return false;
+  const event = $("researchFilter1000Event").value.trim().toLowerCase();
+  if (event && !String(record.us100News1000Event || "").toLowerCase().includes(event)) return false;
+  return true;
+}
+function updateUs100ResearchHistoryScope() {
+  const scope = $("historyResearchScope").value;
+  $("us100HistoryResearchFilters").classList.toggle("hidden", scope === "Production");
+}
+
+
+const V15_VERSIONS=[
+  ["Production","Production"], ["S1 Only","v15S1OnlyR"], ["S2 Only","v15S2OnlyR"],
+  ["S3 Only","v15S3OnlyR"], ["Combined","v15CombinedShadowR"]
+];
+function v15GroupValue(record, group, shadow) {
+  if(group==="all")return "All";
+  if(group==="backtestPeriod"){
+    const d=recordTradeDate(record);if(!/^\d{4}-\d{2}/.test(d))return "Missing";
+    return `${d.slice(0,4)} H${Number(d.slice(5,7))<=6?1:2}`;
+  }
+  if(group==="rawP")return recordRawP(record)||"Missing";
+  if(group==="p3Context")return recordP3Context(record)||"Missing";
+  if(group==="effectiveSecondary")return v15EffectiveState(record)||"Missing";
+  if(group==="v15S1Trigger")return shadow.v15S1Trigger?"Yes":"No";
+  if(group==="v15S2Trigger")return shadow.v15S2Trigger?"Yes":"No";
+  if(group==="v15S3RunnerEligible")return shadow.v15S3RunnerEligible?"Yes":"No";
+  if(["mainTransitionBrokenStructure","originalSecondaryTransitionBrokenStructure","workingTransitionBrokenStructure"].includes(group)){
+    const match=V15_BROKEN_FIELDS.find(([key])=>key===group);
+    return v15BrokenForRecord(record,group,match[2])||"Missing";
+  }
+  return String(record[group]??"")||"Missing";
+}
+function v15AnalyticsMetric(items, version) {
+  const samples=[],unresolved=[];
+  let trigger=0, applied=0, blocked=0, eligibleCount=0;
+  for(const {record,shadow} of items){
+    const actual=v15Number(record?.actualR??record?.profitR);
+    if(record.entryStatus!=="Entry" || actual===null)continue;
+    const prod=v15Number(record.v14ProductionSize??record.finalSize)??0;
+    if(prod<=0)continue;
+    let triggered=false, size=prod;
+    if(version==="S1 Only") {triggered=shadow.v15S1Trigger;size=shadow.v15S1ShadowSize;}
+    if(version==="S2 Only") {triggered=shadow.v15S2Trigger;size=shadow.v15S2ShadowSize;}
+    if(version==="S3 Only")triggered=shadow.v15S3RunnerEligible;
+    if(version==="Combined")triggered=shadow.v15S1Trigger||shadow.v15S2Trigger||shadow.v15S3RunnerEligible;
+    if(triggered)trigger++;
+    if(version==="S1 Only"){
+      if(triggered&&size!==prod)applied++;
+      if(triggered&&shadow.v15ShadowReason==="Blocked by Production Adjustment")blocked++;
+    }else if(version==="S2 Only"){
+      if(triggered&&size!==prod)applied++;
+      if(triggered&&shadow.v15ShadowReason==="Blocked by Production Adjustment")blocked++;
+    }else if(version==="S3 Only"){
+      if(triggered&&!shadow.v15RunnerUnresolved)applied++;
+    }else if(version==="Combined"){
+      if((triggered&&shadow.v15CombinedShadowSize!==prod) ||
+        (shadow.v15S3RunnerEligible&&!shadow.v15RunnerUnresolved))applied++;
+      if(shadow.v15Blocked)blocked++;
+    }
+    if(shadow.v15S3RunnerEligible)eligibleCount++;
+    const val=version==="Production"?actual:shadow[V15_VERSIONS.find(v=>v[0]===version)[1]];
+    if(v15Number(val)===null){unresolved.push(record);continue;}
+    const targetSize=version==="S1 Only"?shadow.v15S1ShadowSize:version==="S2 Only"?shadow.v15S2ShadowSize:version==="Combined"?shadow.v15CombinedShadowSize:prod;
+    const norm=targetSize>0?Number(val)/targetSize:null;
+    samples.push({record,r:Number(val),unit:norm});
+  }
+  const values=samples.map(s=>s.r), sorted=values.slice().sort((a,b)=>a-b);
+  const total=values.reduce((s,v)=>s+v,0);
+  const gp=values.filter(v=>v>0).reduce((s,v)=>s+v,0);
+  const gl=-values.filter(v=>v<0).reduce((s,v)=>s+v,0);
+  const normal=samples.map(s=>s.unit).filter(Number.isFinite);
+  const mfes=samples.map(s=>v15Number(s.record.mfeR)).filter(v=>v!==null);
+  const maes=samples.map(s=>v15Number(s.record.maeR)).filter(v=>v!==null);
+  const mean=xs=>xs.length?xs.reduce((sum,v)=>sum+v,0)/xs.length:null;
+  const mid=xs=> {if(!xs.length)return null;const sorted=xs.slice().sort((a,b)=>a-b);const i=Math.floor(sorted.length/2);return sorted.length%2?sorted[i]:(sorted[i-1]+sorted[i])/2;};
+  const chronological=samples.slice().sort((a,b)=>(recordTradeDate(a.record)||"").localeCompare(recordTradeDate(b.record)||"") ||
+    String(a.record.createdAt||"").localeCompare(String(b.record.createdAt||"")) ||
+    String(a.record.id||"").localeCompare(String(b.record.id||"")));
+  let equity=0,peak=0,dd=0;
+  for(const row of chronological){equity+=row.r;peak=Math.max(peak,equity);dd=Math.max(dd,peak-equity);}
+  return {
+    count:samples.length,trigger,applied,blocked,unresolved:unresolved.length,
+    wins:values.filter(v=>v>0).length, losses:values.filter(v=>v<0).length,be:values.filter(v=>v===0).length,
+    total,normMean:mean(normal),grossProfit:gp,grossLoss:gl,
+    pf:gl>0?gp/gl:gp>0?Infinity:null,dd,
+    mfeMean:mean(mfes),mfeMedian:mid(mfes),maeMean:mean(maes),
+    mfe2:mfes.filter(x=>x>=2).length,mfe4:mfes.filter(x=>x>=4).length,
+    delta:version==="Production"?0:samples.reduce((sum,s)=>sum+s.r-(v15Number(s.record.actualR??s.record.profitR)??0),0)
+  };
+}
+function renderV15Analytics(records) {
+  const target=$("v15AnalyticsResult");if(!target)return;
+  const group=$("v15GroupBy").value;
+  const versionFilter=$("v15VersionFilter").value;
+  const triggerFilter=$("v15TriggerFilter").value;
+  const groups=new Map();
+  for(const record of records){
+    const shadow=v15Snapshot(record);
+    if(triggerFilter==="s1"&&!shadow.v15S1Trigger)continue;
+    if(triggerFilter==="s2"&&!shadow.v15S2Trigger)continue;
+    if(triggerFilter==="s3"&&!shadow.v15S3RunnerEligible)continue;
+    if(triggerFilter==="blocked"&&!shadow.v15Blocked)continue;
+    if(triggerFilter==="unresolved"&&!shadow.v15RunnerUnresolved)continue;
+    const key=v15GroupValue(record,group,shadow);
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push({record,shadow});
+  }
+  const rows=[];
+  for(const [key,items] of [...groups.entries()].sort(([a],[b])=>a.localeCompare(b))){
+    for(const [label] of V15_VERSIONS){
+      if(versionFilter!=="all"&&versionFilter!==label)continue;
+      const m=v15AnalyticsMetric(items,label);
+      const format=(v,d=2)=>v===null?"—":Number.isFinite(v)?v.toFixed(d):"∞";
+      rows.push(`<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(label)}</td><td>${m.count}</td><td>${m.trigger}</td><td>${m.applied}</td><td>${m.blocked}</td><td>${m.unresolved}</td><td>${m.wins}/${m.losses}/${m.be}</td><td>${format(m.total)}</td><td>${format(m.normMean)}</td><td>${format(m.pf)}</td><td>${format(m.grossProfit)}/${format(m.grossLoss)}</td><td>${format(m.dd)}</td><td>${format(m.mfeMedian)}/${format(m.mfeMean)}</td><td>${format(m.maeMean)}</td><td>${m.mfe2}/${m.mfe4}</td><td>${format(m.delta)}</td></tr>`);
+    }
+  }
+  target.innerHTML=rows.length?`<table class="v15-stats-table"><thead><tr>
+    <th>Group</th><th>Version</th><th>Resolved Entry</th><th>Trigger</th><th>Applied</th><th>Blocked</th><th>Unresolved</th>
+    <th>W/L/BE</th><th>Total R</th><th>Avg Norm R</th><th>PF</th><th>Gross +/−</th><th>Max DD R</th>
+    <th>MFE Median/Mean</th><th>MAE Mean</th><th>MFE ≥2 / ≥4</th><th>Delta R</th>
+  </tr></thead><tbody>${rows.join("")}</tbody></table>`:`<p class="state-note">冇符合條件嘅研究紀錄。</p>`;
+}
+
 function clearHistoryFilters() {
   document.querySelectorAll(
     "[data-history-mode-filter], [data-history-symbol-filter]"
@@ -11630,6 +12418,12 @@ function clearHistoryFilters() {
 
   $("historyEntryFilter").value =
     "All";
+  $("historyResearchScope").value = "Production";
+  $("researchFilterSetupView").value = "all-dedup";
+  $("researchFilterOprDirection").value = "";
+  $("v15GroupBy").value="all";$("v15VersionFilter").value="all";$("v15TriggerFilter").value="all";
+  for (const node of $("us100HistoryResearchFilters").querySelectorAll("input,select")) node.value = "";
+  updateUs100ResearchHistoryScope();
   $("historyDateFrom").value =
     "";
   $("historyDateTo").value =
@@ -11641,6 +12435,17 @@ function clearHistoryFilters() {
 
 function renderHistory() {
   const allRecords = loadRecords();
+  const researchScope = $("historyResearchScope").value;
+  // Default and All scopes report legacy Production-only metrics. US100 has its own scope.
+  const setupView = $("researchFilterSetupView").value;
+  const rawUs100 = allRecords.filter(isUs100Record);
+  const statRecords = researchScope === "Research"
+    ? us100ResearchSetupView(rawUs100, setupView)
+    : allRecords.filter(isProductionRecord);
+  $("statsScopeNote").textContent = researchScope === "Research"
+    ? `US100 ${setupView === "por" ? "POR Only" : setupView === "opr" ? "US100-C Only" : setupView === "legacy" ? "Legacy" : "All Research｜Deduplicated"}｜${statRecords.length}筆；${us100DuplicatedConflicts(rawUs100).length}組重複Entry收益不一致需核對。模擬Size／R並非Production。`
+    : "Production統計：只計原有市場；US100 Research / Shadow永遠排除，即使篩選為全部紀錄。";
+  updateUs100ResearchHistoryScope();
 
   const sequenceMap =
     recordSequenceMap(
@@ -11648,30 +12453,30 @@ function renderHistory() {
     );
 
   $("statCount").textContent =
-    allRecords.length;
+    statRecords.length;
   $("statEntry").textContent =
-    allRecords.filter(
+    statRecords.filter(
       (record) =>
         record.entryStatus === "Entry"
     ).length;
   $("statMiss").textContent =
-    allRecords.filter(
+    statRecords.filter(
       (record) =>
         record.entryStatus === "Miss"
     ).length;
   $("statSkip").textContent =
-    allRecords.filter(
+    statRecords.filter(
       (record) =>
         record.entryStatus === "Skip"
     ).length;
   $("statLive").textContent =
-    allRecords.filter(
+    statRecords.filter(
       (record) =>
         record.recordMode === "Live"
     ).length;
 
   const validCandidates =
-    allRecords.filter(
+    statRecords.filter(
       (record) =>
         recordAutoValidCandidate(
           record
@@ -11681,7 +12486,7 @@ function renderHistory() {
     validCandidates;
 
   const winRateTrades =
-    allRecords.filter(
+    statRecords.filter(
       (record) =>
         record.entryStatus === "Entry" &&
         Number.isFinite(record.profitR) &&
@@ -11708,7 +12513,7 @@ function renderHistory() {
   }
 
   const recordsWithR =
-    allRecords.filter(
+    statRecords.filter(
       (record) =>
         Number.isFinite(
           recordProfitR(
@@ -11736,20 +12541,15 @@ function renderHistory() {
   }
 
   const rfApplicable =
-    allRecords.filter(
+    statRecords.filter(
       (record) =>
         record.reachedRF !== "N/A"
     );
 
   const tp2Applicable =
-    allRecords.filter(
-      (record) =>
-        Number.isFinite(
-          Number(
-            record.mfeR
-          )
-        )
-    );
+    statRecords.filter(record => isUs100Record(record)
+      ? us100Tp2FromMfe(record.mfeR) !== ""
+      : Number.isFinite(Number(record.mfeR)));
 
   if (rfApplicable.length > 0) {
     const rfRate =
@@ -11803,9 +12603,16 @@ function renderHistory() {
     $("historySort").value ||
     "created-desc";
 
-  const filtered =
-    sortHistoryRecords(
-      allRecords.filter((record) => {
+  const filteredCandidates =
+    allRecords.filter((record) => {
+      const scopeMatches = researchScope === "All" ||
+        (researchScope === "Research" ? isUs100Record(record) : isProductionRecord(record));
+      const us100Matches = us100ResearchFiltersMatch(record);
+      const setupMatches = researchScope !== "Research" ||
+        setupView === "all-dedup" ||
+        (setupView === "por" ? us100SetupFamily(record) === US100_SETUP_POR :
+          setupView === "opr" ? isUs100CRecord(record) :
+          setupView === "legacy" ? isUs100Record(record) && ![US100_SETUP_POR, US100_SETUP_C].includes(us100SetupFamily(record)) : true);
       const modeMatches =
         modeFilters.length === 0 ||
         modeFilters.includes(
@@ -11853,18 +12660,26 @@ function renderHistory() {
         );
 
       return (
+        scopeMatches &&
+        us100Matches &&
+        setupMatches &&
         modeMatches &&
         entryMatches &&
         symbolMatches &&
         fromMatches &&
         toMatches
       );
-    }),
-      sortMode,
-      sequenceMap
-    );
+    });
+  const filtered = sortHistoryRecords(
+    researchScope === "Research" && setupView === "all-dedup"
+      ? us100DeduplicateForPerformance(filteredCandidates)
+      : filteredCandidates,
+    sortMode, sequenceMap
+  );
 
   const activeFilterParts = [];
+  activeFilterParts.push(researchScope === "Production" ? "Production原有市場" :
+    researchScope === "Research" ? "US100 Research / Shadow" : "全部市場（統計隔離）");
 
   if (modeFilters.length > 0) {
     activeFilterParts.push(
@@ -11900,6 +12715,8 @@ function renderHistory() {
       activeFilterParts.length > 0
         ? `顯示 ${filtered.length}/${allRecords.length} 筆｜${activeFilterParts.join("｜")}｜${sortSummary}`
         : `顯示全部 ${allRecords.length} 筆紀錄｜${sortSummary}`;
+
+  renderV15Analytics(filtered);
 
   currentFilteredHistoryIds =
     filtered.map(
@@ -12130,6 +12947,7 @@ function renderHistory() {
             <span class="history-tag">${escapeHtml(
               record.entryStatus || "未分類"
             )}</span>
+            ${isUs100Record(record) ? '<span class="history-tag">Research / Shadow｜Size Simulated</span>' : ''}
             <span class="history-tag">${escapeHtml(
               record.trigger || "未記錄"
             )}</span>
@@ -12423,7 +13241,28 @@ async function openRecord(recordId) {
         }`
       : "無";
 
-  $("recordDetails").innerHTML = `
+  const us100Details = isUs100Record(record) ? `
+    <section class="us100-record-details">
+      <h3>US100｜Research / Shadow（Simulation only）</h3>
+      <strong>美東Session日期：</strong>${escapeHtml(us100ResearchText(record, "us100SessionETDate"))}<br>
+      <strong>Entry Time ET：</strong>${escapeHtml(us100ResearchText(record, "us100EntryTimeET"))}<br>
+      ${US100_RESEARCH_FIELD_MAP.filter(([field]) => !["us100SessionETDate", "us100EntryTimeET"].includes(field))
+        .map(([field, column]) => `<strong>${escapeHtml(column)}：</strong>${escapeHtml(us100ResearchText(record,field))}<br>`).join("")}
+    </section>` : "";
+  const v15=v15Snapshot(record);
+  const v15Details=`<section class="v15-record-details"><h3>V1.5 Shadow Research｜Not Production</h3>
+    ${V15_BROKEN_FIELDS.map(([key,column,stateKey])=>`<strong>${escapeHtml(column)}：</strong>${escapeHtml(v15BrokenForRecord(record,key,stateKey)||"Missing")}<br>`).join("")}
+    <strong>S1 / S2 Trigger：</strong>${v15.v15S1Trigger?"Yes":"No"} / ${v15.v15S2Trigger?"Yes":"No"}<br>
+    <strong>S3 Runner：</strong>${v15.v15S3RunnerEligible?"Eligible":"No"}｜${escapeHtml(v15.v15S3RunnerResult)}<br>
+    <strong>S1 / S2 / S3 Only R：</strong>${v15Format(v15.v15S1OnlyR,"R")} / ${v15Format(v15.v15S2OnlyR,"R")} / ${v15Format(v15.v15S3OnlyR,"R")}<br>
+    <strong>Combined Size / R / Delta：</strong>${escapeHtml(safeSizeLabel(v15.v15CombinedShadowSize))} / ${v15Format(v15.v15CombinedShadowR,"R")} / ${v15Format(v15.v15ShadowDeltaR,"R")}<br>
+    <strong>Shadow Reason：</strong>${escapeHtml(v15.v15ShadowReason)}<br>
+    <strong>Runner Path Evidence：</strong>${escapeHtml(v15.v15RunnerEvidenceBasis)}<br>
+    <strong>Runner P/L Calculation：</strong>${v15.v15RunnerUnresolved?"Unresolved｜需補管理證據":"Resolved／N/A"}<br>
+    <strong>Runner Note：</strong>${escapeHtml(record.v15RunnerNote||"N/A")}
+  </section>`;
+  $("recordDetails").innerHTML = `${us100Details}${v15Details}
+
     <strong>紀錄編號：</strong>
     #${escapeHtml(recordNumber)}
     <br>
@@ -12466,7 +13305,7 @@ async function openRecord(recordId) {
     )}
     <br>
     ${
-      isHsiOprContinuationRecord(record)
+      (isHsiOprContinuationRecord(record) || isUs100CRecord(record))
         ? `<strong>OPR Direction Context：</strong>${escapeHtml(
             record.oprDirectionContextLabel ||
             hsiOprDirectionContextLabel(
@@ -12954,21 +13793,24 @@ async function openRecord(recordId) {
     localDateString();
 
   populateEditInstrumentSelect(
-    record.symbol || record.marketCode || ""
+    record.symbol || record.marketCode || "", record.marketCode || ""
   );
 
+  v15RestoreResearchInputs(record, true);
+  renderV15Panel(record,true);
   $("editRecordMode").value =
     normalizeRecordMode(
       record.recordMode
     );
+  $("editUs100ResearchPanel").classList.toggle("hidden", !isUs100Record(record));
+  if (isUs100Record(record)) applyUs100ResearchInputs(record, "edit");
+  updateUs100SetupVisibility("edit");
+  updateUs100EditModePermission(record);
   $("editEntryStatus").value =
     record.entryStatus ||
     "Entry";
 
-  const editIsHsiC =
-    isHsiOprContinuationRecord(
-      record
-    );
+  const editIsHsiC = isHsiOprContinuationRecord(record) || isUs100CRecord(record);
 
   $("editHsiOprDirectionContextRow")
     .classList.toggle(
@@ -13337,10 +14179,13 @@ async function saveRecordEdit() {
     localDateString();
   records[index].symbol =
     editedSymbol;
-  records[index].recordMode =
-    normalizeRecordMode(
-      $("editRecordMode").value
-    );
+  records[index].recordMode = isUs100Record(records[index]) &&
+    $("editRecordMode").value === "Live"
+      ? "Practice" : normalizeRecordMode($("editRecordMode").value);
+  if (isUs100Record(records[index])) {
+    Object.assign(records[index], us100ResearchInputs("edit"));
+    records[index].marketResearchStatus = US100_RESEARCH_STATUS;
+  }
   records[index].entryStatus =
     $("editEntryStatus").value;
 
@@ -13354,9 +14199,7 @@ async function saveRecordEdit() {
   }
 
   if (
-    isHsiOprContinuationRecord(
-      records[index]
-    )
+    (isHsiOprContinuationRecord(records[index]) || isUs100CRecord(records[index]))
   ) {
     records[index].oprDirectionContext =
       $("editHsiOprDirectionContext").value;
@@ -13409,9 +14252,7 @@ async function saveRecordEdit() {
       ? "Yes"
       : $("editReachedRF").value;
   records[index].reachedTP2 =
-    autoReachedTP2Value(
-      records[index].mfeR
-    );
+    autoReachedTP2ForMarket(records[index].mfeR, isUs100Record(records[index]) ? US100_MARKET : "");
   records[index].validCandidate =
     autoValidCandidateValue(
       records[index].v14ProductionSize ??
@@ -13492,6 +14333,8 @@ async function saveRecordEdit() {
     return;
   }
 
+  Object.assign(records[index],v15ReadBrokenInputs(true),v15ReadRunnerInputs(true));
+  v15SaveSnapshot(records[index]);
   saveRecords(records);
   $("recordDialog").close();
   clearRecordImageDisplay();
@@ -14262,6 +15105,23 @@ function buildCsv(records) {
       record.checklistSummary || "",
       record.note || ""
     ]);
+
+  headers.push("Market Research Status", ...US100_RESEARCH_FIELD_MAP.map(([, column]) => column));
+  headers.push(...V15_BROKEN_FIELDS.map(([, column])=>column),...V15_CSV_FIELDS.map(([,column])=>column));
+  rows.forEach((row, index) => {
+    const record = records[index];
+    row.push(recordResearchStatus(record));
+    for (const [field] of US100_RESEARCH_FIELD_MAP) {
+      const value = isUs100Record(record) ? record?.[field] : "";
+      row.push(value === null || value === undefined ? "" : value);
+    }
+    const shadow=v15Snapshot(record);
+    for (const [key,,stateKey] of V15_BROKEN_FIELDS) row.push(v15BrokenForRecord(record,key,stateKey));
+    for (const [key] of V15_CSV_FIELDS) {
+      const val=key in shadow?shadow[key]:record?.[key];
+      row.push(val===undefined||val===null?"":val);
+    }
+  });
 
   return [headers, ...rows]
     .map(
@@ -15342,6 +16202,21 @@ function recordFromCsvRow(row) {
         row,
         "品種"
       ),
+    ...Object.fromEntries(V15_BROKEN_FIELDS.map(([key,column])=>[key,v15ValidBroken(firstCsvValue(row,column))])),
+    ...Object.fromEntries(V15_CSV_FIELDS.map(([key,column])=>[key,
+      ["v15RunnerRfExitR","v15RunnerUnitROverride", "v15S1ShadowSize", "v15S2ShadowSize", "v15S3RunnerShadowR", "v15CombinedShadowSize", "v15CombinedShadowR", "v15ShadowDeltaR", "v15S1OnlyR", "v15S2OnlyR", "v15S3OnlyR"].includes(key)?csvNumber(firstCsvValue(row,column)):
+      ["v15S1Trigger","v15S2Trigger","v15S3RunnerEligible","v15S1Applied","v15S2Applied","v15Blocked"].includes(key)?csvBoolean(firstCsvValue(row,column)):
+      firstCsvValue(row,column)
+    ])),
+    marketResearchStatus: firstCsvValue(row, "市場分類") === US100_MARKET ||
+      firstCsvValue(row, "品種") === US100_MARKET
+        ? US100_RESEARCH_STATUS : US100_PRODUCTION_STATUS,
+    ...Object.fromEntries(US100_RESEARCH_FIELD_MAP.map(([field, column]) => [
+      field, sanitizedUs100ResearchField(field,
+        field === "us100SessionETDate"
+          ? (firstCsvValue(row, column) || ((firstCsvValue(row, "市場分類") === US100_MARKET || firstCsvValue(row, "品種") === US100_MARKET) ? firstCsvValue(row, "交易日期") : ""))
+          : firstCsvValue(row, column))
+    ])),
     setupTemplateLabel:
       firstCsvValue(
         row,
@@ -16499,14 +17374,8 @@ function recordFromCsvRow(row) {
       ) ||
       "N/A",
     reachedTP2:
-      autoReachedTP2Value(
-        csvNumber(
-          firstCsvValue(
-            row,
-            "MFE R"
-          )
-        )
-      ),
+      autoReachedTP2ForMarket(csvNumber(firstCsvValue(row, "MFE R")),
+        firstCsvValue(row, "市場分類") === US100_MARKET ? US100_MARKET : ""),
     hasImage: false,
     imageCount: 0,
     loosenedTriggerBecauseBias:
@@ -19302,6 +20171,7 @@ function resetAllToDefaultsExceptDate() {
 
   $("tradeDate").value =
     preservedTradeDate;
+  applyUs100ResearchInputs({});
 
   $("marketCode").value =
     "FX";
@@ -19417,6 +20287,24 @@ function setupEvents() {
         recalculate();
       }
     );
+
+  $("tradeDate").addEventListener("change", updateUs100PorDisplay);
+  for (const prefix of ["", "edit"]) {
+    const id = key => prefix ? "edit" + key[0].toUpperCase() + key.slice(1) : key;
+    for (const key of ["us100PorHighPoints", "us100PorLowPoints", "us100OprHighPoints", "us100OprLowPoints"]) {
+      $(id(key))?.addEventListener("input", () => syncUs100RangeWidths(prefix));
+    }
+  }
+  for (const prefix of ["", "edit"]) {
+    const id = prefix ? "editUs100EntryTimeET" : "us100EntryTimeET";
+    $(id).addEventListener("input", () => syncUs100MinutesFromEntry(prefix));
+  }
+  $("editTradeDate").addEventListener("change", () => {
+    const panel = $("editUs100ResearchPanel");
+    if (!panel.classList.contains("hidden")) {
+      // Trade Date is the ET session date for US100; no additional derived field needed.
+    }
+  });
 
   $("setupTemplate")
     .addEventListener(
@@ -19691,11 +20579,19 @@ function setupEvents() {
         )
     );
 
+  $("editProfitR").addEventListener("input",()=>{
+    const preview=currentV15EditPreviewRecord();
+    if(preview) renderV15Panel(preview,true);
+  });
+
   $("editMfeR")
     .addEventListener(
       "input",
-      () =>
-        syncEditAutoJournalFields()
+      () => {
+        syncEditAutoJournalFields();
+        const preview=currentV15EditPreviewRecord();
+        if(preview) renderV15Panel(preview,true);
+      }
     );
 
   [
@@ -19804,6 +20700,25 @@ function setupEvents() {
       "change",
       renderHistory
     );
+  $("historyResearchScope").addEventListener("change", renderHistory);
+  for (const id of ["v15GroupBy","v15VersionFilter","v15TriggerFilter"]) $(id).addEventListener("change",renderHistory);
+  for (const id of ["v15RunnerEvidence","v15RunnerRfExitR","v15RunnerUnitROverride","v15RunnerNote"]) {
+    $(id).addEventListener("input", updateShadowResearchPreview);
+    $(id).addEventListener("change", updateShadowResearchPreview);
+  }
+  for (const id of ["editV15RunnerEvidence","editV15RunnerRfExitR","editV15RunnerUnitROverride","editV15RunnerNote"]) {
+    $(id).addEventListener("input",()=>{
+      const preview=currentV15EditPreviewRecord();
+      if(preview) renderV15Panel(preview,true);
+    });
+  }
+  for (const id of ["mfeR","profitR"]) {
+    $(id).addEventListener("input",updateShadowResearchPreview);
+  }
+  for (const control of $("us100HistoryResearchFilters").querySelectorAll("select,input")) {
+    control.addEventListener("change", renderHistory);
+    if (control.tagName === "INPUT") control.addEventListener("input", renderHistory);
+  }
 
   $("historySymbolFilterOptions")
     .addEventListener(

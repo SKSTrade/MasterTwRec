@@ -1614,3 +1614,28 @@ dialog::backdrop {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+/* US100 isolated research panels - V1.30.37 */
+.us100-research-panel { border: 1px solid var(--border, #34445a); }
+.us100-research-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 14px; }
+.us100-research-grid label, .us100-inline-group label { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.us100-inline-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; grid-column: 1 / -1; }
+.us100-additional { grid-column: 1 / -1; padding: 14px; border: 1px solid var(--border, #34445a); border-radius: 10px; }
+.us100-additional summary, .us100-research-filters summary { cursor: pointer; font-weight: 700; }
+.us100-research-filters { margin: 15px 0; padding: 14px; border: 1px solid var(--border, #34445a); border-radius: 12px; }
+.us100-record-details { margin-bottom: 14px; padding: 12px; border: 1px solid var(--border, #34445a); border-radius: 10px; line-height: 1.8; }
+.us100-record-details h3 { margin-top: 0; }
+@media (max-width: 600px) { .us100-inline-group { grid-template-columns: 1fr; } }
+
+/* V1.5 shadow research is visually separated from frozen Production. */
+.v15-research-panel,.v15-analytics-panel,.v15-record-details{border:1px solid var(--border-color,#7a7a7a55);border-radius:12px;padding:14px;margin:16px 0;background:var(--panel-bg,transparent)}
+.v15-research-panel h3,.v15-record-details h3{margin:0 0 8px;font-size:1rem}
+.v15-table-scroll{overflow-x:auto;max-height:460px;overflow-y:auto;margin-top:12px}
+.v15-stats-table{border-collapse:collapse;min-width:1240px;width:100%;font-size:.78rem;font-variant-numeric:tabular-nums}
+.v15-stats-table th,.v15-stats-table td{border-bottom:1px solid #8885;padding:7px 9px;text-align:right;white-space:nowrap}
+.v15-stats-table th:first-child,.v15-stats-table td:first-child,.v15-stats-table th:nth-child(2),.v15-stats-table td:nth-child(2){text-align:left}
+.v15-stats-table thead{position:sticky;top:0;background:var(--card-bg,#181818);z-index:1}
+.v15-analytics-panel>summary{cursor:pointer;font-weight:700}
+
+/* V1.30.40 US100 dual setup research range separation */
+.us100-range-split{border:1px solid var(--line-color,#536178);border-radius:10px;padding:12px;display:grid;gap:8px;grid-column:1/-1}.us100-range-split.hidden{display:none}.us100-range-three{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}.us100-range-split .state-note{margin:0}

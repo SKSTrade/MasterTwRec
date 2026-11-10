@@ -1,6 +1,62 @@
-# Master Trade System V1.30.36
+# Master Trade System V1.30.40
 
-## V1.30.36｜FX-B Previous H/L Enhancement更新
+## V1.30.40｜US100 雙 Setup Research（2026-11-10）
+
+- US100 新研究選單：`US100-POR｜Sweep + Reclaim`、`US100-C｜OPR Continuation & Retest`。後者沿用 HSI-C `oprContinuation` Trigger、Native Q 及雙同向硬條件，但不複製任何專屬 P／E 升級。
+- 使用 America/New_York 交易日和歷史 DST：POR 08:30–09:30、US100-C OPR 09:15–09:30、Full Premarket 04:00–09:30 ET；09:30 K線均不計入開市前 Range。
+- POR / OPR 分開記錄可選 High、Low、Width；價格資料由用戶手動核對，不接行情資料、不虛構。
+- 各個 US100-C Subtype、Acceptance、First Retest 等使用原有 OPR 紀錄流程，OPR Direction Context 可以留白。
+- 提供 US100-POR Only、US100-C Only、All US100 Research｜Deduplicated 研究視圖；同一實際 Entry 共享 `US100 Shared Execution ID` 可去重。若收益矛盾，合併結果排除該 Entry、保留獨立紀錄待核對。
+- US100 TP2 嚴格採 MFE ≥ 4R（缺失即空白）；Runner 僅遵守原有 S3 eligibility／收益函式。
+- **正式交易仍 V1.4 Production**；V1.5 及 US100 均 Research / Shadow Only。六市場核心計算不變。
+- 詳見 `V1.30.40-US100雙Setup-更新及回歸測試.md`。
+
+## V1.30.39｜S3 Runner MFE ≥ 4R 自動確認（2026-11-10）
+
+使用者確認 `MFE R` 只記錄 **原本RF觸發前最高到達的R**。因此在符合V1.5 S3條件的已執行交易，`MFE R >= 4` 直接證明 `2R → 4R` 均在原RF之前，並自動輸出 Runner Result = `4R`，不要求另填 Runner Event Sequence。若沒有特別減倉／管理，Runner Unit R = 50%×2 + 50%×4 = 3；依模擬注碼計算S3和Combined Shadow R。若有 Reduce、部分平倉或特殊TP安排，即使4R已確認，沒有核實的 Runner Unit R 時，Shadow R仍為`Unresolved`，不得虛構總收益。MFE不足4R時，其他路徑維持原本手動證據規則。MFE判斷優先於可能矛盾的舊手動路徑欄位。**V1.4 Production完全不變。**
+
+## V1.30.38｜V1.5 Shadow Research（2026-11-10）
+
+**Frozen Production維持 Master Trade Matrix V1.4。** V1.5只加模擬計算，絕不改動 Direction Permission、P/Q/E、V1.3 Base、V1.4 Production、Final Size、Valid Candidate或舊交易正式Actual R。
+
+### 三個Shadow規則
+
+- **S1 EXT Weak Alignment Downgrade**：Raw P3-EXT；Main、Effective Secondary方向相同且交易順向；至少一層為Weak／Directional Transition，另一層可為Healthy／Weak／Directional Transition；Production Size >0 → 模擬降一級。雙健康、反方向或T0均唔觸發。
+- **S2 Healthy Main + Opposite Original Secondary Transition**：Main Healthy；Original Secondary為反方向Directional Transition；交易順Main；Production Size >0 → 模擬升一級，上限1.0。**Gap On仍只讀Original Secondary**，Working唔取代Original；不限P/Q/E。Transition Broken Structure只記錄，不作S2條件。
+- **S3 Conflict Runner A**：Raw P3-PB + Native Q3 + **strict Direction Conflict（主次均為Healthy／Weak已確認反向趨勢，V1.4 `conflictMain` route）** + 順Main逆Effective Secondary + Production Size>0。排除Mixed／Single-layer Transition、T0、Q2、EXT／MID。只有可信嘅2R、4R、RF事件先後資料先計算替代出場；未有資料輸出`Unresolved`，**不可根據MFE>=4R推斷成功**。
+
+### Non-stacking
+
+注碼階梯`0 → 0.25 → 0.5 → 1.0`，本次V1.5只比較相對Production嘅一級，最高1.0；Production已相對Base升降則阻止Shadow再升降。S1＋S2同時符合會記兩個Trigger，分別輸出S1 Only、S2 Only，但Combined Size維持Production，Reason=`S1/S2 Conflict`。Production Hard 0不得救返。
+
+### 研究欄位
+
+- Main Transition Broken Structure
+- Original Secondary Transition Broken Structure
+- Working Transition Broken Structure
+
+各有兩個選項：`Bullish Structure Broken`（舊升結構被向下破壞）及`Bearish Structure Broken`（舊跌結構被向上破壞）。無法確認可留空，T0也可留空，從不根據Transition Bull/Bear自動猜測。Gap Off隱藏Working選單但**不清除已選值**。
+
+### Runner Path Evidence（新增／編輯）
+
+新增可選的研究證據欄位，與Production出場完全獨立：
+
+- `Runner Event Sequence`：Unresolved／2R→4R／2R→RF／RF或原出場先於2R。
+- `Runner RF Exit Unit R`：2R→RF時需記錄剩餘倉位真實RF（例如0）；未填則Unresolved。
+- `Runner Verified Unit R`：有特別減倉、Reduce或其他管理時，須提供核實後Runner總單位R，否則Unresolved。
+- `Runner Evidence Notes`：手動記述價格路徑及執行次序。
+
+標準沒有減倉且已核實的路徑：2R→4R＝`0.5×2+0.5×4=3 Unit R`；2R→RF＝`1+0.5×RF Unit R`；未到2R則維持原交易結果。**不新增2R移RF到BE規則。** S1/S2按原交易Normalized R乘Shadow Size，S3按核實Runner Unit R乘模擬Size；Combined逐筆重算，不能直接相加其他方案Delta。
+
+### CSV及績效
+
+保留舊欄位名稱不變，在尾部追加三個Transition Origin、Shadow Trigger／Size／Actual R／Delta R／Reasons、Runner證據等研究欄。新CSV可匯出→匯入，舊CSV缺新欄仍可匯入，原交易日期、品種、正式Size及Actual R保持不變。舊CSV未保留Route Code時，S3只可用明確舊分類文字`方向衝突｜順主判...逆次判`及雙已確認反向市場狀態重建；不會單憑方向相反作推斷。
+
+紀錄庫新增五版本比較：V1.4 Production、V1.5 S1 Only、S2 Only、S3 Only、Combined。可按Backtest Half-year、Instrument、Setup、P/Q、Market State、Structural Gap、Transition Origin及S1/S2/S3 Trigger等分類。顯示Trigger／Applied／Blocked、Win/Loss/BE、Gross Profit/Loss、Profit Factor、Total/Normalized R、Max DD、MFE/MAE及Delta R。**只計已執行且有Actual R之交易**；Runner Unresolved會顯示獨立筆數，並從該方案已核算Actual R排除，因此部分樣本指標不代表完整Performance。相同交易日缺入場時間時，DD依日期與紀錄順序估算。
+
+研究篩選範圍沿用原US100 Production/Research隔離；US100仍然只可Practice／Review，佢嘅Production Size依舊只作Simulated Research。
+
+## V1.30.37｜FX-B Previous H/L Enhancement更新
 
 - FX-B 的 Previous H/L Sweep：PWH／PWL、Mon H／L、PDH／PDL三者現在享有相同位置Enhancement權利。
 - 只要屬高質有效Sweep／Reclaim、Control transfer成立、Retest未Invalid，Raw P3可升為P2-effective（P2-E）。
@@ -81,9 +137,18 @@ Structural Gap Off用Secondary Main；Gap On用Secondary Working，即Effective 
 - CSV 匯入兼容 `Review`／`覆盤`／`复盘`，統一正規化為 `Review`。
 
 
-## V1.30.36｜Matrix V1.4 表單精簡
+## V1.30.37｜Matrix V1.4 表單精簡
 
 - 全部市場嘅「核心 Setup」移除共用 Type C 強趨勢 Pullback，外匯移除 FX-C Breakout／Retest。保留 HSI-C 與 EU-B／EU-D 等獨立市場 Setup，原有 Setup Type 分類計算不改。
 - 移除 Opening Context 的填寫、歷史記錄詳情／編輯欄位，以及新 CSV 匯出欄位。現有 LocalStorage 歷史紀錄不作清除。
 - 品種改用下拉選單：HSI、UK100、GER40、外匯（EURUSD／GBPUSD／USDCHF）、XAUUSD；歷史記錄編輯支援保留舊有非標準品種。
 - 其他 V1.4 Production／Shadow 及入場 Matrix 公式保持原狀。
+
+
+## V1.30.37｜US100 Research / Shadow（2026-11-10）
+- US100新增獨立市場／品種（Index），僅完整Journal Practice／Review／Backtest，Live Quick沒有US100。
+- 共用既有V1.4計算，不複製GER40專屬POR P/E優惠。US100 Production Size只係Simulation。
+- ET Session-based Primary POR [08:30,09:30)，Full Premarket [04:00,09:30)，IANA America/New_York歷史DST。沒有連接K線數據；POR Width手動輸入，9:30現貨開市K線須排除。
+- 7項US100研究欄位（加可選Entry Time ET與10:00新聞名稱），未填為Missing；不影響Sizing。
+- Production統計及Live與US100分隔；Research Scope有獨立US100篩選，CSV新增欄位並可round-trip，舊CSV依然可匯入。
+- 保留舊數據／LocalStorage格式；Service Worker Cache key更新。
