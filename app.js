@@ -403,7 +403,7 @@ function updateUs100SetupVisibility(prefix = "") {
   if (edit) $("editUs100OprContractFields")?.classList.toggle("hidden", !isC);
   const familyText = $(edit ? "editUs100SetupFamilyStatus" : "us100SetupFamilyStatus");
   if (familyText) familyText.textContent = !active ? "" : isC ? "US100-C｜09:15–09:30 ET OPR（獨立於POR）" :
-    code === US100_SETUP_POR ? "US100-POR｜08:30–09:30 ET Primary POR" :
+    code === US100_SETUP_POR ? "US100-POR｜EU-A同款開市後2B｜08:30–09:30 ET Primary POR；09:30後首次Sweep（Research）" :
     code === US100_SETUP_STRUCTURE ? "US100｜普通結構Sweep（Type B｜Research）｜不以POR／OPR作專屬Setup" :
     "Legacy US100研究紀錄";
 }
@@ -582,7 +582,7 @@ const MARKET_CONFIG = {
     preset: "us100",
     defaultSymbol: "US100",
     setupCodes: ["us100_por_sweep_reclaim", "us100_opr_continuation", "us100_structure_sweep"],
-    timeRule: "US100：僅Backtest／Practice／Review／Shadow；POR = 08:30–09:30 ET [不含09:30開市K]；Full Premarket = 04:00–09:30 ET。原V1.4 Size僅模擬，唔係正式Live Permission。"
+    timeRule: "US100：只限研究；POR = 08:30–09:30 ET [不含09:30開市K]。US100-POR依EU-A Session 2B：09:30後首次POR H/L Sweep→Reclaim；合格高質P3可P2-effective，但只計Simulated Size；Full Premarket 04:00–09:30 ET仍只屬背景。"
   },
   FX: {
     label: "外匯",
@@ -635,10 +635,12 @@ const SETUP_DEFINITIONS = {
   },
   us100_por_sweep_reclaim: {
     marketGroup: "US100_RESEARCH",
-    label: "US100-POR｜Sweep + Reclaim（Research）",
-    type: "B",
-    variant: "sweep",
-    note: "US100獨立研究分類。POR H/L Sweep＋Reclaim按通用Type B/P/Q引擎分類；POR、Full Premarket H/L均唔係新E Source，唔享有GER40 EU-A/EU-D嘅原生P2／E／Type A優惠。"
+    label: "US100-POR｜開市後 POR H／L 2B（Research）",
+    type: "A",
+    variant: "session2B",
+    designatedTypeA: true,
+    liquidityLabel: "09:30 ET 開市後首次 Sweep 08:30–09:30 ET POR H／L",
+    note: "參照GER40 EU-A同一Session 2B合約：Cash Open 09:30 ET之後首次Sweep Primary POR H/L → Reclaim → 微結構Break → First Weak Retest；方向一致且6項Checklist≥5先屬高質Type A，Raw P3可P2-effective（E），Native Q不升級。純研究模擬；Full Premarket H/L無獨立E；US100不可Live。"
   },
   us100_opr_continuation: {
     marketGroup: "US100_RESEARCH",
@@ -1220,6 +1222,12 @@ function isDesignatedTypeASetup(
       setupTemplateCode(live) ===
       "eu_por_2b"
     );
+  }
+
+  // US100 is never a Live Production instrument. Only its designated
+  // POR candidate can reuse the EU-A Type A Session 2B quality contract.
+  if (market === US100_MARKET) {
+    return !live && setupTemplateCode(false) === US100_SETUP_POR;
   }
 
   return true;
@@ -3703,6 +3711,18 @@ function evaluateBaseTrigger() {
     variant === "p1ReversalSweep"
   ) {
     evaluateSweepCore();
+    // US100-POR follows EU-A: no opening-range sweep is tradable before
+    // the US cash open. Missing minutes remain permitted for old records
+    // and drafts; a known negative value is a strict invalidation.
+    if (marketCode(false) === US100_MARKET && setupTemplateCode(false) === US100_SETUP_POR) {
+      const rawMinutes = $("us100MinutesFromCashOpen")?.value?.trim() ?? "";
+      if (rawMinutes !== "") {
+        const entryMinutes = Number(rawMinutes);
+        if (!Number.isInteger(entryMinutes) || entryMinutes < 0) {
+          addCoreFailure("US100-POR：只可喺09:30 ET Cash Open之後執行POR H/L 2B；開市前Entry不合格。");
+        }
+      }
+    }
   } else if (
     variant === "breakout"
   ) {
@@ -4217,11 +4237,18 @@ function evaluateAsia2B(baseTrigger) {
   const designatedTypeA =
     isDesignatedTypeASetup(false);
 
+  const us100PorAfterOpen = marketCode(false) !== US100_MARKET ||
+    setupTemplateCode(false) !== US100_SETUP_POR ||
+    ($("us100MinutesFromCashOpen")?.value?.trim() ?? "") === "" ||
+    (Number.isInteger(Number($("us100MinutesFromCashOpen").value)) &&
+     Number($("us100MinutesFromCashOpen").value) >= 0);
+
   const highQuality =
     selectedSetupType === "A" &&
     designatedTypeA &&
     directionMatches &&
-    criteriaCount >= 5;
+    criteriaCount >= 5 &&
+    us100PorAfterOpen;
 
   let typeAQualificationReason =
     "N/A";
@@ -4240,6 +4267,8 @@ function evaluateAsia2B(baseTrigger) {
     ) {
       typeAQualificationReason =
         `只符合${criteriaCount}/6項，未達5項`;
+    } else if (!us100PorAfterOpen) {
+      typeAQualificationReason = "US100-POR：開市前Entry不可取得EU-A Type A待遇";
     } else {
       typeAQualificationReason =
         `指定Setup＋方向一致＋${criteriaCount}/6`;
@@ -4257,11 +4286,11 @@ function evaluateAsia2B(baseTrigger) {
 
     if (!designatedTypeA) {
       warnings.push(
-        "Type A只限HSI OPR 2B、FX Asia／OPR 2B、UK100／GER40正式開市後POR 2B。XAU V1.3起改用專用A/B/C Liquidity Matrix，唔再享有舊Type A升級。"
+        "Type A只限HSI OPR 2B、FX Asia／OPR 2B、UK100／GER40開市後POR 2B及US100-POR研究模擬。XAU V1.3起唔再有Type A待遇。"
       );
     } else {
       warnings.push(
-        `Type A候選只符合${criteriaCount}/6項或者方向唔一致；未達高質，今次按Type B處理。`
+        `Type A候選未符合全部質素／方向／開市後條件：${typeAQualificationReason}；今次按Type B處理。`
       );
     }
   }
@@ -10908,7 +10937,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.45",
+      "PracticeJournal-V1.30.46",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r45",
     matrixVersion:

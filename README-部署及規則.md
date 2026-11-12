@@ -1,3 +1,11 @@
+## V1.30.46｜US100-POR 改用 GER40 EU-A Session 2B（2026-11-12）
+
+- US100-POR 由 Type B `sweep` 改為指定 Type A `session2B`，共用 GER40 EU-A 的6項Checklist、方向配對、5/6高質門檻及 Raw P3→P2-effective (E) 待遇；Native Q不升級。
+- Cash Open：美東09:30；只使用 08:30–09:30 ET Primary POR H/L，09:30 K線不入POR。已知 Entry 分鐘為負數時，US100-POR失效；缺少分鐘數仍可作歷史研究草稿，首個開市後Sweep須由交易者按圖核實。
+- US100-POR只係研究模擬：不啟用Live，不納入Production總表。US100-C、US100普通結構Sweep維持原有規則；GER40 EU-A原碼不變。
+- US100 POR High/Low/Width/Sequence及OPR價格輸入保持V1.30.45的簡化狀態；舊CSV仍相容。
+- 測試與注意事項詳見 `V1.30.46-US100-POR-EU-A-2B-更新及測試.md`。
+
 ## V1.30.45｜US100 研究欄位精簡及 Entry ET 自動計算（2026-11-12）
 
 - 移除新建／編輯畫面的 Primary POR、US100-C OPR 價格／Width／Sweep Sequence 手動記錄區，並移除相應 POR Research Filter。舊資料仍可經 CSV 保留。

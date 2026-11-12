@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-45-us100-simplified-et";
+const CACHE_NAME = "master-trade-system-v1-30-46-us100-por-eua-2b";
 const ASSETS = [
   "./",
   "./index.html",
