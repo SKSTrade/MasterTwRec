@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.43</span>
+    <span class="version-badge">V1.30.45</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1351,11 +1351,38 @@
           </label>
 
 <article id="us100ResearchPanel" class="card us100-research-panel hidden">
-<h2>US100｜POR / Premarket Research Only</h2>
-<p class="state-note">只適用US100；純分類，不參與Raw P、E、Q、Size、Hard Veto或交易時限。交易日期當作 America/New_York Session Date；Full Premarket、POR及US100-C OPR High／Low必須用完整歷史1M行情核對；09:30 ET K線不計入任何開市前Range。所有研究欄位容許留白（Missing）。</p>
+<h2>US100｜Setup Research / Premarket Reference</h2>
+<p class="state-note">只適用US100；純分類，不參與Raw P、E、Q、Size、Hard Veto或交易時限。交易日期當作 America/New_York Session Date；開市前 Range 仍按原本 POR／OPR 定義評估，但毋須額外輸入 High、Low、Width 或 Sweep Sequence。研究欄位可留白（Missing）。</p>
 <div class="principle-box"><strong>Primary POR：08:30 ≤ ET Time &lt; 09:30</strong><span>Full Premarket：04:00 ≤ ET Time &lt; 09:30；POR / Full Premarket唔係新E Source。</span></div>
 <p id="us100PorSchedule" class="state-note">請選擇美東Session交易日期。</p><p class="state-note" id="us100SetupFamilyStatus"></p>
-<div class="us100-research-grid"><label>1｜Full Premarket H/L Swept before Entry?<select id="us100FullPremarketSwept"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option></select></label><div class="us100-range-split" id="us100PorResearchFields"><strong>Primary POR｜Setup A / US100-C Background [08:30, 09:30) ET</strong><div class="us100-range-three"><label>POR High（可選）<input id="us100PorHighPoints" type="number" step="any" placeholder="未有價格可留空"></label><label>POR Low（可選）<input id="us100PorLowPoints" type="number" step="any" placeholder="未有價格可留空"></label></div><label>2｜POR Width (US100 Points)<input id="us100PorWidthPoints" type="number" step="any" min="0" placeholder="Missing｜手動輸入；只計08:30–09:30前"></label><label>3｜POR Sweep Sequence (09:30 ET→Entry)<select id="us100PorSweepSequence"><option value="">Missing｜未記錄</option><option value="High Only">High Only</option><option value="Low Only">Low Only</option><option value="High → Low">High → Low</option><option value="Low → High">Low → High</option><option value="N/A">N/A</option></select></label></div><div class="us100-range-split hidden" id="us100OprResearchFields"><strong>Setup B｜US100-C OPR [09:15, 09:30) ET</strong><p class="state-note">09:30現貨開市K線不計入OPR；High／Low必須由完整09:15–09:29 1M數據確認。缺少資料保持Missing。</p><div class="us100-range-three"><label>OPR High（可選）<input id="us100OprHighPoints" type="number" step="any" placeholder="Missing"></label><label>OPR Low（可選）<input id="us100OprLowPoints" type="number" step="any" placeholder="Missing"></label><label>OPR Width（Points）<input id="us100OprWidthPoints" type="number" min="0" step="any" placeholder="可手動填寫"></label></div></div><div class="us100-inline-group"><label>4｜Time from Cash Open to Entry (Min)<input id="us100MinutesFromCashOpen" type="number" step="1" placeholder="Missing｜可手動輸入"></label><label>可選｜實際Entry時間 (ET)，自動計分鐘<input id="us100EntryTimeET" type="time" ></label></div><label>Shared Execution ID（可選，同一實際Entry的POR／C紀錄填同一ID）<input id="us100ResearchTradeId" type="text" placeholder="例如 2025-03-10-US100-L1"></label><label>5｜08:30 ET Major News<select id="us100MajorNews0830"><option value="">Missing｜未記錄</option><option value="None">None</option><option value="CPI">CPI</option><option value="NFP">NFP</option><option value="PPI">PPI</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><details class="us100-additional" open><summary>Additional Research｜可選欄位 6–7</summary><div class="us100-research-grid"><label>6｜RTH Opening Gap Direction<select id="us100OpeningGapDirection"><option value="">Missing｜未記錄</option><option value="Gap Up">Gap Up</option><option value="Gap Down">Gap Down</option><option value="Flat">Flat</option><option value="N/A">N/A</option></select></label><label>7｜10:00 ET Scheduled News<select id="us100News1000"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="Unknown">Unknown</option></select></label><label>10:00 ET Event Name（可選）<input id="us100News1000Event" type="text" placeholder="ISM / Consumer Confidence / ..."></label></div></details></div>
+<div class="us100-research-grid">
+  <label>Full Premarket H/L Swept before Entry?
+    <select id="us100FullPremarketSwept"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option></select>
+  </label>
+  <div class="us100-inline-group">
+    <label>Time from Cash Open to Entry (Min)
+      <input id="us100MinutesFromCashOpen" type="number" step="1" placeholder="輸入分鐘數，例如 45">
+    </label>
+    <label>實際 Entry 時間（ET）｜自動計算
+      <input id="us100EntryTimeET" type="time" readonly tabindex="-1" aria-label="美東實際入場時間，根據分鐘數自動計算">
+      <span class="state-note hidden" id="us100EntryETDateNote"></span>
+    </label>
+  </div>
+  <p class="state-note">以美東 09:30 Cash Open 為起點；輸入分鐘數後自動顯示美東 Entry 時間。未輸入維持 Missing。</p>
+  <label>Shared Execution ID（可選，同一實際 Entry 嘅不同 Setup 紀錄填相同 ID）
+    <input id="us100ResearchTradeId" type="text" placeholder="例如 2025-03-10-US100-L1">
+  </label>
+  <label>08:30 ET Major News
+    <select id="us100MajorNews0830"><option value="">Missing｜未記錄</option><option value="None">None</option><option value="CPI">CPI</option><option value="NFP">NFP</option><option value="PPI">PPI</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select>
+  </label>
+  <details class="us100-additional" open><summary>Additional Research｜可選欄位</summary>
+    <div class="us100-research-grid">
+      <label>RTH Opening Gap Direction<select id="us100OpeningGapDirection"><option value="">Missing｜未記錄</option><option value="Gap Up">Gap Up</option><option value="Gap Down">Gap Down</option><option value="Flat">Flat</option><option value="N/A">N/A</option></select></label>
+      <label>10:00 ET Scheduled News<select id="us100News1000"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="Unknown">Unknown</option></select></label>
+      <label>10:00 ET Event Name（可選）<input id="us100News1000Event" type="text" placeholder="ISM / Consumer Confidence / ..."></label>
+    </div>
+  </details>
+</div>
 </article>
 
           <div class="principle-box">
@@ -1789,18 +1816,13 @@
         </div>
 
         <details id="us100HistoryResearchFilters" class="us100-research-filters hidden">
-          <summary>US100 Research Filters｜POR、News、Gap、時間</summary>
+          <summary>US100 Research Filters｜Setup、News、Gap、時間</summary>
           <div class="filter-grid us100-research-filter-grid">
-            <label>Setup／合併研究視圖<select id="researchFilterSetupView"><option value="all-dedup">All US100 Research｜Deduplicated</option><option value="por">US100-POR Only</option><option value="opr">US100-C Only</option><option value="legacy">Legacy US100（舊分類）</option></select></label>
+            <label>Setup／合併研究視圖<select id="researchFilterSetupView"><option value="all-dedup">All US100 Research｜Deduplicated</option><option value="por">US100-POR Only</option><option value="opr">US100-C Only</option><option value="structure">US100｜普通結構Sweep Only</option><option value="legacy">Legacy US100（舊分類）</option></select></label>
             <label>US100-C OPR Direction Context<select id="researchFilterOprDirection"><option value="">All</option><option value="alignedTrend">順向順勢</option><option value="reverseOprTrend">反向順勢</option></select></label>
             <label>Full Premarket Swept
               <select id="researchFilterPremarket"><option value="">All</option><option>Yes</option><option>No</option><option>N/A</option><option value="Missing">Missing</option></select>
             </label>
-            <label>POR Sweep Sequence
-              <select id="researchFilterSequence"><option value="">All</option><option>High Only</option><option>Low Only</option><option>High → Low</option><option>Low → High</option><option>N/A</option><option value="Missing">Missing</option></select>
-            </label>
-            <label>POR Width ≥ Points<input id="researchFilterWidthMin" type="number" step="any" placeholder="Any"></label>
-            <label>POR Width ≤ Points<input id="researchFilterWidthMax" type="number" step="any" placeholder="Any"></label>
             <label>Open→Entry ≥ Min<input id="researchFilterMinutesMin" type="number" step="any" placeholder="Any"></label>
             <label>Open→Entry ≤ Min<input id="researchFilterMinutesMax" type="number" step="any" placeholder="Any"></label>
             <label>08:30 Major News
@@ -2060,6 +2082,7 @@
           <li><strong>EU-A：</strong>開市後POR H/L 2B｜高質P3可P2-E。</li>
                     <li><strong>EU-B：</strong>Asia Sweep＋Post-open Confirmation｜普通P3可P2-effective；實際Breakout／Swap維持原生P2／P1。</li>
           <li><strong>EU-D：</strong>POR Full Repair｜Breakout＋Acceptance＋First Retest形成原生P2。</li>
+          <li><strong>UK100／GER40 普通結構Sweep（Type B）：</strong>同HSI-B，用普通局部結構／Swing或Session H/L Sweep＋Reclaim，按既有Raw P／Native Q計算；唔自動升P／Q或取得EU POR專屬待遇。</li>
           <li><strong>禁止重複計分：</strong>同一Opening Story只有一個Order-flow thesis；Asia Sweep、Full Repair、Opening Drive唔Double E／Size。</li>
           <li>只有Asia Sweep而冇正式開市後確認＝唔入場；價格喺POR內重新Acceptance，Full Repair失效。</li>
         </ul>
@@ -2174,7 +2197,47 @@
         <input id="editTradeDate" type="date">
       </label>
 
-<div id="editUs100ResearchPanel" class="us100-research-panel hidden"><h3>US100｜Research / Shadow 紀錄（只影響研究資料）</h3><p class="state-note">交易日期以美東Session日期記錄；空白儲存為Missing，不會當No。</p><p class="state-note" id="editUs100SetupFamilyStatus"></p><div class="us100-research-grid"><label>1｜Full Premarket H/L Swept before Entry?<select id="editUs100FullPremarketSwept"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option></select></label><div class="us100-range-split" id="editUs100PorResearchFields"><strong>Primary POR｜Setup A / US100-C Background [08:30, 09:30) ET</strong><div class="us100-range-three"><label>POR High（可選）<input id="editUs100PorHighPoints" type="number" step="any" placeholder="未有價格可留空"></label><label>POR Low（可選）<input id="editUs100PorLowPoints" type="number" step="any" placeholder="未有價格可留空"></label></div><label>2｜POR Width (US100 Points)<input id="editUs100PorWidthPoints" type="number" step="any" min="0" placeholder="Missing｜手動輸入；只計08:30–09:30前"></label><label>3｜POR Sweep Sequence (09:30 ET→Entry)<select id="editUs100PorSweepSequence"><option value="">Missing｜未記錄</option><option value="High Only">High Only</option><option value="Low Only">Low Only</option><option value="High → Low">High → Low</option><option value="Low → High">Low → High</option><option value="N/A">N/A</option></select></label></div><div class="us100-range-split hidden" id="editUs100OprResearchFields"><strong>Setup B｜US100-C OPR [09:15, 09:30) ET</strong><p class="state-note">09:30現貨開市K線不計入OPR；High／Low必須由完整09:15–09:29 1M數據確認。缺少資料保持Missing。</p><div class="us100-range-three"><label>OPR High（可選）<input id="editUs100OprHighPoints" type="number" step="any" placeholder="Missing"></label><label>OPR Low（可選）<input id="editUs100OprLowPoints" type="number" step="any" placeholder="Missing"></label><label>OPR Width（Points）<input id="editUs100OprWidthPoints" type="number" min="0" step="any" placeholder="可手動填寫"></label><label class="toggle-row"><input type="checkbox" id="editUs100OprWindowComplete"><span>OPR 09:15–09:30 已完整確認</span></label><label class="toggle-row"><input type="checkbox" id="editUs100OprAfter0930"><span>Cash Open後有效突破／Full Reclaim</span></label><label class="toggle-row"><input type="checkbox" id="editUs100OprTrendAligned"><span>Main／Effective Secondary／Trade同向（原當刻確認）</span></label></div></div><div class="us100-inline-group"><label>4｜Time from Cash Open to Entry (Min)<input id="editUs100MinutesFromCashOpen" type="number" step="1" placeholder="Missing｜可手動輸入"></label><label>可選｜實際Entry時間 (ET)，自動計分鐘<input id="editUs100EntryTimeET" type="time" ></label></div><label>Shared Execution ID（可選，同一實際Entry的POR／C紀錄填同一ID）<input id="editUs100ResearchTradeId" type="text" placeholder="例如 2025-03-10-US100-L1"></label><label>5｜08:30 ET Major News<select id="editUs100MajorNews0830"><option value="">Missing｜未記錄</option><option value="None">None</option><option value="CPI">CPI</option><option value="NFP">NFP</option><option value="PPI">PPI</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><details class="us100-additional" open><summary>Additional Research｜可選欄位 6–7</summary><div class="us100-research-grid"><label>6｜RTH Opening Gap Direction<select id="editUs100OpeningGapDirection"><option value="">Missing｜未記錄</option><option value="Gap Up">Gap Up</option><option value="Gap Down">Gap Down</option><option value="Flat">Flat</option><option value="N/A">N/A</option></select></label><label>7｜10:00 ET Scheduled News<select id="editUs100News1000"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="Unknown">Unknown</option></select></label><label>10:00 ET Event Name（可選）<input id="editUs100News1000Event" type="text" placeholder="ISM / Consumer Confidence / ..."></label></div></details></div></div>
+<div id="editUs100ResearchPanel" class="us100-research-panel hidden">
+  <h3>US100｜Research / Shadow 紀錄（只影響研究資料）</h3>
+  <p class="state-note">交易日期為美東 Session 日期；未填寫研究欄位維持 Missing。</p>
+  <p class="state-note" id="editUs100SetupFamilyStatus"></p>
+  <details id="editUs100OprContractFields" class="us100-additional hidden">
+    <summary>US100-C｜既有 OPR Contract 確認（可選展開）</summary>
+    <div class="us100-research-grid">
+      <label class="toggle-row"><input type="checkbox" id="editUs100OprWindowComplete"><span>OPR 09:15–09:30 已完整確認</span></label>
+      <label class="toggle-row"><input type="checkbox" id="editUs100OprAfter0930"><span>Cash Open 後有效突破／Full Reclaim</span></label>
+      <label class="toggle-row"><input type="checkbox" id="editUs100OprTrendAligned"><span>Main／Effective Secondary／Trade 同向</span></label>
+    </div>
+  </details>
+  <div class="us100-research-grid">
+    <label>Full Premarket H/L Swept before Entry?
+      <select id="editUs100FullPremarketSwept"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option></select>
+    </label>
+    <div class="us100-inline-group">
+      <label>Time from Cash Open to Entry (Min)
+        <input id="editUs100MinutesFromCashOpen" type="number" step="1" placeholder="輸入分鐘數，例如 45">
+      </label>
+      <label>實際 Entry 時間（ET）｜自動計算
+        <input id="editUs100EntryTimeET" type="time" readonly tabindex="-1" aria-label="美東實際入場時間，根據分鐘數自動計算">
+        <span class="state-note hidden" id="editUs100EntryETDateNote"></span>
+      </label>
+    </div>
+    <p class="state-note">以美東 09:30 Cash Open 為起點自動計算，唔使手動輸入 Entry Time。</p>
+    <label>Shared Execution ID（可選，同一實際 Entry 嘅不同 Setup 紀錄填相同 ID）
+      <input id="editUs100ResearchTradeId" type="text" placeholder="例如 2025-03-10-US100-L1">
+    </label>
+    <label>08:30 ET Major News
+      <select id="editUs100MajorNews0830"><option value="">Missing｜未記錄</option><option value="None">None</option><option value="CPI">CPI</option><option value="NFP">NFP</option><option value="PPI">PPI</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select>
+    </label>
+    <details class="us100-additional" open><summary>Additional Research｜可選欄位</summary>
+      <div class="us100-research-grid">
+        <label>RTH Opening Gap Direction<select id="editUs100OpeningGapDirection"><option value="">Missing｜未記錄</option><option value="Gap Up">Gap Up</option><option value="Gap Down">Gap Down</option><option value="Flat">Flat</option><option value="N/A">N/A</option></select></label>
+        <label>10:00 ET Scheduled News<select id="editUs100News1000"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="Unknown">Unknown</option></select></label>
+        <label>10:00 ET Event Name（可選）<input id="editUs100News1000Event" type="text" placeholder="ISM / Consumer Confidence / ..."></label>
+      </div>
+    </details>
+  </div>
+</div>
 
       <label>
         交易商品／品種

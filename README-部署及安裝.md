@@ -1,3 +1,23 @@
+## V1.30.45｜US100 研究欄位精簡及 Entry ET 自動計算（2026-11-12）
+
+- 移除新建／編輯畫面的 Primary POR、US100-C OPR 價格／Width／Sweep Sequence 手動記錄區，並移除相應 POR Research Filter。舊資料仍可經 CSV 保留。
+- 輸入 `Time from Cash Open to Entry (Min)` 後，由 09:30 America/New_York 自動計算唯讀 Entry Time (ET)，支援歷史 DST 及跨日。
+- US100 三種 Research Setup、HSI-C Contract、V1.4 Production、V1.5 Shadow 均維持原有邏輯；原有六市場不變。
+- 詳細內容見 `V1.30.45-US100-記錄精簡與EntryET-更新說明.md`。
+
+## V1.30.44｜三個指數市場新增普通結構 Sweep（2026-11-12）
+
+- UK100：新增 `uk100_structure_sweep`，顯示「UK100｜普通結構Sweep（Type B）」。
+- GER40：新增 `ger40_structure_sweep`，顯示「GER40｜普通結構Sweep（Type B）」。
+- US100：新增 `us100_structure_sweep`，顯示「US100｜普通結構Sweep（Type B｜Research）」。現有US100-POR、US100-C及舊 `us100_other_sweep` 保留。
+- 三者使用同 HSI-B 一樣嘅通用 `type: B` + `variant: sweep` 路徑；冇新增 P／Q／E Promotion、專屬Size規則、Direction Permission或Runner。
+- US100 研究頁新增 Structure Only 篩選；舊 Legacy Filter 不會錯誤包括呢個新分類。去重邏輯保持不變；三個Setup均保留既有 Shared Execution ID。
+- Journal 儲存同 CSV 使用舊有 `Setup代碼`／`核心Setup`／`Setup子類型` 欄位，無新增欄位，不影響舊CSV；US100繼續不允許 Live。
+- 改動：`app.js`、`index.html`、`manifest.webmanifest`、`service-worker.js`、兩份 README；PWA Cache升級至 V1.30.44。既有 V1.4 Production、V1.5 Shadow 及 GER40／HSI-C 原有條件不變。
+- 驗收詳情見 `V1.30.44-普通結構Sweep-更新及回歸測試.md`。
+
+---
+
 ## V1.30.43｜S3 Runner Event Sequence 改為 MFE Auto / Manual（2026-11-10）
 
 - **只修改 V1.5 S3 Runner 研究層**；V1.4 Production、S1／S2、S3 Eligibility、原有六市場與 US100 雙 Setup 不變。

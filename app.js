@@ -153,6 +153,7 @@ function isHsiOprContinuationRecord(
 // US100 research metadata only. Never pass these fields into Matrix sizing.
 const US100_MARKET = "US100";
 const US100_SETUP_POR = "us100_por_sweep_reclaim";
+const US100_SETUP_STRUCTURE = "us100_structure_sweep";
 const US100_SETUP_C = "us100_opr_continuation";
 function isUs100CRecord(record) {
   return isUs100Record(record) &&
@@ -265,17 +266,14 @@ function us100ResearchInputs(prefix = "") {
     data.us100OprAfter0930 = checked("hsiOprAfter0930") ? "Yes" : "";
     data.us100OprTrendAligned = checked("hsiOprTrendAligned") ? "Yes" : "";
   }
-  for (const [high, low, width] of [
-    ["us100PorHighPoints", "us100PorLowPoints", "us100PorWidthPoints"],
-    ["us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"]
-  ]) {
-    const h = data[high], l = data[low];
-    if (h !== null && l !== null && h >= l) data[width] = Number((h - l).toFixed(6));
-  }
   data.us100SessionETDate = $(prefix ? "editTradeDate" : "tradeDate").value;
-  if (data.us100EntryTimeET) {
-    const parts = data.us100EntryTimeET.split(":").map(Number);
-    data.us100MinutesFromCashOpen = (parts[0] - 9) * 60 + parts[1] - 30;
+  // Minutes are the only editable source. The ET time is always derived from them.
+  if (data.us100MinutesFromCashOpen !== null && Number.isInteger(data.us100MinutesFromCashOpen)) {
+    data.us100EntryTimeET = us100EntryFromCashOpenMinutes(
+      data.us100MinutesFromCashOpen, data.us100SessionETDate
+    )?.time || "";
+  } else {
+    data.us100EntryTimeET = "";
   }
   return data;
 }
@@ -288,42 +286,52 @@ function applyUs100ResearchInputs(record, prefix = "") {
       else node.value = record?.[field] ?? "";
     }
   }
-  syncUs100MinutesFromEntry(prefix);
-  syncUs100RangeWidths(prefix);
+  // For old imported records with only Entry ET (without Minutes), recover the
+  // former 09:30-relative minute count. Existing nonblank Minutes take priority.
+  const minutes = $(prefix ? "editUs100MinutesFromCashOpen" : "us100MinutesFromCashOpen");
+  const time = $(prefix ? "editUs100EntryTimeET" : "us100EntryTimeET");
+  if (minutes && time && minutes.value === "" && /^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) {
+    const [h, m] = time.value.split(":").map(Number);
+    minutes.value = String((h * 60 + m) - (9 * 60 + 30));
+  }
+  syncUs100EntryFromMinutes(prefix);
 }
-function syncUs100MinutesFromEntry(prefix = "") {
+function us100EntryFromCashOpenMinutes(minutes, sessionDate) {
+  if (!Number.isFinite(minutes) || !Number.isInteger(minutes) || Math.abs(minutes) > 1000000) return null;
+  const originMinutes = 9 * 60 + 30;
+  const total = originMinutes + minutes;
+  let offsetDays = Math.floor(total / 1440);
+  let minuteOfDay = ((total % 1440) + 1440) % 1440;
+  let entryDate = "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(sessionDate || "")) {
+    const cashOpenEpoch = us100NyWallToEpoch(sessionDate, 9, 30);
+    if (Number.isFinite(cashOpenEpoch)) {
+      const parts = us100NyWallParts(cashOpenEpoch + minutes * 60000);
+      minuteOfDay = parts.hour * 60 + parts.minute;
+      entryDate = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+      const sessionMidnight = Date.UTC(Number(sessionDate.slice(0, 4)), Number(sessionDate.slice(5, 7)) - 1, Number(sessionDate.slice(8, 10)));
+      const entryMidnight = Date.UTC(parts.year, parts.month - 1, parts.day);
+      offsetDays = Math.round((entryMidnight - sessionMidnight) / 86400000);
+    }
+  }
+  return {
+    time: `${String(Math.floor(minuteOfDay / 60)).padStart(2, "0")}:${String(minuteOfDay % 60).padStart(2, "0")}`,
+    entryDate, offsetDays
+  };
+}
+function syncUs100EntryFromMinutes(prefix = "") {
   const input = $(prefix ? "editUs100EntryTimeET" : "us100EntryTimeET");
   const minutes = $(prefix ? "editUs100MinutesFromCashOpen" : "us100MinutesFromCashOpen");
+  const sessionDate = $(prefix ? "editTradeDate" : "tradeDate")?.value;
+  const note = $(prefix ? "editUs100EntryETDateNote" : "us100EntryETDateNote");
   if (!input || !minutes) return;
-  const time = sanitizedUs100ResearchField("us100EntryTimeET", input.value);
-  if (time) {
-    const [h, m] = time.split(":").map(Number);
-    minutes.value = (h - 9) * 60 + m - 30;
-    minutes.readOnly = true;
-    minutes.title = "根據當日09:30 ET Cash Open自動計算；清除Entry Time可手動輸入。";
-  } else {
-    minutes.readOnly = false;
-    minutes.title = "Entry Time未填，可手動記錄分鐘數。";
-  }
-}
-function syncUs100RangeWidths(prefix = "") {
-  const id = key => prefix ? "edit" + key[0].toUpperCase() + key.slice(1) : key;
-  for (const [high, low, width] of [
-    ["us100PorHighPoints", "us100PorLowPoints", "us100PorWidthPoints"],
-    ["us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"]
-  ]) {
-    const hi = $(id(high)), lo = $(id(low)), result = $(id(width));
-    if (!hi || !lo || !result) continue;
-    const h = parseUs100Number(hi.value), l = parseUs100Number(lo.value);
-    if (h !== null && l !== null && h >= l) {
-      result.value = String(Number((h - l).toFixed(6)));
-      result.readOnly = true;
-      result.title = "根據獨立Range High／Low計算；清除任一價格可手動填Width。";
-    } else {
-      result.readOnly = false;
-      result.title = "缺少完整High／Low時可以手動輸入；資料不足唔會猜測。";
-    }
-    hi.setCustomValidity(h !== null && l !== null && h < l ? "Range High必須≥Range Low" : "");
+  const value = parseUs100Number(minutes.value);
+  const result = value === null ? null : us100EntryFromCashOpenMinutes(value, sessionDate);
+  input.value = result?.time || "";
+  if (note) {
+    const showNote = result !== null && result.offsetDays !== 0;
+    note.classList.toggle("hidden", !showNote);
+    note.textContent = showNote ? `Entry ET 日期：${result.entryDate || "請先選 Session 日期"}（${result.offsetDays > 0 ? "+" : ""}${result.offsetDays} 日）` : "";
   }
 }
 const US100_ET_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -392,11 +400,12 @@ function updateUs100SetupVisibility(prefix = "") {
   const active = edit ? !$('editUs100ResearchPanel').classList.contains("hidden") : marketCode(false) === US100_MARKET;
   const code = edit ? (loadRecords().find(r => r.id === activeRecordId)?.setupTemplate || "") : setupTemplateCode(false);
   const isC = active && code === US100_SETUP_C;
-  $(edit ? "editUs100OprResearchFields" : "us100OprResearchFields")?.classList.toggle("hidden", !isC);
-  $(edit ? "editUs100PorResearchFields" : "us100PorResearchFields")?.classList.toggle("hidden", !active);
+  if (edit) $("editUs100OprContractFields")?.classList.toggle("hidden", !isC);
   const familyText = $(edit ? "editUs100SetupFamilyStatus" : "us100SetupFamilyStatus");
   if (familyText) familyText.textContent = !active ? "" : isC ? "US100-C｜09:15–09:30 ET OPR（獨立於POR）" :
-    code === US100_SETUP_POR ? "US100-POR｜08:30–09:30 ET Primary POR" : "Legacy US100研究紀錄";
+    code === US100_SETUP_POR ? "US100-POR｜08:30–09:30 ET Primary POR" :
+    code === US100_SETUP_STRUCTURE ? "US100｜普通結構Sweep（Type B｜Research）｜不以POR／OPR作專屬Setup" :
+    "Legacy US100研究紀錄";
 }
 function us100LiveOprTrendAligned() {
   const main = stateBias($("mainState").value);
@@ -549,6 +558,7 @@ const MARKET_CONFIG = {
       "eu_por_2b",
       "eu_asia_post_open",
       "eu_pure_full_repair",
+      "uk100_structure_sweep",
       "custom"
     ],
     timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
@@ -561,6 +571,7 @@ const MARKET_CONFIG = {
       "eu_por_2b",
       "eu_asia_post_open",
       "eu_pure_full_repair",
+      "ger40_structure_sweep",
       "custom"
     ],
     timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
@@ -570,7 +581,7 @@ const MARKET_CONFIG = {
     marketType: "Index",
     preset: "us100",
     defaultSymbol: "US100",
-    setupCodes: ["us100_por_sweep_reclaim", "us100_opr_continuation"],
+    setupCodes: ["us100_por_sweep_reclaim", "us100_opr_continuation", "us100_structure_sweep"],
     timeRule: "US100：僅Backtest／Practice／Review／Shadow；POR = 08:30–09:30 ET [不含09:30開市K]；Full Premarket = 04:00–09:30 ET。原V1.4 Size僅模擬，唔係正式Live Permission。"
   },
   FX: {
@@ -601,6 +612,27 @@ const MARKET_CONFIG = {
 };
 
 const SETUP_DEFINITIONS = {
+  us100_structure_sweep: {
+    marketGroup: "US100_RESEARCH",
+    label: "US100｜普通結構Sweep（Type B｜Research）",
+    type: "B",
+    variant: "sweep",
+    note: "研究限定：沿用HSI-B普通結構Sweep＋Reclaim（例如局部Swing、Working Structure或Session H/L）嘅通用P／Q計算；不因本Setup而獲P2-E、GER40 POR或HSI-C專屬優惠，US100不能用於Live Production。"
+  },
+  uk100_structure_sweep: {
+    marketGroup: "EU",
+    label: "UK100｜普通結構Sweep（Type B）",
+    type: "B",
+    variant: "sweep",
+    note: "沿用HSI-B普通結構Sweep＋Reclaim（例如局部Swing、Working Structure或Session H/L）；按現有Raw P／Native Q／Direction Permission評級，不自動P／Q升級，亦唔享有EU-A／EU-B／EU-D專屬POR優惠。"
+  },
+  ger40_structure_sweep: {
+    marketGroup: "EU",
+    label: "GER40｜普通結構Sweep（Type B）",
+    type: "B",
+    variant: "sweep",
+    note: "沿用HSI-B普通結構Sweep＋Reclaim（例如局部Swing、Working Structure或Session H/L）；按現有Raw P／Native Q／Direction Permission評級，不自動P／Q升級，亦唔享有EU-A／EU-B／EU-D專屬POR優惠。"
+  },
   us100_por_sweep_reclaim: {
     marketGroup: "US100_RESEARCH",
     label: "US100-POR｜Sweep + Reclaim（Research）",
@@ -10876,9 +10908,9 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.40",
+      "PracticeJournal-V1.30.45",
     engineVersion:
-      "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r44",
+      "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r45",
     matrixVersion:
       "Master Trade Matrix V1.4｜Base + Production + Shadow",
 
@@ -12287,21 +12319,20 @@ function us100DuplicatedConflicts(records) {
 function us100ResearchSetupView(records, view) {
   if (view === "por") return records.filter(r => isUs100Record(r) && us100SetupFamily(r) === US100_SETUP_POR);
   if (view === "opr") return records.filter(r => isUs100CRecord(r));
-  if (view === "legacy") return records.filter(r => isUs100Record(r) && ![US100_SETUP_POR, US100_SETUP_C].includes(us100SetupFamily(r)));
+  if (view === "structure") return records.filter(r => isUs100Record(r) && us100SetupFamily(r) === US100_SETUP_STRUCTURE);
+  if (view === "legacy") return records.filter(r => isUs100Record(r) && ![US100_SETUP_POR, US100_SETUP_C, US100_SETUP_STRUCTURE].includes(us100SetupFamily(r)));
   return us100DeduplicateForPerformance(records.filter(isUs100Record));
 }
 function us100ResearchFiltersMatch(record) {
   const pairs = [
     ["researchFilterPremarket", "us100FullPremarketSwept"],
-    ["researchFilterSequence", "us100PorSweepSequence"],
     ["researchFilter0830News", "us100MajorNews0830"],
     ["researchFilterGap", "us100OpeningGapDirection"],
     ["researchFilter1000News", "us100News1000"]
   ];
   const anyFilters = [
     ...pairs.map(([id]) => $(id).value),
-    ...["researchFilterWidthMin", "researchFilterWidthMax", "researchFilterMinutesMin",
-       "researchFilterMinutesMax", "researchFilter1000Event", "researchFilterOprDirection"].map(id => $(id).value.trim())
+    ...["researchFilterMinutesMin", "researchFilterMinutesMax", "researchFilter1000Event", "researchFilterOprDirection"].map(id => $(id).value.trim())
   ].some(Boolean);
   if (!anyFilters) return true;
   if (!isUs100Record(record)) return false;
@@ -12309,8 +12340,6 @@ function us100ResearchFiltersMatch(record) {
     if ($(id).value && us100ResearchText(record, field) !== $(id).value) return false;
   }
   for (const [id, field, limit] of [
-    ["researchFilterWidthMin", "us100PorWidthPoints", "min"],
-    ["researchFilterWidthMax", "us100PorWidthPoints", "max"],
     ["researchFilterMinutesMin", "us100MinutesFromCashOpen", "min"],
     ["researchFilterMinutesMax", "us100MinutesFromCashOpen", "max"]
   ]) {
@@ -12650,7 +12679,8 @@ function renderHistory() {
         setupView === "all-dedup" ||
         (setupView === "por" ? us100SetupFamily(record) === US100_SETUP_POR :
           setupView === "opr" ? isUs100CRecord(record) :
-          setupView === "legacy" ? isUs100Record(record) && ![US100_SETUP_POR, US100_SETUP_C].includes(us100SetupFamily(record)) : true);
+          setupView === "structure" ? us100SetupFamily(record) === US100_SETUP_STRUCTURE :
+          setupView === "legacy" ? isUs100Record(record) && ![US100_SETUP_POR, US100_SETUP_C, US100_SETUP_STRUCTURE].includes(us100SetupFamily(record)) : true);
       const modeMatches =
         modeFilters.length === 0 ||
         modeFilters.includes(
@@ -13284,7 +13314,7 @@ async function openRecord(recordId) {
       <h3>US100｜Research / Shadow（Simulation only）</h3>
       <strong>美東Session日期：</strong>${escapeHtml(us100ResearchText(record, "us100SessionETDate"))}<br>
       <strong>Entry Time ET：</strong>${escapeHtml(us100ResearchText(record, "us100EntryTimeET"))}<br>
-      ${US100_RESEARCH_FIELD_MAP.filter(([field]) => !["us100SessionETDate", "us100EntryTimeET"].includes(field))
+      ${US100_RESEARCH_FIELD_MAP.filter(([field]) => !["us100SessionETDate", "us100EntryTimeET", "us100PorHighPoints", "us100PorLowPoints", "us100PorWidthPoints", "us100PorSweepSequence", "us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"].includes(field))
         .map(([field, column]) => `<strong>${escapeHtml(column)}：</strong>${escapeHtml(us100ResearchText(record,field))}<br>`).join("")}
     </section>` : "";
   const v15=v15Snapshot(record);
@@ -20326,23 +20356,16 @@ function setupEvents() {
       }
     );
 
-  $("tradeDate").addEventListener("change", updateUs100PorDisplay);
-  for (const prefix of ["", "edit"]) {
-    const id = key => prefix ? "edit" + key[0].toUpperCase() + key.slice(1) : key;
-    for (const key of ["us100PorHighPoints", "us100PorLowPoints", "us100OprHighPoints", "us100OprLowPoints"]) {
-      $(id(key))?.addEventListener("input", () => syncUs100RangeWidths(prefix));
-    }
-  }
-  for (const prefix of ["", "edit"]) {
-    const id = prefix ? "editUs100EntryTimeET" : "us100EntryTimeET";
-    $(id).addEventListener("input", () => syncUs100MinutesFromEntry(prefix));
-  }
-  $("editTradeDate").addEventListener("change", () => {
-    const panel = $("editUs100ResearchPanel");
-    if (!panel.classList.contains("hidden")) {
-      // Trade Date is the ET session date for US100; no additional derived field needed.
-    }
+  $("tradeDate").addEventListener("change", () => {
+    updateUs100PorDisplay();
+    syncUs100EntryFromMinutes();
   });
+  for (const prefix of ["", "edit"]) {
+    const id = prefix ? "editUs100MinutesFromCashOpen" : "us100MinutesFromCashOpen";
+    $(id).addEventListener("input", () => syncUs100EntryFromMinutes(prefix));
+    $(id).addEventListener("change", () => syncUs100EntryFromMinutes(prefix));
+  }
+  $("editTradeDate").addEventListener("change", () => syncUs100EntryFromMinutes("edit"));
 
   $("setupTemplate")
     .addEventListener(
