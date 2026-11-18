@@ -1,3 +1,9 @@
+## V1.30.47｜HSI-C／US100-C OPR「冇方向」
+
+- 新建及編輯可選「冇方向」，同「順向順勢」、「反向順勢」及「未記錄」獨立保存。
+- 紀錄庫可篩選 OPR Direction Context。V1.5 Shadow Research → Research Group By → OPR Direction Context｜HSI-C／US100-C 可按 Setup 同分類並列比較。
+- 保持既有入場資格、計算、Production 統計範圍及 CSV 格式。詳見 `V1.30.47-OPR-Direction-Context.md`。
+
 ## V1.30.46｜US100-POR 改用 GER40 EU-A Session 2B（2026-11-12）
 
 - US100-POR 由 Type B `sweep` 改為指定 Type A `session2B`，共用 GER40 EU-A 的6項Checklist、方向配對、5/6高質門檻及 Raw P3→P2-effective (E) 待遇；Native Q不升級。

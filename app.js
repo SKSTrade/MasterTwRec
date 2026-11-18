@@ -104,6 +104,9 @@ const HSI_OPR_DIRECTION_CONTEXTS = {
   reverseOprTrend: {
     label: "反向順勢",
     note: "OPR方向逆主判／次判，但Trade方向仍然順主判／次判。"
+  },
+  neutralOpr: {
+    label: "冇方向"
   }
 };
 
@@ -159,6 +162,17 @@ function isUs100CRecord(record) {
   return isUs100Record(record) &&
     (record?.setupTemplate === US100_SETUP_C ||
       String(record?.setupTemplateLabel || record?.setupFamily || "").includes("US100-C"));
+}
+function oprContinuationFamily(record) {
+  if (isUs100Record(record)) {
+    return isUs100CRecord(record) || record.setupVariant === "oprContinuation" ? "US100-C" : "";
+  }
+  return isHsiOprContinuationRecord(record) ? "HSI-C" : "";
+}
+function recordOprDirectionContext(record) {
+  return hsiOprDirectionContextLabel(record.oprDirectionContext)
+    ? record.oprDirectionContext
+    : hsiOprDirectionContextFromLabel(record.oprDirectionContextLabel);
 }
 function us100SetupFamily(record) {
   if (isUs100CRecord(record)) return US100_SETUP_C;
@@ -679,7 +693,7 @@ const SETUP_DEFINITIONS = {
     classificationLabel: "HSI-C｜OPR Continuation & Retest",
     variant: "oprContinuation",
     provisional: true,
-    note: "V1.3 Research／Provisional：主判＋次判Judge必須雙同向（Gap Off＝次判Main；Gap On＝次判Working），而且Trade方向順主／次判Judge；09:15–09:30 OPR完成；09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。OPR Direction Context只分順向順勢／反向順勢。Raw P3仍然P3，暫時冇E。"
+    note: "V1.3 Research／Provisional：主判＋次判Judge必須雙同向（Gap Off＝次判Main；Gap On＝次判Working），而且Trade方向順主／次判Judge；09:15–09:30 OPR完成；09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。OPR Direction Context只作研究分類（順向順勢／反向順勢／冇方向）。Raw P3仍然P3，暫時冇E。"
   },
   hsi_breakout_retest: {
     marketGroup: "HSI_LEGACY",
@@ -3755,7 +3769,7 @@ function evaluateBaseTrigger() {
 
       if (oprDirectionContext) {
         addPositive(
-          `HSI-C OPR Direction Context：${hsiOprDirectionContextLabel(oprDirectionContext)}。`
+          `${marketCode(false) === US100_MARKET ? "US100-C" : "HSI-C"} OPR Direction Context：${hsiOprDirectionContextLabel(oprDirectionContext)}。`
         );
       }
     }
@@ -8848,7 +8862,7 @@ function evaluateDecision(
       checked("hsiOprTrendAligned") &&
       !$("hsiOprDirectionContext").value
     ) {
-      warnings.push("HSI-C Research：未填OPR Direction Context；請標記順向順勢／反向順勢，方便之後比較Expectancy。");
+      warnings.push("HSI-C Research：未填OPR Direction Context；可標記順向順勢／反向順勢／冇方向，方便之後比較Expectancy。");
     }
   }
 
@@ -10931,13 +10945,19 @@ async function saveDecision(event) {
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random()}`;
 
+  const selectedOprContext = $("hsiOprDirectionContext").value;
+  // A neutral range can be observed even on a draft or rejected candidate.
+  const oprDirectionContext = currentAsia2B.setupVariant === "oprContinuation" &&
+    (checked("hsiOprTrendAligned") || selectedOprContext === "neutralOpr")
+    ? selectedOprContext : "";
+
   const record = {
     id: recordId,
     tradeDate,
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.46",
+      "PracticeJournal-V1.30.47",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r45",
     matrixVersion:
@@ -10961,24 +10981,8 @@ async function saveDecision(event) {
       currentAsia2B.setupTemplateLabel,
     setupVariant:
       currentAsia2B.setupVariant,
-    oprDirectionContext:
-      currentAsia2B.setupVariant ===
-          "oprContinuation" &&
-        checked(
-          "hsiOprTrendAligned"
-        )
-        ? $("hsiOprDirectionContext").value
-        : "",
-    oprDirectionContextLabel:
-      currentAsia2B.setupVariant ===
-          "oprContinuation" &&
-        checked(
-          "hsiOprTrendAligned"
-        )
-        ? hsiOprDirectionContextLabel(
-            $("hsiOprDirectionContext").value
-          )
-        : "",
+    oprDirectionContext,
+    oprDirectionContextLabel: hsiOprDirectionContextLabel(oprDirectionContext),
     previousHLSweepSource:
       currentAsia2B.previousHLSweepSource || "",
     previousHLSweepSourceLabel:
@@ -12361,7 +12365,7 @@ function us100ResearchFiltersMatch(record) {
   ];
   const anyFilters = [
     ...pairs.map(([id]) => $(id).value),
-    ...["researchFilterMinutesMin", "researchFilterMinutesMax", "researchFilter1000Event", "researchFilterOprDirection"].map(id => $(id).value.trim())
+    ...["researchFilterMinutesMin", "researchFilterMinutesMax", "researchFilter1000Event"].map(id => $(id).value.trim())
   ].some(Boolean);
   if (!anyFilters) return true;
   if (!isUs100Record(record)) return false;
@@ -12376,8 +12380,6 @@ function us100ResearchFiltersMatch(record) {
     const n = parseUs100Number(record[field]);
     if (n === null || (limit === "min" ? n < Number($(id).value) : n > Number($(id).value))) return false;
   }
-  const opr = $("researchFilterOprDirection").value;
-  if (opr && record.oprDirectionContext !== opr) return false;
   const event = $("researchFilter1000Event").value.trim().toLowerCase();
   if (event && !String(record.us100News1000Event || "").toLowerCase().includes(event)) return false;
   return true;
@@ -12394,6 +12396,11 @@ const V15_VERSIONS=[
 ];
 function v15GroupValue(record, group, shadow) {
   if(group==="all")return "All";
+  if(group==="oprDirectionContext"){
+    const family=oprContinuationFamily(record);
+    if(!family)return "";
+    return `${family}｜${hsiOprDirectionContextLabel(recordOprDirectionContext(record)) || "未記錄"}`;
+  }
   if(group==="backtestPeriod"){
     const d=recordTradeDate(record);if(!/^\d{4}-\d{2}/.test(d))return "Missing";
     return `${d.slice(0,4)} H${Number(d.slice(5,7))<=6?1:2}`;
@@ -12479,6 +12486,7 @@ function renderV15Analytics(records) {
   const triggerFilter=$("v15TriggerFilter").value;
   const groups=new Map();
   for(const record of records){
+    if(group==="oprDirectionContext"&&!oprContinuationFamily(record))continue;
     const shadow=v15Snapshot(record);
     if(triggerFilter==="s1"&&!shadow.v15S1Trigger)continue;
     if(triggerFilter==="s2"&&!shadow.v15S2Trigger)continue;
@@ -12518,7 +12526,9 @@ function clearHistoryFilters() {
   $("researchFilterSetupView").value = "all-dedup";
   $("researchFilterOprDirection").value = "";
   $("v15GroupBy").value="all";$("v15VersionFilter").value="all";$("v15TriggerFilter").value="all";
-  for (const node of $("us100HistoryResearchFilters").querySelectorAll("input,select")) node.value = "";
+  for (const node of $("us100HistoryResearchFilters").querySelectorAll("input,select")) {
+    if (node.id !== "researchFilterSetupView") node.value = "";
+  }
   updateUs100ResearchHistoryScope();
   $("historyDateFrom").value =
     "";
@@ -12698,12 +12708,15 @@ function renderHistory() {
   const sortMode =
     $("historySort").value ||
     "created-desc";
+  const oprFilter = $("researchFilterOprDirection").value;
 
   const filteredCandidates =
     allRecords.filter((record) => {
       const scopeMatches = researchScope === "All" ||
         (researchScope === "Research" ? isUs100Record(record) : isProductionRecord(record));
-      const us100Matches = us100ResearchFiltersMatch(record);
+      const us100Matches = researchScope === "Production" || us100ResearchFiltersMatch(record);
+      const oprMatches = !oprFilter ||
+        (Boolean(oprContinuationFamily(record)) && recordOprDirectionContext(record) === oprFilter);
       const setupMatches = researchScope !== "Research" ||
         setupView === "all-dedup" ||
         (setupView === "por" ? us100SetupFamily(record) === US100_SETUP_POR :
@@ -12759,6 +12772,7 @@ function renderHistory() {
       return (
         scopeMatches &&
         us100Matches &&
+        oprMatches &&
         setupMatches &&
         modeMatches &&
         entryMatches &&
@@ -12777,6 +12791,7 @@ function renderHistory() {
   const activeFilterParts = [];
   activeFilterParts.push(researchScope === "Production" ? "Production原有市場" :
     researchScope === "Research" ? "US100 Research / Shadow" : "全部市場（統計隔離）");
+  if (oprFilter) activeFilterParts.push(`OPR：${hsiOprDirectionContextLabel(oprFilter)}`);
 
   if (modeFilters.length > 0) {
     activeFilterParts.push(
@@ -12813,7 +12828,13 @@ function renderHistory() {
         ? `顯示 ${filtered.length}/${allRecords.length} 筆｜${activeFilterParts.join("｜")}｜${sortSummary}`
         : `顯示全部 ${allRecords.length} 筆紀錄｜${sortSummary}`;
 
-  renderV15Analytics(filtered);
+  // For an OPR-only breakdown, keep the C observation when the same
+  // execution also has a POR tag, but count the execution only once.
+  const oprBreakdown = $("v15GroupBy").value === "oprDirectionContext";
+  const analyticsRecords = oprBreakdown && researchScope === "Research" && setupView === "all-dedup"
+    ? us100DeduplicateForPerformance(filteredCandidates.filter(oprContinuationFamily))
+    : filtered;
+  renderV15Analytics(analyticsRecords);
 
   currentFilteredHistoryIds =
     filtered.map(
@@ -13907,24 +13928,17 @@ async function openRecord(recordId) {
     record.entryStatus ||
     "Entry";
 
-  const editIsHsiC = isHsiOprContinuationRecord(record) || isUs100CRecord(record);
+  const editOprFamily = oprContinuationFamily(record);
+  $("editOprDirectionContextLabel").textContent = `OPR Direction Context｜${editOprFamily}`;
 
   $("editHsiOprDirectionContextRow")
     .classList.toggle(
       "hidden",
-      !editIsHsiC
+      !editOprFamily
     );
 
   $("editHsiOprDirectionContext").value =
-    editIsHsiC
-      ? (
-          record.oprDirectionContext ||
-          hsiOprDirectionContextFromLabel(
-            record.oprDirectionContextLabel
-          ) ||
-          ""
-        )
-      : "";
+    editOprFamily ? recordOprDirectionContext(record) : "";
 
   const editIsRawP3 =
     recordRawP(record) === "P3";
@@ -14295,9 +14309,7 @@ async function saveRecordEdit() {
       $("editP3Context").value;
   }
 
-  if (
-    (isHsiOprContinuationRecord(records[index]) || isUs100CRecord(records[index]))
-  ) {
+  if (oprContinuationFamily(records[index])) {
     records[index].oprDirectionContext =
       $("editHsiOprDirectionContext").value;
     records[index].oprDirectionContextLabel =
@@ -20791,6 +20803,7 @@ function setupEvents() {
       renderHistory
     );
   $("historyResearchScope").addEventListener("change", renderHistory);
+  $("researchFilterOprDirection").addEventListener("change", renderHistory);
   for (const id of ["v15GroupBy","v15VersionFilter","v15TriggerFilter"]) $(id).addEventListener("change",renderHistory);
   for (const id of ["v15RunnerEvidence","v15RunnerRfExitR","v15RunnerUnitROverride","v15RunnerNote"]) {
     $(id).addEventListener("input", updateShadowResearchPreview);
