@@ -1,3 +1,9 @@
+## V1.30.49｜統一 Setup 名稱為 EU-C
+
+- GER40 及 UK100 嘅 OPR Continuation & Retest 統一叫 `EU-C｜OPR Continuation & Retest（Research）`。各自市場、歐洲開市時間、OPR 及計算規則不變。
+- 紀錄庫用 `Research / Shadow｜EU-C`。可按 Setup 或 OPR Direction Context 睇整體 EU-C，亦可按 Instrument 分開睇 GER40／UK100。
+- 舊紀錄、備份同 CSV 仍然兼容。詳見 `V1.30.49-EU-C-Naming.md`。
+
 ## V1.30.48｜GER40-C／UK100-C OPR Continuation & Retest
 
 - GER40 同 UK100 新增各自嘅 Continuation & Retest，沿用 US100-C 判斷，兩個 Setup 只限 Practice／Review／Shadow。既有歐洲 Setup 同 Production 規則不變。

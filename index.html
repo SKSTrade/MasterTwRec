@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.48</span>
+    <span class="version-badge">V1.30.49</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1731,7 +1731,7 @@
           匯入CSV會還原文字紀錄；匯入本App產生嘅「CSV＋照片 ZIP」會連照片一齊還原。相同紀錄ID會自動跳過，避免重複。舊CSV冇紀錄ID時會建立新ID。
         </p>
 
-        <p id="statsScopeNote" class="state-note"><strong>Production統計隔離：</strong>US100、GER40-C及UK100-C研究紀錄可以獨立查看，不混入正式績效。</p>
+        <p id="statsScopeNote" class="state-note"><strong>Production統計隔離：</strong>US100及EU-C研究紀錄可以獨立查看，不混入正式績效。</p>
         <details id="v15AnalyticsPanel" class="v15-analytics-panel" open>
           <summary>V1.5 Shadow Research｜五版本績效比較（不影響Production）</summary>
           <div class="filter-grid">
@@ -1774,7 +1774,7 @@
             <select id="historyResearchScope">
               <option value="Production" selected>Production｜原有市場（預設）</option>
               <option value="Research">Research / Shadow｜US100 Only</option>
-              <option value="EuropeResearch">Research / Shadow｜GER40-C／UK100-C</option>
+              <option value="EuropeResearch">Research / Shadow｜EU-C</option>
               <option value="All">全部紀錄（統計仍分隔）</option>
             </select>
           </label>
@@ -2097,7 +2097,7 @@
           <li><strong>順向順勢：</strong>OPR方向＝主判／次判方向＝Trade方向；例如HTF ↑＋OPR ↑＋Trade ↑。</li>
           <li><strong>反向順勢：</strong>OPR方向逆主判／次判，但Trade仍順主／次判；例如HTF ↑＋OPR ↓＋Trade ↑。「反向」只指OPR逆HTF。</li>
           <li><strong>冇方向：</strong>OPR本身冇明確升跌方向，唔係未記錄。原有入場資格同Size不變。</li>
-          <li><strong>GER40-C／UK100-C：</strong>沿用US100-C合約，只限研究。GER40按柏林08:45–09:00、UK100按倫敦07:45–08:00；取開市前15分鐘，唔計開市K線。唔引用EU-A／EU-D專屬待遇。</li>
+          <li><strong>EU-C｜GER40、UK100：</strong>沿用US100-C合約，只限研究。GER40按柏林08:45–09:00、UK100按倫敦07:45–08:00；取開市前15分鐘，唔計開市K線。唔引用EU-A／EU-D專屬待遇。</li>
           <li><strong>時間：</strong>10:30後唔開新Setup。</li>
         </ul>
       </article>
