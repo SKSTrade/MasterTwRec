@@ -158,12 +158,42 @@ const US100_MARKET = "US100";
 const US100_SETUP_POR = "us100_por_sweep_reclaim";
 const US100_SETUP_STRUCTURE = "us100_structure_sweep";
 const US100_SETUP_C = "us100_opr_continuation";
+const EU_OPR_RESEARCH = Object.freeze({
+  ger40_opr_continuation: { market: "GER40", family: "GER40-C", zone: "Europe/Berlin", city: "柏林", openHour: 9, oprWindow: "08:45–09:00" },
+  uk100_opr_continuation: { market: "UK100", family: "UK100-C", zone: "Europe/London", city: "倫敦", openHour: 8, oprWindow: "07:45–08:00" }
+});
+const EU_OPR_RESEARCH_FIELD_MAP = [
+  ["euOprMinutesFromCashOpen", "EU-C Time from Cash Open to Entry (Min)"],
+  ["euOprEntryTimeLocal", "EU-C Entry Time (Exchange Local)"],
+  ["euOprEntryDateLocal", "EU-C Entry Date (Exchange Local)"],
+  ["euOprSessionZone", "EU-C Session Time Zone"],
+  ["euOprWindowComplete", "EU-C OPR Window Complete"],
+  ["euOprAfterOpen", "EU-C Break After Cash Open"],
+  ["euOprTrendAligned", "EU-C Main Effective Secondary Aligned"]
+];
+const EU_OPR_CHECK_FIELDS = {
+  euOprWindowComplete: ["hsiOprWindowComplete", "editEuOprWindowComplete"],
+  euOprAfterOpen: ["hsiOprAfter0930", "editEuOprAfterOpen"],
+  euOprTrendAligned: ["hsiOprTrendAligned", "editEuOprTrendAligned"]
+};
+function euOprResearchConfig(code, label = "") {
+  return Object.hasOwn(EU_OPR_RESEARCH, code) ? EU_OPR_RESEARCH[code]
+    : Object.values(EU_OPR_RESEARCH).find(cfg => String(label).startsWith(cfg.family + "｜")) || null;
+}
+function euOprResearchForRecord(record) {
+  return euOprResearchConfig(record?.setupTemplate, record?.setupTemplateLabel || record?.setupFamily || "");
+}
+function isResearchSetupSelected() {
+  return marketCode(false) === US100_MARKET || Boolean(euOprResearchConfig(setupTemplateCode(false)));
+}
 function isUs100CRecord(record) {
   return isUs100Record(record) &&
     (record?.setupTemplate === US100_SETUP_C ||
       String(record?.setupTemplateLabel || record?.setupFamily || "").includes("US100-C"));
 }
 function oprContinuationFamily(record) {
+  const eu = euOprResearchForRecord(record);
+  if (eu) return eu.family;
   if (isUs100Record(record)) {
     return isUs100CRecord(record) || record.setupVariant === "oprContinuation" ? "US100-C" : "";
   }
@@ -231,9 +261,82 @@ function isUs100Record(record) {
     String(record?.symbol || "").toUpperCase() === US100_MARKET;
 }
 function recordResearchStatus(record) {
-  return isUs100Record(record) ? US100_RESEARCH_STATUS : US100_PRODUCTION_STATUS;
+  return isProductionRecord(record) ? US100_PRODUCTION_STATUS : US100_RESEARCH_STATUS;
 }
-function isProductionRecord(record) { return !isUs100Record(record); }
+function isProductionRecord(record) { return !isUs100Record(record) && !euOprResearchForRecord(record); }
+function euOprMinuteOffset(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && Math.abs(n) <= 1000000 ? n : null;
+}
+const EU_OPR_FORMATTERS = new Map(
+  [...Object.values(EU_OPR_RESEARCH).map(cfg => cfg.zone), "Asia/Hong_Kong"].map(zone =>
+    [zone, new Intl.DateTimeFormat("en-GB", {
+      timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    })])
+);
+function euOprWallParts(instant, zone) {
+  const parts = Object.fromEntries(EU_OPR_FORMATTERS.get(zone).formatToParts(instant).map(({type, value}) => [type, value]));
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+function euOprSchedule(cfg, sessionDate, minutes = null) {
+  if (!cfg || !/^\d{4}-\d{2}-\d{2}$/.test(sessionDate || "")) return null;
+  const openTime = String(cfg.openHour).padStart(2, "0") + ":00";
+  const wanted = Date.parse(`${sessionDate}T${openTime}:00Z`);
+  if (!Number.isFinite(wanted) || new Date(wanted).toISOString().slice(0, 10) !== sessionDate) return null;
+  // Local cash open is outside clock-change hours, so the local wall time is unambiguous.
+  const guess = euOprWallParts(wanted, cfg.zone);
+  const open = wanted + (wanted - Date.parse(`${guess.date}T${guess.time}:00Z`));
+  const oprStart = open - 15 * 60000;
+  const entry = minutes === null ? null : open + minutes * 60000;
+  return {
+    open, oprStart,
+    openTime, openHK: euOprWallParts(open, "Asia/Hong_Kong").time,
+    oprStartHK: euOprWallParts(oprStart, "Asia/Hong_Kong").time,
+    entryLocal: entry === null ? null : euOprWallParts(entry, cfg.zone),
+    entryHK: entry === null ? null : euOprWallParts(entry, "Asia/Hong_Kong")
+  };
+}
+function euOprResearchData(cfg, sessionDate, offset, evidence) {
+  const minutes = euOprMinuteOffset(offset);
+  const entry = euOprSchedule(cfg, sessionDate, minutes)?.entryLocal;
+  return {
+    euOprMinutesFromCashOpen: minutes, euOprEntryTimeLocal: entry?.time || "",
+    euOprEntryDateLocal: entry?.date || "", euOprSessionZone: cfg.zone,
+    ...Object.fromEntries(Object.keys(EU_OPR_CHECK_FIELDS).map(key => [key, evidence(key) ? "Yes" : ""]))
+  };
+}
+function euOprResearchInputs(cfg, edit = false) {
+  return euOprResearchData(cfg, $(edit ? "editTradeDate" : "tradeDate").value,
+    $(edit ? "editEuOprMinutesFromCashOpen" : "euOprMinutesFromCashOpen").value,
+    key => checked(EU_OPR_CHECK_FIELDS[key][edit ? 1 : 0]));
+}
+function updateEuOprResearchTime(edit = false, record = null) {
+  const cfg = edit ? euOprResearchForRecord(record || loadRecords().find(r => r.id === activeRecordId))
+    : euOprResearchConfig(setupTemplateCode(false));
+  const prefix = base => $(edit ? "edit" + base[0].toUpperCase() + base.slice(1) : base);
+  prefix("euOprResearchPanel").classList.toggle("hidden", !cfg);
+  if (!cfg) {
+    if (!edit) prefix("euOprMinutesFromCashOpen").value = "";
+    return;
+  }
+  const date = $(edit ? "editTradeDate" : "tradeDate").value;
+  const raw = prefix("euOprMinutesFromCashOpen").value;
+  const minutes = euOprMinuteOffset(raw);
+  const schedule = euOprSchedule(cfg, date, minutes);
+  const local = schedule?.entryLocal;
+  prefix("euOprResearchTitle").textContent = `${cfg.family}｜Research / Shadow Only`;
+  prefix("euOprSchedule").textContent = schedule
+    ? `以${cfg.city}交易日為準｜OPR ${cfg.oprWindow}（不含開市K線）｜Cash Open ${schedule.openTime} ${cfg.city}／${schedule.openHK} 香港｜OPR 香港 ${schedule.oprStartHK}–${schedule.openHK}`
+    : `請選擇${cfg.city}交易日期。OPR ${cfg.oprWindow}，按當地時間計。`;
+  prefix("euOprEntryTimeLabel").textContent = `實際 Entry 時間（${cfg.city}）｜自動計算`;
+  prefix("euOprEntryTimeLocal").value = local?.time || "";
+  prefix("euOprEntryNote").textContent = local
+    ? `${local.date} ${cfg.city}｜香港 ${schedule.entryHK.date} ${schedule.entryHK.time}${minutes < 0 ? "｜開市前，唔合格" : ""}`
+    : raw !== "" && minutes === null ? "請輸入有效整數分鐘。" : "未填寫維持 Missing。";
+}
 function us100ResearchText(record, field) {
   const v = record?.[field];
   return v === undefined || v === null || v === "" ||
@@ -421,34 +524,38 @@ function updateUs100SetupVisibility(prefix = "") {
     code === US100_SETUP_STRUCTURE ? "US100｜普通結構Sweep（Type B｜Research）｜不以POR／OPR作專屬Setup" :
     "Legacy US100研究紀錄";
 }
-function us100LiveOprTrendAligned() {
+function researchOprTrendAligned() {
   const main = stateBias($("mainState").value);
   const secondary = stateBias(secondaryJudgeState());
   return main !== null && main === secondary && main === tradeBias();
 }
-function updateUs100ResearchVisibility() {
+function updateResearchSetupVisibility() {
   const active = marketCode(false) === US100_MARKET;
+  const researchOnly = isResearchSetupSelected();
+  const euOpr = euOprResearchConfig(setupTemplateCode(false));
   $("us100ResearchPanel")?.classList.toggle("hidden", !active);
-  $("us100ResearchBanner")?.classList.toggle("hidden", !active);
-  $("us100SimulatedLabel")?.classList.toggle("hidden", !active);
-  $("us100ProductionLabel")?.classList.toggle("hidden", active);
-  // Full form accepts research only. Live Quick has no US100 instrument.
+  $("us100ResearchBanner")?.classList.toggle("hidden", !researchOnly);
+  $("researchBannerTitle").textContent = `${euOpr?.family || US100_MARKET}｜Research / Shadow only`;
+  $("us100SimulatedLabel")?.classList.toggle("hidden", !researchOnly);
+  $("us100ProductionLabel")?.classList.toggle("hidden", researchOnly);
+  // Live Quick never offers these research-only setups.
   const liveRadio = document.querySelector('input[name="recordMode"][value="Live"]');
   if (liveRadio) {
-    liveRadio.disabled = active;
-    if (active && liveRadio.checked) {
+    liveRadio.disabled = researchOnly;
+    if (researchOnly && liveRadio.checked) {
+      liveRadio.checked = false;
       document.querySelector('input[name="recordMode"][value="Practice"]').checked = true;
     }
   }
   if (active) updateUs100PorDisplay();
   updateUs100SetupVisibility();
 }
-function updateUs100EditModePermission(record) {
-  const isResearch = isUs100Record(record);
+function updateResearchEditModePermission(record) {
+  const isResearch = !isProductionRecord(record);
   const liveOption = $("editRecordMode").querySelector('option[value="Live"]');
   liveOption.disabled = isResearch;
   // Import can retain a pre-existing Live label without changing source data;
-  // editor may only re-save US100 as Practice/Review.
+  // editor may only re-save research-only records as Practice/Review.
   if (isResearch && $("editRecordMode").value === "Live") {
     $("editRecordMode").value = "Practice";
   }
@@ -528,12 +635,12 @@ function populateInstrumentSelect(market, preferredSymbol = "") {
   select.value = choices.includes(preferred) ? preferred : config.defaultSymbol;
 }
 
-function populateEditInstrumentSelect(recordSymbol = "", recordMarket = "") {
+function populateEditInstrumentSelect(recordSymbol = "", recordMarket = "", fixedResearchMarket = "") {
   const select = $("editSymbol");
   const current = String(recordSymbol || "").trim().toUpperCase();
   // A record's market family never changes on edit; do not allow switching
   // between US100 Research and an existing Production market by symbol alone.
-  const symbols = recordMarket === US100_MARKET
+  const symbols = fixedResearchMarket ? [fixedResearchMarket] : recordMarket === US100_MARKET
     ? [US100_MARKET]
     : ALL_INSTRUMENTS.filter(symbol => symbol !== US100_MARKET);
 
@@ -573,6 +680,7 @@ const MARKET_CONFIG = {
       "eu_asia_post_open",
       "eu_pure_full_repair",
       "uk100_structure_sweep",
+      "uk100_opr_continuation",
       "custom"
     ],
     timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
@@ -586,6 +694,7 @@ const MARKET_CONFIG = {
       "eu_asia_post_open",
       "eu_pure_full_repair",
       "ger40_structure_sweep",
+      "ger40_opr_continuation",
       "custom"
     ],
     timeRule: "EU UTC+8：夏令POR 14:00–15:00、15:00開市；冬令POR 15:00–16:00、16:00開市。開市前Asia 2B唔入場。"
@@ -626,6 +735,13 @@ const MARKET_CONFIG = {
 };
 
 const SETUP_DEFINITIONS = {
+  ...Object.fromEntries(Object.entries(EU_OPR_RESEARCH).map(([code, cfg]) => [code, {
+    marketGroup: "EU_RESEARCH",
+    label: `${cfg.family}｜OPR Continuation & Retest（Research）`,
+    type: "C", classificationLabel: `${cfg.family}｜OPR Continuation & Retest`,
+    variant: "oprContinuation", provisional: true,
+    note: `Research only：${cfg.city} ${cfg.oprWindow} OPR，唔計開市K線。沿用US100-C：主判／Effective Secondary／Trade同向；現貨開市後Breakout／Full Reclaim、Acceptance、First Valid Retest。無額外E／P升級／Size優惠。`
+  }])),
   us100_structure_sweep: {
     marketGroup: "US100_RESEARCH",
     label: "US100｜普通結構Sweep（Type B｜Research）",
@@ -1968,8 +2084,9 @@ function populateSetupTemplateSelect(
     MARKET_CONFIG[market] ||
     MARKET_CONFIG.FX;
 
-  const allowed =
-    config.setupCodes;
+  const allowed = selectId === "liveSetupTemplate"
+    ? config.setupCodes.filter(code => !euOprResearchConfig(code))
+    : config.setupCodes;
 
   select.innerHTML = "";
 
@@ -2117,7 +2234,7 @@ function applyMarketPreset(
     $("marketTimeRuleNote")
       .textContent =
         config.timeRule;
-    updateUs100ResearchVisibility();
+    updateResearchSetupVisibility();
   }
 }
 
@@ -3744,24 +3861,29 @@ function evaluateBaseTrigger() {
   } else if (
     variant === "oprContinuation"
   ) {
+    const euOpr = euOprResearchConfig(setupTemplateCode(false));
+    const isUs = marketCode(false) === US100_MARKET;
+    const family = euOpr?.family || (isUs ? "US100-C" : "HSI-C");
+    const oprWindow = euOpr?.oprWindow || "09:15–09:30";
+    const openLabel = euOpr ? `${String(euOpr.openHour).padStart(2, "0")}:00 ${euOpr.city}` : "09:30";
     if (!checked("hsiOprWindowComplete")) {
-      addCoreFailure((marketCode(false) === US100_MARKET ? "US100-C：09:15–09:30 OPR未確認完成。" : "HSI-C：09:15–09:30 OPR未確認完成。"));
+      addCoreFailure(`${family}：${oprWindow} OPR未確認完成。`);
     } else {
-      addPositive((marketCode(false) === US100_MARKET ? "US100-C：09:15–09:30 OPR完成。" : "HSI-C：09:15–09:30 OPR完成。"));
+      addPositive(`${family}：${oprWindow} OPR完成。`);
     }
     if (!checked("hsiOprAfter0930")) {
-      addCoreFailure((marketCode(false) === US100_MARKET ? "US100-C：Break唔係09:30後。" : "HSI-C：Break唔係09:30後。"));
+      addCoreFailure(`${family}：Break唔係${openLabel}後。`);
     } else {
-      addPositive((marketCode(false) === US100_MARKET ? "US100-C：09:30後先Break OPR。" : "HSI-C：09:30後先Break OPR。"));
+      addPositive(`${family}：${openLabel}後先Break OPR。`);
     }
     if (!checked("hsiOprTrendAligned") ||
-      (marketCode(false) === US100_MARKET && !us100LiveOprTrendAligned())) {
-      addCoreFailure(marketCode(false) === US100_MARKET
-        ? "US100-C：主判同Effective Secondary未同向，或Trade未順主／次判。"
+      ((isUs || euOpr) && !researchOprTrendAligned())) {
+      addCoreFailure(isUs || euOpr
+        ? `${family}：主判同Effective Secondary未同向，或Trade未順主／次判。`
         : "HSI-C：主判＋次判Judge未雙同向，或者Trade方向未順主／次判Judge。");
     } else {
-      addPositive(marketCode(false) === US100_MARKET
-        ? "US100-C：主判／Effective Secondary／Trade三者同向。"
+      addPositive(isUs || euOpr
+        ? `${family}：主判／Effective Secondary／Trade三者同向。`
         : "HSI-C：主判＋次判Judge雙同向，而且Trade方向順主／次判Judge。");
 
       const oprDirectionContext =
@@ -3769,14 +3891,21 @@ function evaluateBaseTrigger() {
 
       if (oprDirectionContext) {
         addPositive(
-          `${marketCode(false) === US100_MARKET ? "US100-C" : "HSI-C"} OPR Direction Context：${hsiOprDirectionContextLabel(oprDirectionContext)}。`
+          `${family} OPR Direction Context：${hsiOprDirectionContextLabel(oprDirectionContext)}。`
         );
       }
     }
     // US100-C also rejects a known pre-open entry regardless of manual checkbox.
-    if (marketCode(false) === US100_MARKET) {
+    if (isUs) {
       const entryEt = $("us100EntryTimeET")?.value;
       if (entryEt && entryEt < "09:30") addCoreFailure("US100-C：09:30 ET Cash Open之前不能Entry。");
+    }
+    if (euOpr) {
+      const raw = $("euOprMinutesFromCashOpen").value.trim();
+      const minutes = euOprMinuteOffset(raw);
+      if (raw && (minutes === null || minutes < 0)) {
+        addCoreFailure(`${family}：Entry須喺${openLabel}現貨開市後，分鐘數須為非負整數。`);
+      }
     }
     evaluateBreakoutCore();
   } else if (
@@ -5776,10 +5905,13 @@ function applySetupMatrixConstraint(
   if (
     variant === "oprContinuation"
   ) {
+    const euOpr = euOprResearchConfig(setupTemplateCode(false));
     return {
       size,
       reason:
-        marketCode(false) === US100_MARKET
+        euOpr
+          ? `${euOpr.family} OPR Continuation屬Research：無專屬E／P Promotion；沿用Raw P及Execution P。`
+          : marketCode(false) === US100_MARKET
           ? "US100-C OPR Continuation屬Research：無專屬E／P Promotion；沿用Raw P及Execution P。"
           : "HSI-C OPR Continuation & Retest屬Research／Provisional；Raw P同Execution P維持原Matrix，暫時冇E。"
     };
@@ -9346,7 +9478,7 @@ function renderDecision(decision) {
   $("resultV13BaseSize").textContent =
     SIZE_LABELS[decision.v13BaseSize];
   $("resultV14ProductionSize").textContent =
-    `${SIZE_LABELS[decision.v14ProductionSize]}｜${marketCode(false) === US100_MARKET ? "Simulated / Research only" : "Production"}`;
+    `${SIZE_LABELS[decision.v14ProductionSize]}｜${isResearchSetupSelected() ? "Simulated / Research only" : "Production"}`;
   $("resultV14ShadowSize").textContent =
     `${SIZE_LABELS[decision.v14ShadowSize]}｜Shadow`;
   $("resultV14SizeRules").textContent =
@@ -9356,7 +9488,7 @@ function renderDecision(decision) {
       ? decision.v14RunnerPlan
       : "N/A";
   $("finalSize").textContent =
-    `${SIZE_LABELS[decision.v14ProductionSize]}${marketCode(false) === US100_MARKET ? "｜Simulation Only" : ""}`;
+    `${SIZE_LABELS[decision.v14ProductionSize]}${isResearchSetupSelected() ? "｜Simulation Only" : ""}`;
 
   $("decisionExplanations").innerHTML = [
     renderListBlock(
@@ -9967,14 +10099,20 @@ function updateInterface() {
 
   if (variant === "oprContinuation") {
     const isUs = marketCode(false) === US100_MARKET;
+    const euOpr = euOprResearchConfig(setupTemplateCode(false));
     const header = $("oprContinuationHeader");
-    if (header) header.textContent = isUs ? "US100-C｜OPR Continuation & Retest (Research)" : "HSI-C｜OPR Continuation & Retest";
+    if (header) header.textContent = euOpr ? setupDefinition(false).label : isUs ? "US100-C｜OPR Continuation & Retest (Research)" : "HSI-C｜OPR Continuation & Retest";
     const desc = $("oprContinuationDescription");
-    if (desc) desc.textContent = isUs
+    if (desc) desc.textContent = euOpr ? setupDefinition(false).note : isUs
       ? "09:15–09:30 ET OPR（不包含09:30開市K）；必須主判／Effective Secondary同向並順Trade；09:30後Breakout或Full Reclaim + Acceptance + First Valid Retest，無額外E／P優惠。"
       : "主判＋次判Judge必須雙同向；Gap Off次判Judge＝Main，Gap On＝Working。Trade亦必須順主／次判Judge；OPR Direction Context只作Subtype Research，唔改Frozen Size。";
+    $("oprWindowCompleteLabel").textContent = `${euOpr?.oprWindow || "09:15–09:30"}${euOpr ? " " + euOpr.city : ""} OPR已完成`;
+    $("oprAfterCashOpenLabel").textContent = euOpr
+      ? "Full Reclaim／Break發生喺當地現貨開市後"
+      : "Full Reclaim／Break發生喺09:30後";
   }
-  updateUs100SetupVisibility();
+  updateResearchSetupVisibility();
+  updateEuOprResearchTime();
   $("hsiOprContinuationPanel")
     .classList.toggle(
       "hidden",
@@ -10882,8 +11020,10 @@ async function saveDecision(event) {
 
   const tradeDate = $("tradeDate").value;
 
-  if (marketCode(false) === US100_MARKET && recordMode() === "Live") {
-    showToast("US100只限Practice／Review／Shadow，唔可儲存Live Production");
+  const euOpr = euOprResearchConfig(setupTemplateCode(false));
+  const researchOnly = isResearchSetupSelected();
+  if (researchOnly && recordMode() === "Live") {
+    showToast(`${euOpr?.family || US100_MARKET}只限Practice／Review／Shadow，唔可儲存Live Production`);
     return;
   }
 
@@ -10892,6 +11032,7 @@ async function saveDecision(event) {
     $("tradeDate").focus();
     return;
   }
+  if (euOpr) recalculate();
 
   const timeToRFMinutes =
     durationMinutesFromInput(
@@ -10957,7 +11098,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.47",
+      "PracticeJournal-V1.30.48",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r45",
     matrixVersion:
@@ -10972,9 +11113,10 @@ async function saveDecision(event) {
         marketCode(false)
       ].label,
     symbol,
-    marketResearchStatus: marketCode(false) === US100_MARKET
+    marketResearchStatus: researchOnly
       ? US100_RESEARCH_STATUS : US100_PRODUCTION_STATUS,
     ...(marketCode(false) === US100_MARKET ? us100ResearchInputs() : {}),
+    ...(euOpr ? euOprResearchInputs(euOpr) : {}),
     setupTemplate:
       currentAsia2B.setupTemplate,
     setupTemplateLabel:
@@ -11547,6 +11689,10 @@ async function saveDecision(event) {
   $("reachedTP2").value = "No";
   $("note").value = "";
   if (marketCode(false) === US100_MARKET) applyUs100ResearchInputs({});
+  if (euOpr) {
+    $("euOprMinutesFromCashOpen").value = "";
+    recalculate();
+  }
   v15RestoreResearchInputs({});
 
   syncProfitRWithEntryStatus(
@@ -11555,8 +11701,8 @@ async function saveDecision(event) {
   updateShadowResearchPreview();
   renderHistory();
   showToast(
-    marketCode(false) === US100_MARKET
-      ? "US100 Research已儲存｜紀錄庫揀 Research / Shadow 查看"
+    researchOnly
+      ? `${euOpr?.family || US100_MARKET} Research已儲存｜紀錄庫揀對應 Research / Shadow 範圍查看`
       : "已儲存全市場Matrix紀錄"
   );
 }
@@ -12386,7 +12532,7 @@ function us100ResearchFiltersMatch(record) {
 }
 function updateUs100ResearchHistoryScope() {
   const scope = $("historyResearchScope").value;
-  $("us100HistoryResearchFilters").classList.toggle("hidden", scope === "Production");
+  $("us100HistoryResearchFilters").classList.toggle("hidden", scope !== "Research" && scope !== "All");
 }
 
 
@@ -12493,7 +12639,9 @@ function renderV15Analytics(records) {
     if(triggerFilter==="s3"&&!shadow.v15S3RunnerEligible)continue;
     if(triggerFilter==="blocked"&&!shadow.v15Blocked)continue;
     if(triggerFilter==="unresolved"&&!shadow.v15RunnerUnresolved)continue;
-    const key=v15GroupValue(record,group,shadow);
+    const key=v15GroupValue(record,group,shadow) +
+      ($("historyResearchScope").value === "All" && group !== "oprDirectionContext" && euOprResearchForRecord(record)
+        ? "｜EU-C Research" : "");
     if(!groups.has(key))groups.set(key,[]);
     groups.get(key).push({record,shadow});
   }
@@ -12503,7 +12651,9 @@ function renderV15Analytics(records) {
       if(versionFilter!=="all"&&versionFilter!==label)continue;
       const m=v15AnalyticsMetric(items,label);
       const format=(v,d=2)=>v===null?"—":Number.isFinite(v)?v.toFixed(d):"∞";
-      rows.push(`<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(label)}</td><td>${m.count}</td><td>${m.trigger}</td><td>${m.applied}</td><td>${m.blocked}</td><td>${m.unresolved}</td><td>${m.wins}/${m.losses}/${m.be}</td><td>${format(m.total)}</td><td>${format(m.normMean)}</td><td>${format(m.pf)}</td><td>${format(m.grossProfit)}/${format(m.grossLoss)}</td><td>${format(m.dd)}</td><td>${format(m.mfeMedian)}/${format(m.mfeMean)}</td><td>${format(m.maeMean)}</td><td>${m.mfe2}/${m.mfe4}</td><td>${format(m.delta)}</td></tr>`);
+      const labelText = label === "Production" && items.every(({record}) => euOprResearchForRecord(record))
+        ? "Production (Simulated)" : label;
+      rows.push(`<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(labelText)}</td><td>${m.count}</td><td>${m.trigger}</td><td>${m.applied}</td><td>${m.blocked}</td><td>${m.unresolved}</td><td>${m.wins}/${m.losses}/${m.be}</td><td>${format(m.total)}</td><td>${format(m.normMean)}</td><td>${format(m.pf)}</td><td>${format(m.grossProfit)}/${format(m.grossLoss)}</td><td>${format(m.dd)}</td><td>${format(m.mfeMedian)}/${format(m.mfeMean)}</td><td>${format(m.maeMean)}</td><td>${m.mfe2}/${m.mfe4}</td><td>${format(m.delta)}</td></tr>`);
     }
   }
   target.innerHTML=rows.length?`<table class="v15-stats-table"><thead><tr>
@@ -12542,15 +12692,19 @@ function clearHistoryFilters() {
 function renderHistory() {
   const allRecords = loadRecords();
   const researchScope = $("historyResearchScope").value;
-  // Default and All scopes report legacy Production-only metrics. US100 has its own scope.
+  // Default and All scope totals include Production only.
   const setupView = $("researchFilterSetupView").value;
   const rawUs100 = allRecords.filter(isUs100Record);
   const statRecords = researchScope === "Research"
     ? us100ResearchSetupView(rawUs100, setupView)
-    : allRecords.filter(isProductionRecord);
+    : researchScope === "EuropeResearch"
+      ? allRecords.filter(euOprResearchForRecord)
+      : allRecords.filter(isProductionRecord);
   $("statsScopeNote").textContent = researchScope === "Research"
     ? `US100 ${setupView === "por" ? "POR Only" : setupView === "opr" ? "US100-C Only" : setupView === "legacy" ? "Legacy" : "All Research｜Deduplicated"}｜${statRecords.length}筆；${us100DuplicatedConflicts(rawUs100).length}組重複Entry收益不一致需核對。模擬Size／R並非Production。`
-    : "Production統計：只計原有市場；US100 Research / Shadow永遠排除，即使篩選為全部紀錄。";
+    : researchScope === "EuropeResearch"
+      ? `GER40-C／UK100-C Research｜${statRecords.length}筆；Size／R 只屬研究模擬。`
+      : "Production統計：排除US100、GER40-C及UK100-C研究紀錄，即使篩選為全部紀錄。";
   updateUs100ResearchHistoryScope();
 
   const sequenceMap =
@@ -12578,7 +12732,7 @@ function renderHistory() {
   $("statLive").textContent =
     statRecords.filter(
       (record) =>
-        record.recordMode === "Live"
+        !euOprResearchForRecord(record) && record.recordMode === "Live"
     ).length;
 
   const validCandidates =
@@ -12713,8 +12867,9 @@ function renderHistory() {
   const filteredCandidates =
     allRecords.filter((record) => {
       const scopeMatches = researchScope === "All" ||
-        (researchScope === "Research" ? isUs100Record(record) : isProductionRecord(record));
-      const us100Matches = researchScope === "Production" || us100ResearchFiltersMatch(record);
+        (researchScope === "Research" ? isUs100Record(record) :
+          researchScope === "EuropeResearch" ? Boolean(euOprResearchForRecord(record)) : isProductionRecord(record));
+      const us100Matches = (researchScope !== "Research" && researchScope !== "All") || us100ResearchFiltersMatch(record);
       const oprMatches = !oprFilter ||
         (Boolean(oprContinuationFamily(record)) && recordOprDirectionContext(record) === oprFilter);
       const setupMatches = researchScope !== "Research" ||
@@ -12790,7 +12945,8 @@ function renderHistory() {
 
   const activeFilterParts = [];
   activeFilterParts.push(researchScope === "Production" ? "Production原有市場" :
-    researchScope === "Research" ? "US100 Research / Shadow" : "全部市場（統計隔離）");
+    researchScope === "Research" ? "US100 Research / Shadow" :
+    researchScope === "EuropeResearch" ? "GER40-C／UK100-C Research / Shadow" : "全部市場（統計隔離）");
   if (oprFilter) activeFilterParts.push(`OPR：${hsiOprDirectionContextLabel(oprFilter)}`);
 
   if (modeFilters.length > 0) {
@@ -12977,9 +13133,7 @@ function renderHistory() {
                 : "";
 
       const oprContextTag =
-        isHsiOprContinuationRecord(
-          record
-        ) &&
+        oprContinuationFamily(record) &&
         (
           record.oprDirectionContextLabel ||
           record.oprDirectionContext
@@ -13065,7 +13219,7 @@ function renderHistory() {
             <span class="history-tag">${escapeHtml(
               record.entryStatus || "未分類"
             )}</span>
-            ${isUs100Record(record) ? '<span class="history-tag">Research / Shadow｜Size Simulated</span>' : ''}
+            ${!isProductionRecord(record) ? '<span class="history-tag">Research / Shadow｜Size Simulated</span>' : ''}
             <span class="history-tag">${escapeHtml(
               record.trigger || "未記錄"
             )}</span>
@@ -13328,6 +13482,7 @@ async function openRecord(recordId) {
     ).get(record.id) || "—";
 
   activeRecordId = recordId;
+  const euOpr = euOprResearchForRecord(record);
 
   $("dialogTitle").textContent =
     `${record.symbol}｜${recordModeLabel(
@@ -13367,6 +13522,13 @@ async function openRecord(recordId) {
       ${US100_RESEARCH_FIELD_MAP.filter(([field]) => !["us100SessionETDate", "us100EntryTimeET", "us100PorHighPoints", "us100PorLowPoints", "us100PorWidthPoints", "us100PorSweepSequence", "us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"].includes(field))
         .map(([field, column]) => `<strong>${escapeHtml(column)}：</strong>${escapeHtml(us100ResearchText(record,field))}<br>`).join("")}
     </section>` : "";
+  const euOprDetails = euOpr ? `
+    <section class="us100-record-details">
+      <h3>${escapeHtml(euOpr.family)}｜Research / Shadow（Simulation only）</h3>
+      <strong>交易日期（${escapeHtml(euOpr.city)}）：</strong>${escapeHtml(recordTradeDate(record) || "Missing")}<br>
+      <strong>實際 Entry（${escapeHtml(euOpr.city)}）：</strong>${escapeHtml(record.euOprEntryTimeLocal ? [record.euOprEntryDateLocal, record.euOprEntryTimeLocal].filter(Boolean).join(" ") : "Missing")}<br>
+      <strong>開市至 Entry（分鐘）：</strong>${escapeHtml(us100ResearchText(record, "euOprMinutesFromCashOpen"))}
+    </section>` : "";
   const v15=v15Snapshot(record);
   const v15Details=`<section class="v15-record-details"><h3>V1.5 Shadow Research｜Not Production</h3>
     ${V15_BROKEN_FIELDS.map(([key,column,stateKey])=>`<strong>${escapeHtml(column)}：</strong>${escapeHtml(v15BrokenForRecord(record,key,stateKey)||"Missing")}<br>`).join("")}
@@ -13379,7 +13541,7 @@ async function openRecord(recordId) {
     <strong>Runner P/L Calculation：</strong>${v15.v15RunnerUnresolved?"Unresolved｜需補管理證據":"Resolved／N/A"}<br>
     <strong>Runner Note：</strong>${escapeHtml(record.v15RunnerNote||"N/A")}
   </section>`;
-  $("recordDetails").innerHTML = `${us100Details}${v15Details}
+  $("recordDetails").innerHTML = `${us100Details}${euOprDetails}${v15Details}
 
     <strong>紀錄編號：</strong>
     #${escapeHtml(recordNumber)}
@@ -13423,7 +13585,7 @@ async function openRecord(recordId) {
     )}
     <br>
     ${
-      (isHsiOprContinuationRecord(record) || isUs100CRecord(record))
+      oprContinuationFamily(record)
         ? `<strong>OPR Direction Context：</strong>${escapeHtml(
             record.oprDirectionContextLabel ||
             hsiOprDirectionContextLabel(
@@ -13787,7 +13949,7 @@ async function openRecord(recordId) {
       )
     )}
     <br>
-    <strong>V1.4 Production Size：</strong>
+    <strong>V1.4 Production Size${euOpr ? "｜Simulated" : ""}：</strong>
     ${escapeHtml(
       safeSizeLabel(
         record.v14ProductionSize ??
@@ -13911,7 +14073,7 @@ async function openRecord(recordId) {
     localDateString();
 
   populateEditInstrumentSelect(
-    record.symbol || record.marketCode || "", record.marketCode || ""
+    record.symbol || record.marketCode || "", record.marketCode || "", euOpr?.market
   );
 
   v15RestoreResearchInputs(record, true);
@@ -13923,7 +14085,12 @@ async function openRecord(recordId) {
   $("editUs100ResearchPanel").classList.toggle("hidden", !isUs100Record(record));
   if (isUs100Record(record)) applyUs100ResearchInputs(record, "edit");
   updateUs100SetupVisibility("edit");
-  updateUs100EditModePermission(record);
+  updateResearchEditModePermission(record);
+  if (euOpr) {
+    $("editEuOprMinutesFromCashOpen").value = record.euOprMinutesFromCashOpen ?? "";
+    for (const [key, [, id]] of Object.entries(EU_OPR_CHECK_FIELDS)) $(id).checked = record[key] === "Yes";
+  }
+  updateEuOprResearchTime(true, record);
   $("editEntryStatus").value =
     record.entryStatus ||
     "Entry";
@@ -14290,11 +14457,16 @@ async function saveRecordEdit() {
     localDateString();
   records[index].symbol =
     editedSymbol;
-  records[index].recordMode = isUs100Record(records[index]) &&
+  records[index].recordMode = !isProductionRecord(records[index]) &&
     $("editRecordMode").value === "Live"
       ? "Practice" : normalizeRecordMode($("editRecordMode").value);
   if (isUs100Record(records[index])) {
     Object.assign(records[index], us100ResearchInputs("edit"));
+    records[index].marketResearchStatus = US100_RESEARCH_STATUS;
+  }
+  const euOpr = euOprResearchForRecord(records[index]);
+  if (euOpr) {
+    Object.assign(records[index], euOprResearchInputs(euOpr, true));
     records[index].marketResearchStatus = US100_RESEARCH_STATUS;
   }
   records[index].entryStatus =
@@ -15217,6 +15389,7 @@ function buildCsv(records) {
 
   headers.push("Market Research Status", ...US100_RESEARCH_FIELD_MAP.map(([, column]) => column));
   headers.push(...V15_BROKEN_FIELDS.map(([, column])=>column),...V15_CSV_FIELDS.map(([,column])=>column));
+  headers.push(...EU_OPR_RESEARCH_FIELD_MAP.map(([, column]) => column));
   rows.forEach((row, index) => {
     const record = records[index];
     row.push(recordResearchStatus(record));
@@ -15229,6 +15402,9 @@ function buildCsv(records) {
     for (const [key] of V15_CSV_FIELDS) {
       const val=key in shadow?shadow[key]:record?.[key];
       row.push(val===undefined||val===null?"":val);
+    }
+    for (const [field] of EU_OPR_RESEARCH_FIELD_MAP) {
+      row.push(euOprResearchForRecord(record) ? record[field] ?? "" : "");
     }
   });
 
@@ -16229,6 +16405,9 @@ function triggerModelFromCsv(value) {
 }
 
 function recordFromCsvRow(row) {
+  const euOpr = euOprResearchConfig(firstCsvValue(row, "Setup代碼"), firstCsvValue(row, "核心Setup"));
+  const euValues = euOpr ? Object.fromEntries(EU_OPR_RESEARCH_FIELD_MAP.map(([key, column]) => [key, firstCsvValue(row, column)])) : null;
+  const mode = normalizeRecordMode(firstCsvValue(row, "類型"));
   const triggerModelLabel =
     firstCsvValue(
       row,
@@ -16290,17 +16469,12 @@ function recordFromCsvRow(row) {
       ) ||
       "MasterTradeMatrix-AllMarkets-V1.1-EUOpening",
     recordMode:
-      normalizeRecordMode(
-        firstCsvValue(
-          row,
-          "類型"
-        )
-      ),
+      euOpr && mode === "Live" ? "Practice" : mode,
     marketCode:
       firstCsvValue(
         row,
         "市場分類"
-      ) || "FX",
+      ) || euOpr?.market || "FX",
     marketLabel:
       firstCsvValue(
         row,
@@ -16317,7 +16491,7 @@ function recordFromCsvRow(row) {
       ["v15S1Trigger","v15S2Trigger","v15S3RunnerEligible","v15S1Applied","v15S2Applied","v15Blocked"].includes(key)?csvBoolean(firstCsvValue(row,column)):
       firstCsvValue(row,column)
     ])),
-    marketResearchStatus: firstCsvValue(row, "市場分類") === US100_MARKET ||
+    marketResearchStatus: euOpr || firstCsvValue(row, "市場分類") === US100_MARKET ||
       firstCsvValue(row, "品種") === US100_MARKET
         ? US100_RESEARCH_STATUS : US100_PRODUCTION_STATUS,
     ...Object.fromEntries(US100_RESEARCH_FIELD_MAP.map(([field, column]) => [
@@ -16326,6 +16500,7 @@ function recordFromCsvRow(row) {
           ? (firstCsvValue(row, column) || ((firstCsvValue(row, "市場分類") === US100_MARKET || firstCsvValue(row, "品種") === US100_MARKET) ? firstCsvValue(row, "交易日期") : ""))
           : firstCsvValue(row, column))
     ])),
+    ...(euOpr ? euOprResearchData(euOpr, firstCsvValue(row, "交易日期"), euValues.euOprMinutesFromCashOpen, key => euValues[key] === "Yes") : {}),
     setupTemplateLabel:
       firstCsvValue(
         row,
@@ -18760,6 +18935,10 @@ async function mergeImportedRecords(
     const record = {
       ...sourceRecord
     };
+    if (euOprResearchForRecord(record)) {
+      record.marketResearchStatus = US100_RESEARCH_STATUS;
+      if (record.recordMode === "Live") record.recordMode = "Practice";
+    }
 
     if (!record.id) {
       record.id =
@@ -20400,6 +20579,7 @@ function setupEvents() {
   $("tradeDate").addEventListener("change", () => {
     updateUs100PorDisplay();
     syncUs100EntryFromMinutes();
+    updateEuOprResearchTime();
   });
   for (const prefix of ["", "edit"]) {
     const id = prefix ? "editUs100MinutesFromCashOpen" : "us100MinutesFromCashOpen";
@@ -20407,6 +20587,9 @@ function setupEvents() {
     $(id).addEventListener("change", () => syncUs100EntryFromMinutes(prefix));
   }
   $("editTradeDate").addEventListener("change", () => syncUs100EntryFromMinutes("edit"));
+  $("editTradeDate").addEventListener("change", () => updateEuOprResearchTime(true));
+  $("euOprMinutesFromCashOpen").addEventListener("input", recalculate);
+  $("editEuOprMinutesFromCashOpen").addEventListener("input", () => updateEuOprResearchTime(true));
 
   $("setupTemplate")
     .addEventListener(

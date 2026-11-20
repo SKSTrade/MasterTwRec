@@ -1,3 +1,9 @@
+## V1.30.48｜GER40-C／UK100-C OPR Continuation & Retest
+
+- GER40 同 UK100 新增各自嘅 Continuation & Retest，沿用 US100-C 判斷，兩個 Setup 只限 Practice／Review／Shadow。既有歐洲 Setup 同 Production 規則不變。
+- GER40 以 Europe/Berlin 09:00、UK100 以 Europe/London 08:00 現貨開市為起點。取開市前 15 分鐘作 OPR，不計開市 K 線。輸入開市後分鐘，App 自動顯示當地 Entry 及香港時間。
+- 紀錄庫可用 GER40-C／UK100-C 研究範圍，亦可按 Setup 同 OPR 方向比較。新資料保留於 CSV，舊 CSV 不需轉換。詳見 `V1.30.48-EU-OPR-Continuation.md`。
+
 ## V1.30.47｜HSI-C／US100-C OPR「冇方向」
 
 - 新建及編輯可選「冇方向」，同「順向順勢」、「反向順勢」及「未記錄」獨立保存。

@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.47</span>
+    <span class="version-badge">V1.30.48</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -944,8 +944,8 @@
 
             <div id="hsiOprContinuationPanel" class="conditional-panel hidden">
               <div class="principle-box"><strong id="oprContinuationHeader">HSI-C｜OPR Continuation & Retest</strong><span id="oprContinuationDescription">主判＋次判Judge必須雙同向；Gap Off次判Judge＝Main，Gap On＝Working。Trade亦必須順主／次判Judge；OPR Direction Context只作Subtype Research，唔改Frozen Size。</span></div>
-              <label class="toggle-row"><input id="hsiOprWindowComplete" type="checkbox"><span>09:15–09:30 OPR已完成</span></label>
-              <label class="toggle-row"><input id="hsiOprAfter0930" type="checkbox"><span>Full Reclaim／Break發生喺09:30後</span></label>
+              <label class="toggle-row"><input id="hsiOprWindowComplete" type="checkbox"><span id="oprWindowCompleteLabel">09:15–09:30 OPR已完成</span></label>
+              <label class="toggle-row"><input id="hsiOprAfter0930" type="checkbox"><span id="oprAfterCashOpenLabel">Full Reclaim／Break發生喺09:30後</span></label>
               <label class="toggle-row"><input id="hsiOprTrendAligned" type="checkbox"><span>主判＋次判Judge方向一致，而且Trade方向順主判／次判Judge</span></label>
 
               <label>
@@ -1331,7 +1331,7 @@
           </div>
 
           <div id="us100ResearchBanner" class="principle-box hidden" role="status">
-            <strong>US100｜Research / Shadow only</strong>
+            <strong id="researchBannerTitle">US100｜Research / Shadow only</strong>
             <span>下方Production Size係同一V1.4引擎計出嘅Backtest Simulation，唔係正式交易權限；唔計入原有市場Production績效。</span>
           </div>
           <div class="final-size">
@@ -1385,6 +1385,20 @@
   </details>
 </div>
 </article>
+
+          <section id="euOprResearchPanel" class="conditional-panel hidden">
+            <strong id="euOprResearchTitle">EU-C｜Research / Shadow Only</strong>
+            <p id="euOprSchedule" class="state-note"></p>
+            <div class="us100-inline-group">
+              <label>Time from Cash Open to Entry (Min)
+                <input id="euOprMinutesFromCashOpen" type="number" step="1" placeholder="例如 15">
+              </label>
+              <label><span id="euOprEntryTimeLabel">實際 Entry 時間｜自動計算</span>
+                <input id="euOprEntryTimeLocal" type="time" readonly tabindex="-1">
+              </label>
+            </div>
+            <p id="euOprEntryNote" class="state-note" aria-live="polite"></p>
+          </section>
 
           <div class="principle-box">
             <strong>Master Trade Matrix V1.4｜Base → Production → Shadow</strong>
@@ -1717,14 +1731,14 @@
           匯入CSV會還原文字紀錄；匯入本App產生嘅「CSV＋照片 ZIP」會連照片一齊還原。相同紀錄ID會自動跳過，避免重複。舊CSV冇紀錄ID時會建立新ID。
         </p>
 
-        <p id="statsScopeNote" class="state-note"><strong>Production統計隔離：</strong>預設只計原有市場；US100 Research／Shadow獨立查看，不混入正式績效。</p>
+        <p id="statsScopeNote" class="state-note"><strong>Production統計隔離：</strong>US100、GER40-C及UK100-C研究紀錄可以獨立查看，不混入正式績效。</p>
         <details id="v15AnalyticsPanel" class="v15-analytics-panel" open>
           <summary>V1.5 Shadow Research｜五版本績效比較（不影響Production）</summary>
           <div class="filter-grid">
             <label>Research Group By<select id="v15GroupBy">
               <option value="all">All</option><option value="backtestPeriod">Backtest Period（半年）</option>
               <option value="symbol">Instrument</option><option value="marketCode">Market Category</option><option value="setupFamily">Setup Family</option>
-              <option value="oprDirectionContext">OPR Direction Context｜HSI-C／US100-C</option>
+              <option value="oprDirectionContext">OPR Direction Context｜按 Setup 分組</option>
               <option value="rawP">Raw P</option><option value="p3Context">P3 Context</option><option value="executionP">Execution P</option>
               <option value="nativeQ">Native Q</option><option value="q2Subtype">Q2 Subtype</option>
               <option value="mainState">Main State</option><option value="secondaryState">Original Secondary</option>
@@ -1760,10 +1774,11 @@
             <select id="historyResearchScope">
               <option value="Production" selected>Production｜原有市場（預設）</option>
               <option value="Research">Research / Shadow｜US100 Only</option>
+              <option value="EuropeResearch">Research / Shadow｜GER40-C／UK100-C</option>
               <option value="All">全部紀錄（統計仍分隔）</option>
             </select>
           </label>
-          <label>OPR Direction Context｜HSI-C／US100-C
+          <label>OPR Direction Context
             <select id="researchFilterOprDirection">
               <option value="">All</option>
               <option value="alignedTrend">順向順勢</option>
@@ -2081,7 +2096,8 @@
           <li><strong>HSI-C｜OPR Continuation & Retest：</strong>Research／Provisional；主判＋次判Judge必須雙同向（Gap Off＝次判Main；Gap On＝次判Working），Trade方向順主／次判Judge；09:15–09:30 OPR完成，09:30後Full Reclaim OPR H/L＋Acceptance／Follow-through＋First Retest。<strong>OPR Direction Context</strong>只作研究分類。暫時冇E，Raw P3仍P3。</li>
           <li><strong>順向順勢：</strong>OPR方向＝主判／次判方向＝Trade方向；例如HTF ↑＋OPR ↑＋Trade ↑。</li>
           <li><strong>反向順勢：</strong>OPR方向逆主判／次判，但Trade仍順主／次判；例如HTF ↑＋OPR ↓＋Trade ↑。「反向」只指OPR逆HTF。</li>
-          <li><strong>冇方向（HSI-C／US100-C）：</strong>OPR本身冇明確升跌方向，唔係未記錄。原有入場資格同Size不變。</li>
+          <li><strong>冇方向：</strong>OPR本身冇明確升跌方向，唔係未記錄。原有入場資格同Size不變。</li>
+          <li><strong>GER40-C／UK100-C：</strong>沿用US100-C合約，只限研究。GER40按柏林08:45–09:00、UK100按倫敦07:45–08:00；取開市前15分鐘，唔計開市K線。唔引用EU-A／EU-D專屬待遇。</li>
           <li><strong>時間：</strong>10:30後唔開新Setup。</li>
         </ul>
       </article>
@@ -2249,6 +2265,27 @@
     </details>
   </div>
 </div>
+
+      <section id="editEuOprResearchPanel" class="conditional-panel hidden">
+        <strong id="editEuOprResearchTitle">EU-C｜Research / Shadow Only</strong>
+        <p id="editEuOprSchedule" class="state-note"></p>
+        <div class="us100-inline-group">
+          <label>Time from Cash Open to Entry (Min)
+            <input id="editEuOprMinutesFromCashOpen" type="number" step="1" placeholder="例如 15">
+          </label>
+          <label><span id="editEuOprEntryTimeLabel">實際 Entry 時間｜自動計算</span>
+            <input id="editEuOprEntryTimeLocal" type="time" readonly tabindex="-1">
+          </label>
+        </div>
+        <p id="editEuOprEntryNote" class="state-note" aria-live="polite"></p>
+        <details class="us100-additional">
+          <summary>OPR Contract 紀錄</summary>
+          <label class="toggle-row"><input id="editEuOprWindowComplete" type="checkbox"><span>開市前15分鐘 OPR已完成</span></label>
+          <label class="toggle-row"><input id="editEuOprAfterOpen" type="checkbox"><span>Cash Open 後有效突破／Full Reclaim</span></label>
+          <label class="toggle-row"><input id="editEuOprTrendAligned" type="checkbox"><span>Main／Effective Secondary／Trade 同向</span></label>
+          <p class="state-note">只修改研究紀錄，唔會重算原有 P／Q、Size 或 Valid Candidate。</p>
+        </details>
+      </section>
 
       <label>
         交易商品／品種
