@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.50</span>
+    <span class="version-badge">V1.30.51</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -871,6 +871,7 @@
             </label>
             <p id="typeALiquidityNote" class="state-note"></p>
 
+            <p id="legacyTypeAChecks" class="state-note" hidden></p>
             <div id="asia2BChecklist">
               <label class="toggle-row"><input id="asia2BClearLiquidity" type="checkbox"><span>指定Session H／L係明確流動性池</span></label>
               <label class="toggle-row"><input id="asia2BCleanSweep" type="checkbox"><span>Sweep乾淨，唔係反覆穿插</span></label>
@@ -943,6 +944,7 @@
             </div>
 
             <div id="hsiOprContinuationPanel" class="conditional-panel hidden">
+              <p id="legacyOprChecks" class="state-note" hidden>舊版只有 OPR 方向分類。重算前請核對以下三項確認。</p>
               <div class="principle-box"><strong id="oprContinuationHeader">HSI-C｜OPR Continuation & Retest</strong><span id="oprContinuationDescription">主判＋次判Judge必須雙同向；Gap Off次判Judge＝Main，Gap On＝Working。Trade亦必須順主／次判Judge；OPR Direction Context只作Subtype Research，唔改Frozen Size。</span></div>
               <label class="toggle-row"><input id="hsiOprWindowComplete" type="checkbox"><span id="oprWindowCompleteLabel">09:15–09:30 OPR已完成</span></label>
               <label class="toggle-row"><input id="hsiOprAfter0930" type="checkbox"><span id="oprAfterCashOpenLabel">Full Reclaim／Break發生喺09:30後</span></label>
@@ -2220,6 +2222,7 @@
         <button value="cancel" class="icon-button" aria-label="關閉">×</button>
       </div>
 
+      <button type="button" id="openFullEdit" class="primary-button">編輯全部項目</button>
       <div id="recordDetails" class="record-details"></div>
 
       <div id="recordImageContainer" class="record-image hidden">
@@ -2599,6 +2602,19 @@
         <button id="saveRecordEdit" type="button" class="primary-button compact-button">儲存修改</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="fullEditDialog" aria-labelledby="fullEditTitle">
+    <div class="full-edit-bar">
+      <strong id="fullEditTitle"></strong>
+      <button id="cancelFullEdit" type="button" class="secondary-button">取消</button>
+      <button type="submit" form="decisionForm" class="primary-button">儲存修改</button>
+    </div>
+    <label>跳至欄位
+      <select id="fullEditSection"><option value="">選擇章節</option></select>
+    </label>
+    <p id="fullEditNotice" class="state-note"></p>
+    <div id="fullEditFormHost"></div>
   </dialog>
 
   <dialog id="imageLightboxDialog" class="image-lightbox-dialog" aria-label="放大Chart Screenshot">

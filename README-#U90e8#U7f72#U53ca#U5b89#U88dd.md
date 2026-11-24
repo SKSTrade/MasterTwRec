@@ -1,3 +1,7 @@
+## V1.30.51｜紀錄庫完整編輯
+
+紀錄庫 → 開啟紀錄 → 編輯全部項目。可跳至 Rulebook 各節，修改判斷條件後會按 V1.4 重算。儲存會更新原有紀錄，取消會返回紀錄詳情。舊版 Type A 部分勾選只留有總分，舊版 HSI-C 亦缺少逐項 OPR 確認，重算前請核對。
+
 ## V1.30.50｜US100-C 順勢突破 Full Premarket H/L
 
 - US100-C 新增 Yes／No／N/A／Missing 研究記錄；原本 Full Premarket Swept 欄位對 US100-C 不適用，其他 US100 Setup 繼續使用。

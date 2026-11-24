@@ -10954,7 +10954,7 @@ async function readImagesFromSystemClipboard() {
   return images;
 }
 
-async function addPendingImageBlobs(blobs) {
+async function addPendingImageBlobs(blobs, target = pendingImageBlobs) {
   const validBlobs =
     (Array.isArray(blobs)
       ? blobs
@@ -10979,9 +10979,8 @@ async function addPendingImageBlobs(blobs) {
       )
     );
 
-  pendingImageBlobs.push(
-    ...compressed
-  );
+  target.push(...compressed);
+  if (pendingImageBlobs !== target) return;
 
   renderPendingImageGallery();
 
@@ -10990,27 +10989,27 @@ async function addPendingImageBlobs(blobs) {
   );
 }
 
+async function pastePendingImages(read) {
+  const target = pendingImageBlobs;
+  const session = fullEdit;
+  if (session) session.imageJobs++;
+  try {
+    await addPendingImageBlobs(await read(), target);
+  } finally {
+    if (session) session.imageJobs--;
+  }
+}
 async function handlePendingImagePaste(event) {
   event.preventDefault();
-
-  const blobs =
-    clipboardImagesFromPasteEvent(
-      event
-    );
-
-  await addPendingImageBlobs(
-    blobs
-  );
+  try {
+    await pastePendingImages(() => clipboardImagesFromPasteEvent(event));
+  } catch {
+    showToast("未能處理圖片，請重新貼上。");
+  }
 }
-
 async function pastePendingImageFromClipboard() {
   try {
-    const blobs =
-      await readImagesFromSystemClipboard();
-
-    await addPendingImageBlobs(
-      blobs
-    );
+    await pastePendingImages(readImagesFromSystemClipboard);
   } catch (error) {
     console.error(
       "Clipboard image read failed:",
@@ -11025,53 +11024,308 @@ async function pastePendingImageFromClipboard() {
   }
 }
 
-async function saveDecision(event) {
-  event.preventDefault();
-
-  const symbol =
-    $("symbol").value
-      .trim()
-      .toUpperCase();
-
-  if (!symbol) {
-    showToast("請選擇品種");
-    $("symbol").focus();
-    return;
+// Rulebook is the single editor for both new candidates and historical decisions.
+let fullEdit = null;
+let detailInputsAtOpen = "";
+let detailImagesAtOpen = [];
+const autoInputIds = new Set(["reachedTP2", "validCandidate", "us100EntryTimeET", "euOprEntryTimeLocal"]);
+function formControls(form) {
+  return [...form.querySelectorAll("input, select, textarea")].filter(el => el.id || el.name);
+}
+function captureControls(form) {
+  const values = {};
+  for (const el of formControls(form)) {
+    if (el.type === "radio" && !el.checked) continue;
+    values[el.name || el.id] = el.type === "checkbox" ? el.checked : el.value;
   }
-
-  const tradeDate = $("tradeDate").value;
-
-  const euOpr = euOprResearchConfig(setupTemplateCode(false));
-  const researchOnly = isResearchSetupSelected();
-  if (researchOnly && recordMode() === "Live") {
-    showToast(`${euOpr ? EU_OPR_FAMILY : US100_MARKET}只限Practice／Review／Shadow，唔可儲存Live Production`);
-    return;
+  return values;
+}
+function decisionInputs() {
+  const values = captureControls($("decisionForm"));
+  for (const key of autoInputIds) delete values[key];
+  return values;
+}
+function inputsFromRecord(record) {
+  const values = { ...record,
+    tradeDate: recordTradeDate(record),
+    recordMode: normalizeRecordMode(record.recordMode),
+    positionLevel: recordRawP(record) || record.position,
+    p3ConflictTestable: record.p3Testable,
+    setupType: record.setupTypeSelected || record.setupType,
+    prevHLSource: record.previousHLSweepSource,
+    prevHLSession: record.previousHLSweepSession,
+    hsiOprDirectionContext: recordOprDirectionContext(record),
+    trendFirstRetest: record.firstRetest,
+    profitR: recordProfitR(record),
+    timeToRF: Number.isFinite(record.timeToRF) ? formatDurationMinutes(record.timeToRF) : "",
+    retestVsReclaimStructure: recordRetestVsReclaimStructure(record) || "na"
+  };
+  const cfg = euOprResearchForRecord(record);
+  const codes = MARKET_CONFIG[record.marketCode]?.setupCodes || [];
+  if (!codes.includes(values.setupTemplate)) {
+    values.setupTemplate = codes.find(code =>
+      (cfg && EU_OPR_RESEARCH[code] === cfg) ||
+      SETUP_DEFINITIONS[code]?.label === record.setupTemplateLabel) || "custom";
   }
-
-  if (!tradeDate) {
-    showToast("請選擇交易日期");
-    $("tradeDate").focus();
-    return;
+  if (!values.hasFirstObstacle && Number.isFinite(record.firstObstacleR)) values.hasFirstObstacle = true;
+  if (isUs100Record(record) && values.us100MinutesFromCashOpen == null &&
+    /^\d\d:\d\d$/.test(record.us100EntryTimeET || "")) {
+    const [h, m] = record.us100EntryTimeET.split(":").map(Number);
+    values.us100MinutesFromCashOpen = h * 60 + m - 570;
   }
-  if (euOpr) recalculate();
-
-  const timeToRFMinutes =
-    durationMinutesFromInput(
-      "timeToRF"
-    );
-
-  if (
-    Number.isNaN(
-      timeToRFMinutes
-    )
-  ) {
-    showToast(
-      "Time to RF格式錯誤；請輸入例如11H45M、2H或45M"
-    );
-    $("timeToRF").focus();
-    return;
+  for (const [key, [id]] of Object.entries(EU_OPR_CHECK_FIELDS)) {
+    const usKey = id.replace("hsi", "us100");
+    if (cfg || isUs100Record(record)) values[id] = (cfg ? record[key] : record[usKey]) === "Yes";
   }
+  // A total of 0 or 6 determines every box. Intermediate totals do not identify them.
+  if ([0, 6].includes(record.asia2BCriteriaCount)) {
+    for (const el of $("asia2BChecklist").querySelectorAll("input")) values[el.id] = record.asia2BCriteriaCount === 6;
+  }
+  return values;
+}
+function decisionExtras(record, inputs) {
+  const saved = inputsFromRecord(record);
+  return Object.fromEntries(Object.entries(inputs).filter(([key, value]) =>
+    saved[key] === undefined || (typeof value === "boolean" ? value !== (saved[key] === true || saved[key] === "Yes")
+      : value !== String(saved[key] ?? ""))));
+}
+function importDecisionExtras(source) {
+  if (!source) return {};
+  try {
+    const parsed = JSON.parse(source);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const clean = {};
+    for (const field of formControls($("decisionForm"))) {
+      const key = field.name || field.id;
+      if (Object.hasOwn(parsed, key) && ["string", "boolean"].includes(typeof parsed[key])) clean[key] = parsed[key];
+    }
+    return { formExtras: clean };
+  } catch { return {}; }
+}
+function restoreDecisionInputs(values) {
+  const form = $("decisionForm");
+  form.reset();
+  const market = Object.hasOwn(MARKET_CONFIG, values.marketCode) ? values.marketCode : "FX";
+  $("marketCode").value = market;
+  applyMarketPreset(market);
+  const timeframeIds = ["backgroundTimeframe", "mainTimeframe", "secondaryTimeframe", "entryTimeframe"];
+  const defaultFrames = timeframeIds.map(id => $(id).value);
+  populateSetupTemplateSelect(market, "setupTemplate", values.setupTemplate);
+  applySetupTemplate();
+  if (values.symbol && ![...$("symbol").options].some(o => o.value === values.symbol)) {
+    $("symbol").add(new Option(values.symbol + "｜舊紀錄品種", values.symbol));
+  }
+  // A previously selected Skip must not erase the next record's real P/L.
+  delete $("profitR").dataset.autoSkipR;
+  delete $("reachedRF").dataset.autoFromTimeToRF;
+  for (const field of formControls(form)) {
+    const key = field.name || field.id;
+    const value = values[key];
+    if (value === undefined || autoInputIds.has(key)) continue;
+    if (field.type === "radio") {
+      if (field.value === value) field.checked = true;
+    } else if (field.type === "checkbox") {
+      field.checked = value === true || value === "Yes";
+    } else if (field.tagName !== "SELECT" || [...field.options].some(o => o.value === String(value ?? ""))) {
+      field.value = value ?? "";
+    }
+  }
+  if (!values.timeframePreset && timeframeIds.some((id, i) => $(id).value !== defaultFrames[i])) {
+    $("timeframePreset").value = "custom";
+  }
+  if (isPreviousHLSweepSetup(false)) syncPreviousHLSweepToXau();
+  syncUs100EntryFromMinutes();
+  syncEntryTFMainStructureHelp();
+  syncEntryTFWorkingStructureHelp();
+  syncV15RunnerManualUI();
+  recalculate();
+  syncProfitRWithEntryStatus();
+}
+function sameImages(left, right) {
+  return left.length === right.length && left.every((blob, i) => blob === right[i]);
+}
+async function openFullEditor() {
+  const record = loadRecords().find(r => r.id === activeRecordId);
+  if (!record || fullEdit) return;
+  const quickChanged = JSON.stringify(captureControls($("recordDialog"))) !== detailInputsAtOpen ||
+    !sameImages(editingImageBlobs, detailImagesAtOpen);
+  if (quickChanged && !confirm("快速編輯有未儲存修改。要用已儲存版本開啟完整編輯嗎？")) return;
+  const button = $("openFullEdit");
+  button.disabled = true;
+  try {
+    const images = await getImages(record.id);
+    if (activeRecordId !== record.id || !$("recordDialog").open) return;
+    const form = $("decisionForm");
+    fullEdit = {
+      original: record, images, imageJobs: 0, draft: decisionInputs(), draftImages: pendingImageBlobs,
+      formParent: form.parentNode, formNext: form.nextSibling,
+      submit: form.querySelector('[type="submit"]'),
+      details: [...form.querySelectorAll("details")].map(el => [el, el.open])
+    };
+    fullEdit.submitLabel = fullEdit.submit.textContent;
+    fullEdit.submit.textContent = "儲存修改";
+    $("fullEditFormHost").append(form);
+    $("fullEditDialog").append($("toast"));
+    $("fullEditTitle").textContent = record.symbol + "｜編輯全部項目";
+    let notice = record.formExtras ? "" : "舊紀錄按已儲存資料載入。更改判斷條件前，請核對 Setup 同 checklist。";
+    if (!record.formExtras && record.setupTypeSelected === "A") {
+      notice += " Type A 原紀錄為 " + (record.asia2BCriteriaCount ?? "？") + "/6；中間分數無法還原每一個勾選。";
+    }
+    if (!record.formExtras && oprContinuationFamily(record) === "HSI-C") notice += " 請核對 HSI-C 三個 OPR 確認項目。";
+    const legacyTypeA = !record.formExtras && record.setupTypeSelected === "A";
+    $("legacyTypeAChecks").hidden = !legacyTypeA;
+    $("legacyTypeAChecks").textContent = legacyTypeA ? `舊紀錄 Type A 合共 ${record.asia2BCriteriaCount ?? "？"}/6。請核對以下逐項勾選。` : "";
+    $("legacyOprChecks").hidden = !!record.formExtras || oprContinuationFamily(record) !== "HSI-C";
+    $("fullEditSection").value = "";
+    $("fullEditNotice").textContent = notice;
+    $("fullEditNotice").hidden = !notice;
+    pendingImageBlobs = images.slice();
+    renderPendingImageGallery();
+    restoreDecisionInputs({...inputsFromRecord(record), ...record.formExtras});
+    fullEdit.initialInputs = decisionInputs();
+    $("fullEditDialog").showModal();
+    $("fullEditDialog").scrollTop = 0;
+  } catch (error) {
+    if (fullEdit) leaveFullEditor();
+    console.error("Full edit open failed", error);
+    alert("未能載入完整紀錄，請重新開啟。");
+  } finally { button.disabled = false; }
+}
+function leaveFullEditor() {
+  const session = fullEdit;
+  fullEdit = null;
+  $("fullEditDialog").close();
+  document.body.append($("toast"));
+  session.formParent.insertBefore($("decisionForm"), session.formNext);
+  $("legacyTypeAChecks").hidden = true;
+  $("legacyOprChecks").hidden = true;
+  session.submit.textContent = session.submitLabel;
+  pendingImageBlobs = session.draftImages;
+  renderPendingImageGallery();
+  restoreDecisionInputs(session.draft);
+  for (const [el, open] of session.details) el.open = open;
+}
+function cancelFullEditor() {
+  if (!fullEdit || fullEdit.saving) return;
+  leaveFullEditor();
+}
 
+// Outcomes can be corrected without re-grading a legacy candidate whose source
+// checklist was never recorded. Changes to decision inputs use the full engine.
+const outcomeFields = new Set([
+  "recordMode", "symbol", "tradeDate", "openingStoryId", "entryStatus", "entryTimeQ",
+  "postEntryQ", "postEntryAction", "tpPlan", "profitR", "mfeR", "maeR", "timeToRF",
+  "reachedRF", "obstacleOutcome", "entryTFMainStructure", "entryTFWorkingStructure",
+  "retestInternalStructure", "retestVsReclaimStructure", "retestAcceptance",
+  "postEntryObjectiveUpgrade", "deepRFTriggered", "deepRFOriginalSLHit", "deepRFShadowMfeR",
+  "deepRFNoRfFinalR", "note", "v15RunnerEvidence", "v15RunnerRfExitR",
+  "v15RunnerUnitROverride", "v15RunnerNote", ...V15_BROKEN_FIELDS.map(([key]) => key),
+  "hsiOprDirectionContext", "us100ResearchTradeId", "us100FullPremarketSwept",
+  "us100CFullPremarketDirectionalBreak", "us100MajorNews0830", "us100OpeningGapDirection",
+  "us100News1000", "us100News1000Event"
+]);
+function editedDecision(original, built, inputs, changed) {
+  const next = { ...original };
+  const rebuild = changed.some(key => !outcomeFields.has(key));
+  if (rebuild) {
+    if (!isUs100Record(built)) for (const [key] of US100_RESEARCH_FIELD_MAP) delete next[key];
+    if (isUs100CRecord(original) && !isUs100CRecord(built)) {
+      for (const key of ["us100OprWindowComplete", "us100OprAfter0930", "us100OprTrendAligned"]) delete next[key];
+    }
+    if (!euOprResearchForRecord(built)) for (const [key] of EU_OPR_RESEARCH_FIELD_MAP) delete next[key];
+    Object.assign(next, built);
+    next.formExtras = decisionExtras(next, inputs);
+  } else if (changed.length) {
+    for (const key of changed) if (Object.hasOwn(built, key)) next[key] = built[key];
+    if (changed.includes("hsiOprDirectionContext")) {
+      next.oprDirectionContext = inputs.hsiOprDirectionContext;
+      next.oprDirectionContextLabel = hsiOprDirectionContextLabel(next.oprDirectionContext);
+    }
+    if (changed.includes("entryStatus") || changed.includes("profitR")) {
+      next.profitR = next.actualR = built.actualR;
+      next.normalizedR = normalizedRValue(next.actualR, next.v14ProductionSize ?? next.finalSize);
+    }
+    if (changed.includes("mfeR")) {
+      next.reachedTP2 = built.reachedTP2;
+      next.v14RunnerResult = v14RunnerResultLabel(Boolean(next.v14Rule4RunnerEligible), next.mfeR);
+    }
+    if (changed.includes("timeToRF")) next.reachedRF = built.reachedRF;
+    if (changed.includes("tradeDate")) {
+      if (isUs100Record(next)) {
+        next.us100SessionETDate = built.us100SessionETDate;
+        next.us100EntryTimeET = built.us100EntryTimeET;
+      }
+      if (euOprResearchForRecord(next)) {
+        next.euOprEntryDateLocal = built.euOprEntryDateLocal;
+        next.euOprEntryTimeLocal = built.euOprEntryTimeLocal;
+      }
+    }
+    if (next.formExtras) next.formExtras = decisionExtras(next, inputs);
+    if (next.checklistSummary) {
+      const labels = {tradeDate:"交易日期", symbol:"品種", entryTimeQ:"Entry-time Q", postEntryQ:"Post-entry Q", postEntryAction:"Post-entry處理"};
+      const updates = new Map(changed.filter(k => labels[k]).map(k => [labels[k], next[k]]));
+      next.checklistSummary = next.checklistSummary.split("\n").map(line => {
+        const label = line.split("：", 1)[0];
+        return updates.has(label) ? label + "：" + updates.get(label) : line;
+      }).join("\n");
+    }
+    v15SaveSnapshot(next);
+  }
+  next.createdAt = original.createdAt;
+  return next;
+}
+async function commitFullEdit(built) {
+  const session = fullEdit;
+  if (session.saving) return;
+  if (session.imageJobs) { showToast("圖片處理中，完成後即可儲存。"); return; }
+  const inputs = decisionInputs();
+  const changed = Object.keys(inputs).filter(key => inputs[key] !== session.initialInputs[key]);
+  const images = pendingImageBlobs.slice();
+  const imagesChanged = !sameImages(images, session.images);
+  const next = editedDecision(session.original, built, inputs, changed);
+  // An imported CSV may describe screenshots that are not present on this device.
+  next.hasImage = imagesChanged ? images.length > 0 : session.original.hasImage;
+  next.imageCount = imagesChanged ? images.length : session.original.imageCount;
+  if (imagesChanged) next.imageRevision = (Number(session.original.imageRevision) || 0) + 1;
+  async function persist() {
+    const currentIndex = records => {
+      const index = records.findIndex(r => r.id === session.original.id);
+      if (index < 0 || JSON.stringify(records[index]) !== JSON.stringify(session.original)) {
+        throw new Error("呢筆紀錄已變更或刪除。請取消並重新開啟。");
+      }
+      return index;
+    };
+    currentIndex(loadRecords());
+    if (imagesChanged) await putImages(next.id, images);
+    try {
+      const records = loadRecords();
+      const index = currentIndex(records);
+      records[index] = next;
+      saveRecords(records);
+    } catch (error) {
+      if (imagesChanged) await putImages(next.id, session.images);
+      throw error;
+    }
+  }
+  session.saving = true;
+  $("fullEditFormHost").inert = true;
+  try {
+    if (navigator.locks) await navigator.locks.request(STORAGE_KEY + ":fullEdit", persist);
+    else await persist();
+  } catch (error) {
+    showToast("儲存失敗：" + error.message);
+    return;
+  } finally {
+    session.saving = false;
+    $("fullEditFormHost").inert = false;
+  }
+  leaveFullEditor();
+  $("recordDialog").close();
+  renderHistory();
+  showToast("已更新原有紀錄");
+}
+
+function collectDecisionRecord(recordId, symbol, tradeDate, euOpr, researchOnly, timeToRFMinutes) {
   const profitRValue =
     profitRForEntryStatus(
       $("entryStatus").value,
@@ -11102,11 +11356,6 @@ async function saveDecision(event) {
       currentAsia2B
     );
 
-  const recordId =
-    crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random()}`;
-
   const selectedOprContext = $("hsiOprDirectionContext").value;
   // A neutral range can be observed even on a draft or rejected candidate.
   const oprDirectionContext = currentAsia2B.setupVariant === "oprContinuation" &&
@@ -11119,7 +11368,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.50",
+      "PracticeJournal-V1.30.51",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r45",
     matrixVersion:
@@ -11653,6 +11902,65 @@ async function saveDecision(event) {
 
   Object.assign(record, v15ReadBrokenInputs(), v15ReadRunnerInputs());
   v15SaveSnapshot(record);
+  return record;
+
+}
+
+async function saveDecision(event) {
+  event.preventDefault();
+
+  const symbol =
+    $("symbol").value
+      .trim()
+      .toUpperCase();
+
+  if (!symbol) {
+    showToast("請選擇品種");
+    $("symbol").focus();
+    return;
+  }
+
+  const tradeDate = $("tradeDate").value;
+
+  const euOpr = euOprResearchConfig(setupTemplateCode(false));
+  const researchOnly = isResearchSetupSelected();
+  if (researchOnly && recordMode() === "Live") {
+    showToast(`${euOpr ? EU_OPR_FAMILY : US100_MARKET}只限Practice／Review／Shadow，唔可儲存Live Production`);
+    return;
+  }
+
+  if (!tradeDate) {
+    showToast("請選擇交易日期");
+    $("tradeDate").focus();
+    return;
+  }
+  if (euOpr) recalculate();
+
+  const timeToRFMinutes =
+    durationMinutesFromInput(
+      "timeToRF"
+    );
+
+  if (
+    Number.isNaN(
+      timeToRFMinutes
+    )
+  ) {
+    showToast(
+      "Time to RF格式錯誤；請輸入例如11H45M、2H或45M"
+    );
+    $("timeToRF").focus();
+    return;
+  }
+
+  const recordId = fullEdit?.original.id || (crypto.randomUUID
+    ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+  const record = collectDecisionRecord(recordId, symbol, tradeDate, euOpr, researchOnly, timeToRFMinutes);
+  if (fullEdit) {
+    await commitFullEdit(record);
+    return;
+  }
+  record.formExtras = decisionExtras(record, decisionInputs());
 
   const records = loadRecords();
   records.unshift(record);
@@ -14290,6 +14598,8 @@ async function openRecord(recordId) {
     recordId
   );
 
+  detailInputsAtOpen = JSON.stringify(captureControls($("recordDialog")));
+  detailImagesAtOpen = editingImageBlobs.slice();
   $("recordDialog")
     .showModal();
 }
@@ -14453,6 +14763,7 @@ async function saveRecordEdit() {
 
   if (index === -1) return;
 
+  const originalInputs = inputsFromRecord(records[index]);
   const editedSymbol =
     $("editSymbol").value
       .trim()
@@ -14646,6 +14957,12 @@ async function saveRecordEdit() {
 
   Object.assign(records[index],v15ReadBrokenInputs(true),v15ReadRunnerInputs(true));
   v15SaveSnapshot(records[index]);
+  if (records[index].formExtras) {
+    const updated = inputsFromRecord(records[index]);
+    for (const key of Object.keys(records[index].formExtras)) {
+      if (originalInputs[key] !== updated[key]) delete records[index].formExtras[key];
+    }
+  }
   saveRecords(records);
   $("recordDialog").close();
   clearRecordImageDisplay();
@@ -15419,7 +15736,7 @@ function buildCsv(records) {
 
   headers.push("Market Research Status", ...US100_RESEARCH_FIELD_MAP.map(([, column]) => column));
   headers.push(...V15_BROKEN_FIELDS.map(([, column])=>column),...V15_CSV_FIELDS.map(([,column])=>column));
-  headers.push(...EU_OPR_RESEARCH_FIELD_MAP.map(([, column]) => column));
+  headers.push(...EU_OPR_RESEARCH_FIELD_MAP.map(([, column]) => column), "Rulebook Input Overrides");
   rows.forEach((row, index) => {
     const record = records[index];
     row.push(recordResearchStatus(record));
@@ -15436,6 +15753,22 @@ function buildCsv(records) {
     for (const [field] of EU_OPR_RESEARCH_FIELD_MAP) {
       row.push(euOprResearchForRecord(record) ? record[field] ?? "" : "");
     }
+    // The readable CSV omits some inactive values (e.g. Working State when Gap is off).
+    // Retain only the extra source inputs its regular columns cannot reconstruct.
+    if (record.formExtras) {
+      const csvRow = Object.fromEntries(row.map((value, i) => [headers[i], String(value ?? "")]));
+      const reconstructed = inputsFromRecord(recordFromCsvRow(csvRow));
+      const original = inputsFromRecord(record);
+      const extras = { ...record.formExtras };
+      for (const field of formControls($("decisionForm"))) {
+        const key = field.name || field.id;
+        if (autoInputIds.has(key) || Object.hasOwn(extras, key) || original[key] == null) continue;
+        if (String(original[key]) !== String(reconstructed[key] ?? "")) {
+          extras[key] = field.type === "checkbox" ? original[key] === true || original[key] === "Yes" : String(original[key]);
+        }
+      }
+      row.push(JSON.stringify(extras));
+    } else row.push("");
   });
 
   return [headers, ...rows]
@@ -16471,6 +16804,7 @@ function recordFromCsvRow(row) {
     );
 
   return {
+    ...importDecisionExtras(firstCsvValue(row, "Rulebook Input Overrides")),
     id:
       String(
         firstCsvValue(
@@ -20576,6 +20910,21 @@ function handleRecordDialogBackdropClick(
 }
 
 function setupEvents() {
+  for (const link of $("rulebookQuickNav").querySelectorAll("[data-scroll-target]")) {
+    const target = $(link.getAttribute("data-scroll-target"));
+    if (target && !target.hidden) $("fullEditSection").add(new Option(link.textContent, target.id));
+  }
+  $("fullEditSection").addEventListener("change", () => {
+    const target = $("fullEditSection").value;
+    if (target) $(target).scrollIntoView({block: "start"});
+    $("fullEditSection").value = "";
+  });
+  $("openFullEdit").addEventListener("click", openFullEditor);
+  $("cancelFullEdit").addEventListener("click", cancelFullEditor);
+  $("fullEditDialog").addEventListener("cancel", event => {
+    event.preventDefault();
+    cancelFullEditor();
+  });
   $("liveMarketCode")
     .addEventListener(
       "change",

@@ -1671,3 +1671,14 @@ dialog::backdrop {
   .research-bottom-area .research-collapse > summary { padding: 10px 12px; }
   .research-bottom-area .research-collapse-body { padding: 0 10px 10px; }
 }
+
+#fullEditDialog { width: min(96vw, 840px); padding-top: 0; }
+.full-edit-bar {
+  position: sticky; top: 0; z-index: 3; background: var(--card);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.full-edit-bar strong { flex: 1 1 150px; }
+.full-edit-bar button { width: auto; }
+#fullEditFormHost .card { margin-bottom: 12px; }
+#fullEditFormHost .rulebook-anchor { scroll-margin-top: 6rem; }
