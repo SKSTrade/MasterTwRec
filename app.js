@@ -232,6 +232,7 @@ const US100_RESEARCH_STATUS = "Research / Shadow";
 const US100_PRODUCTION_STATUS = "Production";
 const US100_RESEARCH_FIELD_MAP = Object.freeze([
   ["us100FullPremarketSwept", "US100 Full Premarket H/L Swept"],
+  ["us100CFullPremarketDirectionalBreak", "US100-C Full Premarket H/L Broken With Trade Direction"],
   ["us100PorWidthPoints", "US100 POR Width (Points)"],
   ["us100PorSweepSequence", "US100 POR Sweep Sequence"],
   ["us100MinutesFromCashOpen", "US100 Time from Cash Open to Entry (Min)"],
@@ -252,7 +253,7 @@ const US100_RESEARCH_FIELD_MAP = Object.freeze([
   ["us100OprTrendAligned", "US100-C Main Effective Secondary Aligned"],
 ]);
 const US100_OPTION_FIELDS = new Set([
-  "us100FullPremarketSwept", "us100PorSweepSequence",
+  "us100FullPremarketSwept", "us100CFullPremarketDirectionalBreak", "us100PorSweepSequence",
   "us100MajorNews0830", "us100OpeningGapDirection", "us100News1000"
 ]);
 const US100_NUMERIC_FIELDS = new Set([
@@ -261,6 +262,7 @@ const US100_NUMERIC_FIELDS = new Set([
 ]);
 const US100_OPTION_VALUES = Object.freeze({
   us100FullPremarketSwept: ["Yes", "No", "N/A"],
+  us100CFullPremarketDirectionalBreak: ["Yes", "No", "N/A"],
   us100PorSweepSequence: ["High Only", "Low Only", "High → Low", "Low → High", "N/A"],
   us100MajorNews0830: ["None", "CPI", "NFP", "PPI", "Other", "Unknown"],
   us100OpeningGapDirection: ["Gap Up", "Gap Down", "Flat", "N/A"],
@@ -392,6 +394,13 @@ function us100ResearchInputs(prefix = "") {
     data.us100OprWindowComplete = checked("hsiOprWindowComplete") ? "Yes" : "";
     data.us100OprAfter0930 = checked("hsiOprAfter0930") ? "Yes" : "";
     data.us100OprTrendAligned = checked("hsiOprTrendAligned") ? "Yes" : "";
+  }
+  // The two Full Premarket classifications are mutually exclusive by setup.
+  // For a new C record, the older Sweep field is not applicable. For edits,
+  // preserve any historical value in the hidden field rather than deleting it.
+  if (!prefix) {
+    if (setupTemplateCode(false) === US100_SETUP_C) data.us100FullPremarketSwept = "N/A";
+    else data.us100CFullPremarketDirectionalBreak = "";
   }
   data.us100SessionETDate = $(prefix ? "editTradeDate" : "tradeDate").value;
   // Minutes are the only editable source. The ET time is always derived from them.
@@ -528,6 +537,8 @@ function updateUs100SetupVisibility(prefix = "") {
   const code = edit ? (loadRecords().find(r => r.id === activeRecordId)?.setupTemplate || "") : setupTemplateCode(false);
   const isC = active && code === US100_SETUP_C;
   if (edit) $("editUs100OprContractFields")?.classList.toggle("hidden", !isC);
+  $(edit ? "editUs100FullPremarketSweepRow" : "us100FullPremarketSweepRow")?.classList.toggle("hidden", isC);
+  $(edit ? "editUs100FullPremarketDirectionalBreakRow" : "us100FullPremarketDirectionalBreakRow")?.classList.toggle("hidden", !isC);
   const familyText = $(edit ? "editUs100SetupFamilyStatus" : "us100SetupFamilyStatus");
   if (familyText) familyText.textContent = !active ? "" : isC ? "US100-C｜09:15–09:30 ET OPR（獨立於POR）" :
     code === US100_SETUP_POR ? "US100-POR｜EU-A同款開市後2B｜08:30–09:30 ET Primary POR；09:30後首次Sweep（Research）" :
@@ -11108,7 +11119,7 @@ async function saveDecision(event) {
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.49",
+      "PracticeJournal-V1.30.50",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r45",
     matrixVersion:
@@ -12515,6 +12526,7 @@ function us100ResearchSetupView(records, view) {
 function us100ResearchFiltersMatch(record) {
   const pairs = [
     ["researchFilterPremarket", "us100FullPremarketSwept"],
+    ["researchFilterPremarketDirectionalBreak", "us100CFullPremarketDirectionalBreak"],
     ["researchFilter0830News", "us100MajorNews0830"],
     ["researchFilterGap", "us100OpeningGapDirection"],
     ["researchFilter1000News", "us100News1000"]
@@ -12526,7 +12538,10 @@ function us100ResearchFiltersMatch(record) {
   if (!anyFilters) return true;
   if (!isUs100Record(record)) return false;
   for (const [id, field] of pairs) {
-    if ($(id).value && us100ResearchText(record, field) !== $(id).value) return false;
+    if (!$(id).value) continue;
+    if (field === "us100FullPremarketSwept" && isUs100CRecord(record)) return false;
+    if (field === "us100CFullPremarketDirectionalBreak" && !isUs100CRecord(record)) return false;
+    if (us100ResearchText(record, field) !== $(id).value) return false;
   }
   for (const [id, field, limit] of [
     ["researchFilterMinutesMin", "us100MinutesFromCashOpen", "min"],
@@ -12644,6 +12659,7 @@ function renderV15Analytics(records) {
   const groups=new Map();
   for(const record of records){
     if(group==="oprDirectionContext"&&!oprContinuationFamily(record))continue;
+    if(group==="us100CFullPremarketDirectionalBreak"&&!isUs100CRecord(record))continue;
     const shadow=v15Snapshot(record);
     if(triggerFilter==="s1"&&!shadow.v15S1Trigger)continue;
     if(triggerFilter==="s2"&&!shadow.v15S2Trigger)continue;
@@ -13530,7 +13546,10 @@ async function openRecord(recordId) {
       <h3>US100｜Research / Shadow（Simulation only）</h3>
       <strong>美東Session日期：</strong>${escapeHtml(us100ResearchText(record, "us100SessionETDate"))}<br>
       <strong>Entry Time ET：</strong>${escapeHtml(us100ResearchText(record, "us100EntryTimeET"))}<br>
-      ${US100_RESEARCH_FIELD_MAP.filter(([field]) => !["us100SessionETDate", "us100EntryTimeET", "us100PorHighPoints", "us100PorLowPoints", "us100PorWidthPoints", "us100PorSweepSequence", "us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"].includes(field))
+      ${US100_RESEARCH_FIELD_MAP.filter(([field]) =>
+        !["us100SessionETDate", "us100EntryTimeET", "us100PorHighPoints", "us100PorLowPoints", "us100PorWidthPoints", "us100PorSweepSequence", "us100OprHighPoints", "us100OprLowPoints", "us100OprWidthPoints"].includes(field) &&
+        (field !== "us100FullPremarketSwept" || !isUs100CRecord(record)) &&
+        (field !== "us100CFullPremarketDirectionalBreak" || isUs100CRecord(record)))
         .map(([field, column]) => `<strong>${escapeHtml(column)}：</strong>${escapeHtml(us100ResearchText(record,field))}<br>`).join("")}
     </section>` : "";
   const euOprDetails = euOpr ? `

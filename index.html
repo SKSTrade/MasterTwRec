@@ -19,7 +19,7 @@
       <h1>Master Trade System</h1>
       <p class="header-subtitle">All-Market Matrix｜HSI／UK100／GER40／FX／XAU</p>
     </div>
-    <span class="version-badge">V1.30.49</span>
+    <span class="version-badge">V1.30.50</span>
   </header>
 
   <nav class="tab-bar" aria-label="主要頁面">
@@ -1357,8 +1357,18 @@
 <div class="principle-box"><strong>Primary POR：08:30 ≤ ET Time &lt; 09:30</strong><span>Full Premarket：04:00 ≤ ET Time &lt; 09:30；POR / Full Premarket唔係新E Source。</span></div>
 <p id="us100PorSchedule" class="state-note">請選擇美東Session交易日期。</p><p class="state-note" id="us100SetupFamilyStatus"></p>
 <div class="us100-research-grid">
-  <label>Full Premarket H/L Swept before Entry?
+  <label id="us100FullPremarketSweepRow">Full Premarket H/L Swept before Entry?（US100-POR／普通 Sweep）
+
     <select id="us100FullPremarketSwept"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option></select>
+
+  </label>
+
+  <label id="us100FullPremarketDirectionalBreakRow" class="hidden">US100-C｜順交易方向突破 Full Premarket H/L？
+
+    <select id="us100CFullPremarketDirectionalBreak"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option></select>
+
+    <span class="state-note">Long：突破04:00–09:30 ET Full Premarket High；Short：跌穿同一時段 Low。只記錄 Entry 前已確認嘅突破；純研究欄位，不影響交易資格或 Size。</span>
+
   </label>
   <div class="us100-inline-group">
     <label>Time from Cash Open to Entry (Min)
@@ -1739,6 +1749,7 @@
               <option value="all">All</option><option value="backtestPeriod">Backtest Period（半年）</option>
               <option value="symbol">Instrument</option><option value="marketCode">Market Category</option><option value="setupFamily">Setup Family</option>
               <option value="oprDirectionContext">OPR Direction Context｜按 Setup 分組</option>
+              <option value="us100CFullPremarketDirectionalBreak">US100-C｜順勢突破 Full Premarket H/L</option>
               <option value="rawP">Raw P</option><option value="p3Context">P3 Context</option><option value="executionP">Execution P</option>
               <option value="nativeQ">Native Q</option><option value="q2Subtype">Q2 Subtype</option>
               <option value="mainState">Main State</option><option value="secondaryState">Original Secondary</option>
@@ -1845,8 +1856,11 @@
           <summary>US100 Research Filters｜Setup、News、Gap、時間</summary>
           <div class="filter-grid us100-research-filter-grid">
             <label>Setup／合併研究視圖<select id="researchFilterSetupView"><option value="all-dedup">All US100 Research｜Deduplicated</option><option value="por">US100-POR Only</option><option value="opr">US100-C Only</option><option value="structure">US100｜普通結構Sweep Only</option><option value="legacy">Legacy US100（舊分類）</option></select></label>
-            <label>Full Premarket Swept
+            <label>Full Premarket Swept（非US100-C）
               <select id="researchFilterPremarket"><option value="">All</option><option>Yes</option><option>No</option><option>N/A</option><option value="Missing">Missing</option></select>
+            </label>
+            <label>US100-C｜順勢突破 Full Premarket H/L
+              <select id="researchFilterPremarketDirectionalBreak"><option value="">All</option><option>Yes</option><option>No</option><option>N/A</option><option value="Missing">Missing</option></select>
             </label>
             <label>Open→Entry ≥ Min<input id="researchFilterMinutesMin" type="number" step="any" placeholder="Any"></label>
             <label>Open→Entry ≤ Min<input id="researchFilterMinutesMax" type="number" step="any" placeholder="Any"></label>
@@ -2237,8 +2251,18 @@
     </div>
   </details>
   <div class="us100-research-grid">
-    <label>Full Premarket H/L Swept before Entry?
+    <label id="editUs100FullPremarketSweepRow">Full Premarket H/L Swept before Entry?（US100-POR／普通 Sweep）
+
       <select id="editUs100FullPremarketSwept"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option></select>
+
+    </label>
+
+    <label id="editUs100FullPremarketDirectionalBreakRow" class="hidden">US100-C｜順交易方向突破 Full Premarket H/L？
+
+      <select id="editUs100CFullPremarketDirectionalBreak"><option value="">Missing｜未記錄</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option></select>
+
+      <span class="state-note">Long：突破04:00–09:30 ET Full Premarket High；Short：跌穿同一時段 Low。只記錄 Entry 前已確認嘅突破；純研究欄位，不影響交易資格或 Size。</span>
+
     </label>
     <div class="us100-inline-group">
       <label>Time from Cash Open to Entry (Min)
