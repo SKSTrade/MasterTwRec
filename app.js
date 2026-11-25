@@ -11144,17 +11144,23 @@ function restoreDecisionInputs(values) {
 function sameImages(left, right) {
   return left.length === right.length && left.every((blob, i) => blob === right[i]);
 }
-async function openFullEditor() {
-  const record = loadRecords().find(r => r.id === activeRecordId);
+let fullEditorRequest = 0;
+async function openFullEditor(recordId) {
+  const record = loadRecords().find(r => r.id === recordId);
   if (!record || fullEdit) return;
-  const quickChanged = JSON.stringify(captureControls($("recordDialog"))) !== detailInputsAtOpen ||
-    !sameImages(editingImageBlobs, detailImagesAtOpen);
-  if (quickChanged && !confirm("快速編輯有未儲存修改。要用已儲存版本開啟完整編輯嗎？")) return;
-  const button = $("openFullEdit");
-  button.disabled = true;
+  const detailDialog = $("recordDialog");
+  const fromDetails = detailDialog.open;
+  if (fromDetails) {
+    const changed = JSON.stringify(captureControls(detailDialog)) !== detailInputsAtOpen ||
+      !sameImages(editingImageBlobs, detailImagesAtOpen);
+    if (changed && !confirm("快速編輯有未儲存修改。要用已儲存版本開啟完整編輯嗎？")) return;
+  }
+  const request = ++fullEditorRequest;
+  activeRecordId = recordId;
   try {
-    const images = await getImages(record.id);
-    if (activeRecordId !== record.id || !$("recordDialog").open) return;
+    const images = await getImages(recordId);
+    if (request !== fullEditorRequest || fullEdit || historySelectionMode ||
+        !$("history").classList.contains("active") || (fromDetails && !detailDialog.open)) return;
     const form = $("decisionForm");
     fullEdit = {
       original: record, images, imageJobs: 0, draft: decisionInputs(), draftImages: pendingImageBlobs,
@@ -11183,13 +11189,15 @@ async function openFullEditor() {
     renderPendingImageGallery();
     restoreDecisionInputs({...inputsFromRecord(record), ...record.formExtras});
     fullEdit.initialInputs = decisionInputs();
+    if (fromDetails) detailDialog.close();
     $("fullEditDialog").showModal();
     $("fullEditDialog").scrollTop = 0;
   } catch (error) {
+    if (request !== fullEditorRequest) return;
     if (fullEdit) leaveFullEditor();
     console.error("Full edit open failed", error);
     alert("未能載入完整紀錄，請重新開啟。");
-  } finally { button.disabled = false; }
+  }
 }
 function leaveFullEditor() {
   const session = fullEdit;
@@ -11320,7 +11328,6 @@ async function commitFullEdit(built) {
     $("fullEditFormHost").inert = false;
   }
   leaveFullEditor();
-  $("recordDialog").close();
   renderHistory();
   showToast("已更新原有紀錄");
 }
@@ -11368,7 +11375,7 @@ function collectDecisionRecord(recordId, symbol, tradeDate, euOpr, researchOnly,
     createdAt:
       new Date().toISOString(),
     appVersion:
-      "PracticeJournal-V1.30.51",
+      "PracticeJournal-V1.30.52",
     engineVersion:
       "MasterTradeMatrix-V1.4-ProductionShadow-2026-10-r45",
     matrixVersion:
@@ -13024,6 +13031,21 @@ function clearHistoryFilters() {
   renderHistory();
 }
 
+function historyQualityLabel(record) {
+  const grade = [record.nativeQ, record.baseTrigger, record.trigger]
+    .map(value => String(value || "").trim().toUpperCase())
+    .find(value => /^Q[123]$/.test(value));
+  if (!grade) return "Q 未記錄";
+  if (grade !== "Q2") return grade;
+  const label = String(record.q2Subtype || "").trim();
+  if (/^Q2[-－]/i.test(label)) return label;
+  if (Array.isArray(record.q2SubtypeCodes)) {
+    const codes = record.q2SubtypeCodes.filter(code => typeof code === "string" && code.trim());
+    if (codes.length) return "Q2-" + codes.join("+");
+  }
+  return label && !/^(N\/A|Q2|未記錄)$/i.test(label) ? "Q2-" + label : grade;
+}
+
 function renderHistory() {
   const allRecords = loadRecords();
   const researchScope = $("historyResearchScope").value;
@@ -13555,9 +13577,8 @@ function renderHistory() {
               record.entryStatus || "未分類"
             )}</span>
             ${!isProductionRecord(record) ? `<span class="history-tag">${euOprResearchForRecord(record) ? "EU-C｜" : ""}Research / Shadow｜Size Simulated</span>` : ''}
-            <span class="history-tag">${escapeHtml(
-              record.trigger || "未記錄"
-            )}</span>
+            ${record.trigger && record.nativeQ && record.trigger !== record.nativeQ
+              ? `<span class="history-tag">Setup 後 ${escapeHtml(record.trigger)}</span>` : ""}
             ${triggerModelTag}
             ${twoBTag}
             ${engineTag}
@@ -13586,6 +13607,7 @@ function renderHistory() {
               record.basePosition ||
               ""
             )}
+            ｜<strong title="Native Q">${escapeHtml(historyQualityLabel(record))}</strong>
             ｜最終${escapeHtml(
               safeSizeLabel(
                 record.finalSize
@@ -13623,7 +13645,7 @@ function renderHistory() {
           return;
         }
 
-        openRecord(recordId);
+        return openFullEditor(recordId);
       };
 
       card.addEventListener(
@@ -13642,7 +13664,7 @@ function renderHistory() {
           }
 
           event.preventDefault();
-          activateCard();
+          return activateCard();
         }
       );
     });
@@ -13781,25 +13803,7 @@ function handleImageLightboxBackdropClick(
   }
 }
 
-async function displayRecordImage(
-  recordId
-) {
-  clearRecordImageDisplay();
-
-  try {
-    editingImageBlobs =
-      await getImages(recordId);
-
-    renderRecordImageGallery();
-  } catch (error) {
-    console.error(
-      "Image read failed:",
-      error
-    );
-  }
-}
-
-async function openRecord(recordId) {
+function openRecord(recordId, images) {
   const allRecords =
     loadRecords();
 
@@ -14594,9 +14598,9 @@ async function openRecord(recordId) {
   $("editNote").value =
     record.note || "";
 
-  await displayRecordImage(
-    recordId
-  );
+  clearRecordImageDisplay();
+  editingImageBlobs = images.slice();
+  renderRecordImageGallery();
 
   detailInputsAtOpen = JSON.stringify(captureControls($("recordDialog")));
   detailImagesAtOpen = editingImageBlobs.slice();
@@ -20919,7 +20923,16 @@ function setupEvents() {
     if (target) $(target).scrollIntoView({block: "start"});
     $("fullEditSection").value = "";
   });
-  $("openFullEdit").addEventListener("click", openFullEditor);
+  $("openFullEdit").addEventListener("click", () => openFullEditor(activeRecordId));
+  $("viewSavedDetail").addEventListener("click", () => {
+    if (!fullEdit || fullEdit.saving || fullEdit.imageJobs) return;
+    const changed = JSON.stringify(decisionInputs()) !== JSON.stringify(fullEdit.initialInputs) ||
+      !sameImages(pendingImageBlobs, fullEdit.images);
+    if (changed && !confirm("要放棄未儲存修改，查看已儲存嘅紀錄詳情嗎？")) return;
+    const { original, images } = fullEdit;
+    leaveFullEditor();
+    return openRecord(original.id, images);
+  });
   $("cancelFullEdit").addEventListener("click", cancelFullEditor);
   $("fullEditDialog").addEventListener("cancel", event => {
     event.preventDefault();

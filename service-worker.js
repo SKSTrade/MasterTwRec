@@ -1,4 +1,4 @@
-const CACHE_NAME = "master-trade-system-v1-30-51-full-edit";
+const CACHE_NAME = "master-trade-system-v1-30-52-direct-edit-q";
 const ASSETS = [
   "./",
   "./index.html",
